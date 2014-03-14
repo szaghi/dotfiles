@@ -1,54 +1,99 @@
-# ~/.bash_welcome
-
-cb="\e[38;5;110m"
-co="\e[38;5;208m"
-cy="\e[38;5;220m"
-cc="\e[m"
-
-os=`grep -i description /etc/*release* | awk -F = '{print $2}' | sed 's/"//g'`
-kernel=`uname -r`
-arch=`uname -m`
-#ip=`ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}'`
-ip=`host zaghi | awk -F " address " '{print $2}'`
-ds_size=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $2;} END {print sum;}');
-ds_size_gb=$(echo "scale=2; $ds_size/(1024^2)" | bc)
-ds_avail=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $4;} END {print sum;}')
-ds_avail_gb=$(echo "scale=2; $ds_avail/(1024^2)" | bc)
-ds_avail_pc=$(echo "scale=3; $ds_avail/$ds_size*100" | bc)
-ds_used=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $3;} END {print sum;}');
-ds_used_gb=$(echo "scale=2; $ds_used/(1024^2)" | bc)
-ds_used_pc=$(echo "scale=3; $ds_used/$ds_size*100" | bc)
-cpu_model=`cat /proc/cpuinfo | grep -i "model name" | tail -n 1 | awk -F : '{print $2}' | sed 's/  */ /g' | sed 's/^ //'`
-cpus=`cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l`
-cores=`cat /proc/cpuinfo | grep "siblings" | tail -n 1 | awk '{print $3}'`
-mem=`grep MemTotal /proc/meminfo | awk '{print $2}'`
-mem_gb=$(echo "scale=2; $mem/(1024^2)" | bc)
-mem_free=`cat /proc/meminfo | grep MemFree | awk '{print $2}'`
-mem_free_gb=$(echo "scale=2; $mem_free/(1024^2)" | bc)
-mem_used_gb=$(echo "scale=2; $mem_gb - $mem_free_gb" | bc)
-
-echo
-echo -e "${co}"'               ____                                 '"${cc}""${co}"' OS: '"${cy}"$os"${cc}"
-echo -e "${co}"'                /___.`--.____ .--. ____.--(         '"${cc}""${co}"'  Kernel: '"${cy}"$kernel"${cc}"
-echo -e "${cb}"'                       .^_.- (    ) -._^.           '"${cc}""${co}"'  Architecture: '"${cy}"$arch"${cc}"
-echo -e "${cb}"'                     .^.^    |^..^|    ^.^.         '"${cc}""${co}"' Disk size: '"${cy}"$ds_size_gb' [GB]'"${cc}"
-echo -e "${cb}"'              .-.  .^ /^--.__|____|__.--^\ ^.  .-.  '"${cc}""${co}"'  Disk used: '"${cy}"$ds_used_gb' [GB] '$ds_used_pc'%'"${cc}"
-echo -e "${cb}"'             (O).)-| |  \    |    |    /  | |-(.(O) '"${cc}""${co}"'  Disk available: '"${cy}"$ds_avail_gb' [GB] '$ds_avail_pc'%'"${cc}"
-echo -e "${cb}"'              `-^  ^-^-._^-./      \.-^_.-^-^  `-^  '"${cc}""${co}"' Processor: '"${cy}"$cpu_model"${cc}"
-echo -e        '                 _ | |   ^-.________.-^   | | _    '       "${co}"'  #CPUs: '"${cy}"$cpus"${cc}${co}"' #COREs/CPU: '"${cc}${cy}"$cores"${cc}"
-echo -e        '              .^ _ | |  ||||'"${cy}"'   __   '"${cc}"'||||  | | _ ^.  '"${co}"' RAM: '"${cy}"$mem_gb' [GB]'"${cc}${co}"' Free: '"${cc}${cy}"$mem_free_gb' [GB]'"${cc}${co}"' Used: '"${cc}${cy}"$mem_used_gb' [GB]'"${cc}"
-echo -e        '             / '"${cy}"'.^ ^^.'"${cc}"'|   |||'"${cy}"' /    \ '"${cc}"'|||   |'"${cy}"'.^^ ^.'"${cc}"' \ '"${co}"' IP: '"${cy}"$ip"${cc}"
-echo -e        '             | '"${cy}"'|( )| '"${cc}"'^.   ||'"${cy}"'|      |'"${cc}"'||   .^'"${cy}"' |( )|'"${cc}"' | '
-echo -e        '             \ '"${cy}"'^._.^ '"${cc}"'  ^.  |'"${cy}"' \    / '"${cc}"'|  .^  '"${cy}"' ^._.^'"${cc}"' / '
-echo -e        '              ^.__ ______^.|'"${cy}"'__^--^__'"${cc}"'|.^______ __.^                                      '
-echo -e "${co}"'             .^. '"${cc}"' |         '"${co}"'|------|'"${cc}"'         |  '"${co}"'.^.                   '"${cc}"
-echo -e "${co}"'            //\\\\'"${cc}"'  |         '"${co}"'|--::--|'"${cc}"'         |  '"${co}"'//\\\               '"${cc}"
-echo -e "${co}"'           //  \\\\'"${cc}"' |         '"${co}"'|--::--|'"${cc}"'         | '"${co}"'//  \\\              '"${cc}"
-echo -e "${co}"'          //    \\\\'"${cc}"'|        /'"${co}"'|--::--|'"${cc}"'\        |'"${co}"'//    \\\             '"${cc}"
-echo -e "${co}"'         / ^._.-^/'"${cc}"'|_______/ '"${co}"'|--::--|'"${cc}"' \_______|'"${co}"'\`-._.^ \               '"${cc}"
-echo -e "${co}"'        / __..--^'"${cc}"'        /__'"${co}"'|--::--|'"${cc}"'__\        '"${co}"'`--..__ \              '"${cc}"
-echo -e "${co}"'       / /'"${cc}"'               ^-.'"${co}"'|--::--|'"${cc}"'.-^               '"${co}"'\ \             '"${cc}"
-echo -e "${co}"'      / /'"${cc}"'                   '"${co}"'|--::--|'"${cc}"'                   '"${co}"'\ \            '"${cc}"
-echo -e "${co}"'     / /'"${cc}"'                    '"${co}"'|--::--|'"${cc}"'                    '"${co}"'\ \           '"${cc}"
-echo -e "${co}"' _.-^  `-._'"${cc}"'                 '"${co}"'_..||.._'"${cc}"'                  '"${co}"'_.-` ^-._       '"${cc}"
-echo -e "${co}"'^--..__..--^'"${cc}"'               '"${co}"'^-.____.-^'"${cc}"'                '"${co}"'^--..__..-^      '"${cc}"
+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

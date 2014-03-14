@@ -1,5 +1,2 @@
-#
-# ~/.bash_profile
-#
-
-[[ -f ~/.bashrc ]] && . ~/.bashrc
+U2FsdGVkX1+dmhxmWkg3Zp+hpDdI0puStLsQ1jkkW9GyykzzVsIrBUjfaw9Rl/dL
+vqjmyafGHQUdL+rEVc69KH8gT1DnQ0R8wi3uok7qGHc=

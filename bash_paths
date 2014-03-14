@@ -1,11 +1,4 @@
-# ~/.bash_paths
-source ~/scripts/pathmunge.sh
-
-# local path
-pathmunge . after
-
-# bin
-pathmunge ~/bin after
-
-# scripts
-pathmunge ~/scripts after
+U2FsdGVkX1+dmhxmWkg3Zjieh3HI7j8VpB1G1dDrdiY9ciV3RyVdtJmBylSoGrLY
+ROu3zQrfQjKPwuk5k2G3rxf5ApDcWwUcw5M8rV4xWlEHxPhjx/8G02AisraOx3Ei
+qK52GnJLMPANTZAxnmNT+WoOJYslvB8J7ajR5Gz/0cUxJbZl717B9eQ0KGvGZbJ1
+QvC+/8+8B1oY21wbWZOisEuceE9hPgo1frHYZfg9nVQ=

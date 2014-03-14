@@ -1,20 +1,12 @@
-# ~/.bash_compilers
-source ~/scripts/pathmunge.sh
-
-# intel parallel studio
-source /opt/arch/intel/advisor_xe/advixe-vars.sh > /dev/null 2>&1
-source /opt/arch/intel/bin/compilervars.sh intel64
-source /opt/arch/intel/inspector_xe/inspxe-vars.sh > /dev/null 2>&1
-source /opt/arch/intel/vtune_amplifier_xe/amplxe-vars.sh > /dev/null 2>&1
-
-# g95
-pathmunge /opt/arch/g95-x86-64-0.94/bin after
-
-# OpenMP
-OMP_NUM_THREADS=6
-export OMP_NUM_THREADS
-
-# mpi
-module load openmpi-1.6.5-intel
-
-export MANPATH LD_LIBRARY_PATH LD_RUN_PATH
+U2FsdGVkX1+dmhxmWkg3ZjbuBIc19rYc4LJCJsSyhlxsgDTzV3IB9U3RoxN5NTN7
+nOZ9CI9ZEExW52fibuUGakPlGkGDpSxY0ROLVSMdKbXE9c6aTE0M5F0P9hPwdNSP
+1LQdEMruSifJks4K+dT1SfrJiqcwlPJ46ShoXz6ZCREoCGewA4xZWXsQKv1XJFQF
+EX9KUd1zam7CpR4BtkawhBAqlvZ1r0eji0FvohFY1LEnTKqTc16kmuJ0VnJpTtwB
+yulktLJn7HfyquwEQgEie6ivN7I5yYzPt9bFrZ6OAXP9CjS10TOrwvkKARyOCM8P
+roRVvJGb+zNlM+oCE/i4NGmLEA3SMDsKP0VOXX67PUgkwc34uTa/NMzH1Q8cv5oj
+dGLqjEKnqtUZBe8l57Txj+tXChx5sBWuh3YoXHXwUulO1bAzdAmUh7Si/7bJfmuX
+lQ3fxD4eyAoCHcaSQh2aF4rrCpMqcir0N9f24tKCsE9tOk3PtYSJWNkQZJtYQC11
+jFWf5bVvFvoFpz5HJxl3ivx5JVxumQ87ugIGzDa6Z19Ygp4m6KtYDv93u08oRwu/
+N37cQeh1hj8N4KFK465ElU+RXXq7GxkAmuj+EqRn5YdckATyncz+wZJhPbqG1Zgr
+ublH0cCPF4z06ahidm2FU2+JHwhpv1BFzaSaD5KWUa+MK7+eSHEIZ9hVk5rGprqg
+xdsYyMyR98Z3MZSGZPokTQ==

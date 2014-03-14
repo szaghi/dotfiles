@@ -1,107 +1,63 @@
-# ~/.bash_aliases
-
-eval "`dircolors -b`"
-alias ls='ls --color=auto'
-alias ll='ls -lh'
-alias la='ls -A'
-alias l='ls -CF'
-alias lsUUID='sudo blkid'
-alias dir='ls --format=vertical'
-alias vdir='ls --format=long'
-alias cp='cp -i'
-alias rm='rm -i'
-alias mv='mv -i'
-alias cd..='cd ..'
-alias ..='cd ..'
-
-# ssh
-alias zwinprop1='ssh -X zaghi@winprop1.dma.uniroma1.it'
-alias pcprop1='ssh -X zaghi@pcprop1.dma.uniroma1.it'
-alias pcprop2='ssh -X zaghi@pcprop2.dma.uniroma1.it'
-alias pcprop3='ssh -X zaghi@pcprop3.dma.uniroma1.it'
-alias pcprop4='ssh -X zaghi@pcprop4.dma.uniroma1.it'
-alias pcprop6='ssh -X zaghi@pcprop6.dma.uniroma1.it'
-alias pcprop7='ssh -X zaghi@pcprop7.dma.uniroma1.it'
-alias pcprop8='ssh -X zaghi@pcprop8.dma.uniroma1.it'
-alias pcprop9='ssh -X zaghi@pcprop9.dma.uniroma1.it'
-alias pcprop10='ssh -X zaghi@pcprop10.dma.uniroma1.it'
-alias swinprop1='ssh -X sz1@winprop1.dma.uniroma1.it'
-alias insean-riccardo='ssh -X riccardo@usvp.insean.it'
-alias caspur-SP5_zaghi='ssh -X zaghi@man.caspur.it'
-alias caspur-SP5_insean02='ssh -X insean02@man.caspur.it'
-alias caspur-Matrix_insean01='ssh -X insean01@matrix.caspur.it'
-alias caspur-Matrix_insean02='ssh -X insean02@matrix.caspur.it'
-alias caspur-Matrix_zaghi='ssh -X zaghi@matrix.caspur.it'
-alias riccardo-xps='ssh -X riccardo@10.1.6.195'
-alias gummo='ssh -X stefano@gummo'
-alias zeppo='ssh -X stefano@zeppo'
-alias chico='ssh -X stefano@chico'
-alias groucho='ssh -X stefano@groucho'
-alias fermi='ssh -X szaghi00@login.fermi.cineca.it'
-alias plx='ssh -X szaghi00@login.plx.cineca.it'
-alias clusinsean='ssh -X stefano@cluster'
-alias ingv='ssh -X stefano.zaghi@ingv'
-
-# apt
-alias apt-update='sudo apt-get update'
-alias apt-upgrade='sudo apt-get upgrade'
-alias apt-install='sudo apt-get install'
-alias apt-remove='sudo apt-get remove'
-alias apt-purge='sudo apt-get purge'
-alias apt-search='sudo apt-cache search'
-
-# yaourt
-alias yaourt-update='yaourt -Syu ; yaourt -Su --aur'
-
-# make
-alias make='make -j 10'
-
-# bashcalc
-alias calc='sh ~/scripts/bashcalc.sh'
-
-# vim
-alias vim='vim --servername vimserver'
-
-# gvim
-alias gvim='gvim > /dev/null 2>&1'
-
-# gvimdiff
-alias gvimdiff='gvimdiff > /dev/null 2>&1'
-
-# okular
-alias okular='okular > /dev/null 2>&1'
-
-# evince
-alias evince='evince > /dev/null 2>&1'
-
-# gimp
-alias gimp='gimp > /dev/null 2>&1'
-
-# eog
-alias eog='eog > /dev/null 2>&1'
-
-# pida
-alias pida='pida > /dev/null 2>&1'
-
-# latexmk
-alias latexmk='latexmk -pdf'
-
-# pdflatex
-alias pdflatex='pdflatex -interaction=nonstopmode -halt-on-error'
-
-# git
-alias pushgithub-master='git push -u origin master'
-alias pushgithub-AMR='git push -u origin AMR'
-alias pushgithub-gh-pages='git push -u origin gh-pages'
-alias pushgithub-master-local='git push -u zaghi-local master'
-
-# gridgen
-alias gridgen='/opt/arch/pointwise/PointwiseV16.02R4/pointwise'
-
-# intel parallel studio
-alias vtune='amplxe-gui > /dev/null 2>&1'
-alias inspector='inspxe-gui > /dev/null 2>&1'
-alias advisor='advixe-gui > /dev/null 2>&1'
-
-# acroread
-alias acroread='acroread > /dev/null 2>&1'
+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

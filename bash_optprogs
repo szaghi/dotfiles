@@ -1,28 +1,14 @@
-# ~/.bash_optprogs
-source ~/scripts/pathmunge.sh
-
-# paraview
-#pathmunge /opt/ParaView/3.14.1/bin after
-#pathmunge /opt/ParaView/3.98.0/bin after
-
-# acroread
-export GTK_PATH=/usr/lib/gtk-2.0
-pathmunge /opt/arch/Adobe/Reader9/bin after
-
-# tecplot
-pathmunge /opt/arch/tecplot/2008/bin after
-TECPHYFILE=~/.Trash/tecplot.phy
-export TECPHYFILE
-
-## icemcfd
-#pathmunge /opt/ansys/14/v110/icemcfd/linux64_amd/bin after
-
-# gridgen
-pathmunge /opt/arch/pointwise/PointwiseV16.02R4/ after
-
-# vim-qt
-pathmunge /opt/arch/vim-qt/bin/ after
-
-# doxygen
-#pathmunge /opt/doxygen/1.7.6.1/bin after
-#pathmunge /opt/doxygen/1.8.4/bin after
+U2FsdGVkX1+dmhxmWkg3ZhhRrUF6Ol+tr13goDQMy4GJR40ViUPMosXQidn4SMnX
+C9DAud3XHmStjC6pp/vS9D+HOY9VMqeOHEDqlTgBSb6N/V9JGun77srlPPh3lc4X
+4vziVMcP2C5Nqm8EQ6y6IevFfxqqG28CbXpcsQ+8XLen2gMgcRvx65AQ4AFIboud
+J1nfv7sSRfNBZFfw4P8Stak/9sU/4MjuJFOLxhpXIf0bLCdVbO2Yji6GqWfx3Goc
+xa+zZVaJQTNHUe/fzQmReC7CeoAYUdZ/Kx90WDSPP2zSVAcqEwY9aKwnvS+7JMWH
+VTAzzCTQA26KqK37MTsguPeKgknxWx/HKDHEp8Po49zr22Fvf/sJPR8kSreHilLe
+C0F9CCmltKMVrPY6lVNaXgFNQKevKi5Z0Mocc4cgubPnxOFgIg4OTnprOVp4rsk5
+O18X6VC/zj2ppr4oNBViriUwCa9U6UprS8PvjELj0oXofiNtiyfNiHLZbFnpi0CR
+7wger6sm3i6F2brASaooDcS0k0q7MkbBMLHLOml9UMuNLvLjWqbvMsfq//HpS/h5
+VWTbQUfJP0M6Z499KYBHetWFMkiEL0kfjnVBMPYv+lsXfxH4QJoAj5IEjCXLe3GX
+BP4UK/xgO9KIsluJazOtICm50bvXwlNknswW72gRaahbRXs6hSOdcA5CARho4uP9
+fLtzsukaus6qgX0kpb62Niugd5xNmM1jzDuJemojNKoGDVXSarJjNVzk1lCmwyD0
+F4rcmeN9/mKkS7pO+eFNDO5hSURZFK2/nKq5+AE9NR3K2pIgUE5/Tc8kBZNWlrV8
+CITPmohR/HaxAV1M9d9fmA==
