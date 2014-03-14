@@ -1,13 +1,7 @@
-# dotfiles
-
-My personal configuration files repository
-
-## Description
-
-A simple repository where to backup my personal configuration files.
-
-Note that some files have been encrypted for protect my privacy.
-
-## Copyrights
-
-This repository is distributed under the [GPL v3](http://www.gnu.org/licenses/gpl-3.0.html).
+U2FsdGVkX1+dmhxmWkg3Zo7SqmZL02tULV5q2vQ9UmPVAhnYaz8cDXyaE0WbjpjD
+B7axntNLx8nbeXROMVr87T0RWGuuJ3mGWDIE/+n/hleghvcZucrHV6Mdebc27Oj6
+v8rO/yR92oeZIZAyqkOOD7I/rGJIM5JN8PnzKu0FBALVAhnYaz8cDXyaE0WbjpjD
+FIwRjMh0Uz/bjYzDc7O/sn6tBNKKmOJq/SpC0t8uk0wCz16iJGo1+etgB7TvXG4b
+Mn2zXCGdCeQLMVFtyF+ItmkGwXsPNYPDSdwC2SZJCHlk59yjYI1pWkTMTmrxqYnd
+WlCb5nnmhaJRWUXTf1zgDPB6XD0e1m9wYxIkyQ1OKODP5R3C4b/K6cU+IerI7z4L
+TpPaWHFYeiX7QuscmfurmdJPYcBoDCjmBU0uz17h4/rBfTMJ2k/WYW2ZGC7wLHiV
