@@ -1,0 +1,211 @@
+" Personal preference .vimrc file
+" Maintained by Stefano Zaghi <stefano.zaghi@gmail.com>
+
+" Use vim settings, rather then vi settings (much better!)
+" This must be first, because it changes other options as a side effect.
+set nocompatible
+
+" Use pathogen to easily modify the runtime path to include all plugins under
+" the ~/.vim/bundle directory
+filetype off                    " force reloading *after* pathogen loaded
+call pathogen#infect()
+filetype plugin indent on       " enable detection, plugins and indenting in one step
+
+" Editing behaviour {{{
+"set showmode                    " always show what mode we're currently editing in
+"let mapleader = "<SPACE>"
+set nowrap                      " don't wrap lines
+set tabstop=2                   " a tab is 2 spaces
+set softtabstop=2               " when hitting <BS>, pretend like a tab is removed, even if spaces
+set expandtab                   " expand tabs by default (overloadable per file type later)
+set shiftwidth=2                " number of spaces to use for autoindenting
+set shiftround                  " use multiple of shiftwidth when indenting with '<' and '>'
+set backspace=indent,eol,start  " allow backspacing over everything in insert mode
+set autoindent                  " always set autoindenting on
+set copyindent                  " copy the previous indentation on autoindenting
+set number                      " always show line numbers
+set showmatch                   " set show matching parenthesis
+set ignorecase                  " ignore case when searching
+set smartcase                   " ignore case if search pattern is all lowercase,
+                                "    case-sensitive otherwise
+set smarttab                    " insert tabs on the start of a line according to
+                                "    shiftwidth, not tabstop
+set scrolloff=4                 " keep 4 lines off the edges of the screen when scrolling
+set virtualedit=all             " allow the cursor to go in to "invalid" places
+set hlsearch                    " highlight search terms
+set incsearch                   " show search matches as you type
+"set gdefault                    " search/replace "globally" (on a line) by default
+set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·
+
+set nolist                      " don't show invisible characters by default,
+                                " but it is enabled for some file types (see later)
+set mouse=a                     " enable using the mouse if terminal emulator
+                                "    supports it (xterm does)
+set fileformats="unix,dos,mac"
+set formatoptions+=1            " When wrapping paragraphs, don't end lines
+                                "    with 1-letter words (looks stupid)
+" fix Vim’s horribly broken default regex handling: search uses standard
+" Perl/Python regex
+nnoremap / /\v
+vnoremap / /\v
+
+" Speed up scrolling of the viewport slightly
+nnoremap <C-e> 2<C-e>
+nnoremap <C-y> 2<C-y>
+" }}}
+
+" Folding rules {{{
+set foldenable                                                           " enable folding
+set foldcolumn=1                                                         " add a fold column
+set foldmethod=marker                                                    " detect triple-{ style fold markers
+set foldlevelstart=0                                                     " start out with everything folded
+set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo " which commands trigger auto-unfold
+" }}}
+
+" Editor layout {{{
+set termencoding=utf-8
+set encoding=utf-8
+set lazyredraw                     " don't update the display while executing macros
+set laststatus=2                   " tell VIM to always put a status line in, even
+                                   "    if there is only one window
+set cmdheight=2                    " use a status bar that is 2 rows high
+let g:indent_guides_guide_size = 1 " indent guides size set to 1
+" }}}
+
+" Vim behaviour {{{
+set hidden                      " hide buffers instead of closing them this
+                                "    means that the current buffer can be put
+                                "    to background without being written; and
+                                "    that marks and undo history are preserved
+set switchbuf=useopen           " reveal already opened files from the
+                                " quickfix window instead of opening new
+                                " buffers
+set nobackup                    " do not keep backup files, it's 70's style cluttering
+set noswapfile                  " do not write annoying intermediate swap files,
+                                "    who did ever restore from swap files anyway?
+set viminfo='20,\"80            " read/write a .viminfo file, don't store more
+                                "    than 80 lines of registers
+set wildmenu                    " make tab completion for files/buffers act like bash
+set wildmode=list:full          " show a list when pressing tab and complete
+                                "    first full match
+set title                       " change the terminal's title
+"set visualbell                  " don't beep
+set noerrorbells                " don't beep
+set showcmd                     " show (partial) command in the last line of the screen
+                                "    this also shows visual selection info
+set nomodeline                  " disable mode lines (security measure)
+"set cursorline                  " underline the current line, for quick orientation
+set diffopt+=iwhite             " ignoring trailing white spaces when doing diff
+set iskeyword+=:                " turn on the search of keyword
+" }}}
+
+" Highlighting and colors {{{
+if &t_Co > 2 || has("gui_running")
+   syntax on                    " switch syntax highlighting on, when the terminal has colors
+endif
+set background=dark
+colorscheme xoria256
+"colorscheme iceberg
+"colorscheme jellybeans
+"colorscheme noctu
+hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
+au syntax * cal rainbow#activate() " colored parantheses
+" }}}
+
+" Filetype specific handling {{{
+" Fortran tips {{{
+let fortran_fold=1
+let fortran_fold_conditionals=1
+" }}}
+" sh tips {{{
+let sh_fold_enabled=1
+" }}}
+" xml tips {{{
+let xml_syntax_folding=1
+" }}}
+" }}}
+
+" Autocommands stuffs {{{
+if has("autocmd")
+  " positiong the cursor to the last position before closing the file
+  autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+
+  " Don't screw up folds when inserting text that might affect them, until
+  " leaving insert mode. Foldmethod is local to the window.
+  autocmd InsertEnter * let w:last_fdm=&foldmethod | setlocal foldmethod=manual
+  autocmd InsertLeave * let &l:foldmethod=w:last_fdm
+
+  " Fortran tips {{{
+  let fortran = "$VIM/syntax/fortran.vim"
+  " associate *.inc file to fortran type
+  autocmd BufEnter,BufRead,BufNewFile *.inc :set syntax=fortran
+  " marking columns > 132 for free form
+  autocmd BufEnter,BufRead,BufNewFile *.F,*.FOR,*.FPP,*.F77,*.f,*.for,*.fortran,*.fpp,*.f77 let w:m2=matchadd('ErrorMsg', '\%>72v.\+', -1)
+  autocmd BufEnter,BufRead,BufNewFile *.F90,*.F95,*.F03,*.F08,*.f90,*.f95,*.f03,*.f08,*.inc let w:m2=matchadd('ErrorMsg', '\%>132v.\+', -1)
+  " fixing indent
+  autocmd BufEnter,BufRead,BufNewFile *.F,*.FOR,*.FPP,*.F77,*.f,*.for,*.fortran,*.fpp,*.f77 :set tw=72
+  autocmd BufEnter,BufRead,BufNewFile *.F90,*.F95,*.F03,*.F08,*.f90,*.f95,*.f03,*.f08,*.inc :set tw=132
+  " }}}
+
+  " programming tips {{{
+  " removing trailing space
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml autocmd BufWritePre <buffer> :%s/\s\+$//e
+  " condensing multiple blank lines into a single blank line
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
+  " set fold method to syntax
+  autocmd FileType fortran,make,sh,bash,c,cpp,tex,css,java,php,xml set foldmethod=syntax
+  autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2
+  " }}}
+
+  " latex tips {{{
+  let g:tex_flavor = 'latex'
+  let g:tex_nine_config = {
+        \'compiler': 'pdflatex',
+        \'viewer': {'app':'okular', 'target':'pdf'},
+      \}
+  let g:tex_fold_enabled = 1
+  " }}}
+
+  " pygdb tips {{{
+  "autocmd Filetype fortran,c,cpp :python import sys
+  "autocmd Filetype fortran,c,cpp :python import vim
+  "autocmd Filetype fortran,c,cpp :python pygdbdir = "home/stefano/pygdb"
+  "autocmd Filetype fortran,c,cpp :python sys.path.append(pygdbdir)
+  "autocmd Filetype fortran,c,cpp :python vim.command("source %s/pygdb.vim" % pygdbdir)
+  "autocmd Filetype fortran,c,cpp call GDBMapDefaults()
+  " }}}
+endif
+" }}}
+
+" Syntax checker {{{
+let g:syntastic_always_populate_loc_list = 1
+" }}}
+
+" Translators plugin {{{
+let g:goog_user_conf={'langpair': 'it|en'}
+
+let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
+" }}}
+
+" Shortcut mappings {{{
+" Remapping NERDCommenter
+map C <plug>NERDCommenterComment
+map X <plug>NERDCommenterToggle
+" Map Y do be analog of D
+map Y y$
+" wrap ON/OFF
+map <F2> :set wrap! wrap?<CR>
+" Taglist ON/OFF
+map <F3> :TlistToggle<CR>
+" Tagbar ON/OFF
+"map <F3> :TagbarToggle<CR>
+" NERDTree explorer
+map <F4> :NERDTree<CR>
+" Conque Shell
+let g:ConqueTerm_TERM = 'xterm-256color'
+map <F9> :ConqueTermSplit bash<CR>
+let g:ConqueTerm_InsertOnEnter = 1
+" File Pirate
+let g:filepirate_map_leader=0
+nmap <C-t> :python filepirate_open()<CR>
+" }}}

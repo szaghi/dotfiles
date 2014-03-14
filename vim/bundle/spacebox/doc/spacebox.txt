@@ -1,0 +1,39 @@
+*spacebox.txt*	Select a Visual block of indentation whitespace
+
+Author: glts <676c7473@gmail.com>
+License: Same terms as Vim itself (see |license|)
+
+DESCRIPTION						*spacebox*
+
+Spacebox allows you to select a Visual block of indentation whitespace based
+on the indentation of the current line.  In the following code fragment, when
+the cursor is resting on "200", |:SpaceBox| selects the Visual block marked by
+the middots. >
+
+    foreach my $q (@$questions) {
+	if ($q->answered()) {
+    ········my $upvotes = 0;
+    ········foreach (@{ $q->answers() }) { $upvotes += $_->upvotes() }
+    ········
+    ········push @good_answers, $q if $upvotes > 200;
+    
+	}
+    }
+
+As the example shows, blank lines (and their indentation whitespace) are
+included in the selection.  On the other hand, blank lines at the upper and
+lower boundaries of the block are not included.
+
+USAGE							*:SpaceBox*
+
+The spacebox plugin provides a single command which selects a block of
+indentation whitespace in blockwise Visual mode as explained above. >
+
+    :SpaceBox
+
+For ease of use, you might want to put a line similar to the following in your
+|vimrc|.  Then just hit "\w" to trigger |:SpaceBox|. >
+
+    nmap <Leader>w :SpaceBox<CR>
+<
+ vim:tw=78:ts=8:ft=help:norl:

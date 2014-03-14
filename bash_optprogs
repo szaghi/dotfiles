@@ -1,0 +1,28 @@
+# ~/.bash_optprogs
+source ~/scripts/pathmunge.sh
+
+# paraview
+#pathmunge /opt/ParaView/3.14.1/bin after
+#pathmunge /opt/ParaView/3.98.0/bin after
+
+# acroread
+export GTK_PATH=/usr/lib/gtk-2.0
+pathmunge /opt/arch/Adobe/Reader9/bin after
+
+# tecplot
+pathmunge /opt/arch/tecplot/2008/bin after
+TECPHYFILE=~/.Trash/tecplot.phy
+export TECPHYFILE
+
+## icemcfd
+#pathmunge /opt/ansys/14/v110/icemcfd/linux64_amd/bin after
+
+# gridgen
+pathmunge /opt/arch/pointwise/PointwiseV16.02R4/ after
+
+# vim-qt
+pathmunge /opt/arch/vim-qt/bin/ after
+
+# doxygen
+#pathmunge /opt/doxygen/1.7.6.1/bin after
+#pathmunge /opt/doxygen/1.8.4/bin after

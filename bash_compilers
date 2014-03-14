@@ -1,0 +1,20 @@
+# ~/.bash_compilers
+source ~/scripts/pathmunge.sh
+
+# intel parallel studio
+source /opt/arch/intel/advisor_xe/advixe-vars.sh > /dev/null 2>&1
+source /opt/arch/intel/bin/compilervars.sh intel64
+source /opt/arch/intel/inspector_xe/inspxe-vars.sh > /dev/null 2>&1
+source /opt/arch/intel/vtune_amplifier_xe/amplxe-vars.sh > /dev/null 2>&1
+
+# g95
+pathmunge /opt/arch/g95-x86-64-0.94/bin after
+
+# OpenMP
+OMP_NUM_THREADS=6
+export OMP_NUM_THREADS
+
+# mpi
+module load openmpi-1.6.5-intel
+
+export MANPATH LD_LIBRARY_PATH LD_RUN_PATH

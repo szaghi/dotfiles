@@ -1,0 +1,11 @@
+# ~/.bash_paths
+source ~/scripts/pathmunge.sh
+
+# local path
+pathmunge . after
+
+# bin
+pathmunge ~/bin after
+
+# scripts
+pathmunge ~/scripts after

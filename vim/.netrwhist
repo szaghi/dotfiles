@@ -1,0 +1,10 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =8
+let g:netrw_dirhist_1='/home/stefano/Fortran'
+let g:netrw_dirhist_2='/home/stefano/insean/projects/luna_rossa-2012/LunaRossa-Mesh/v2.0/Mesh/GRIDGEN/input'
+let g:netrw_dirhist_3='/home/stefano/insean/src/cfdshipiowa2xnavis/src'
+let g:netrw_dirhist_4='/home/stefano/fortran/Lib_VTK_IO'
+let g:netrw_dirhist_5='/backup/stefano/fortran/OFF/current/validation/speedup/kt-c05/ibm/output100x100'
+let g:netrw_dirhist_6='/home/stefano/papers/MATCOM-2012/upload-2'
+let g:netrw_dirhist_7='/home/stefano/insean/src/infocc/src'
+let g:netrw_dirhist_8='/data1/stefano/meshes/submotion2/Mesh/4-assetto/assetti/v2/complete'

@@ -1,0 +1,54 @@
+# ~/.bash_welcome
+
+cb="\e[38;5;110m"
+co="\e[38;5;208m"
+cy="\e[38;5;220m"
+cc="\e[m"
+
+os=`grep -i description /etc/*release* | awk -F = '{print $2}' | sed 's/"//g'`
+kernel=`uname -r`
+arch=`uname -m`
+#ip=`ifconfig | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}'`
+ip=`host zaghi | awk -F " address " '{print $2}'`
+ds_size=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $2;} END {print sum;}');
+ds_size_gb=$(echo "scale=2; $ds_size/(1024^2)" | bc)
+ds_avail=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $4;} END {print sum;}')
+ds_avail_gb=$(echo "scale=2; $ds_avail/(1024^2)" | bc)
+ds_avail_pc=$(echo "scale=3; $ds_avail/$ds_size*100" | bc)
+ds_used=$(df -x fuse.gvfs-fuse-daemon -h --block-size=1024 | awk '{sum += $3;} END {print sum;}');
+ds_used_gb=$(echo "scale=2; $ds_used/(1024^2)" | bc)
+ds_used_pc=$(echo "scale=3; $ds_used/$ds_size*100" | bc)
+cpu_model=`cat /proc/cpuinfo | grep -i "model name" | tail -n 1 | awk -F : '{print $2}' | sed 's/  */ /g' | sed 's/^ //'`
+cpus=`cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l`
+cores=`cat /proc/cpuinfo | grep "siblings" | tail -n 1 | awk '{print $3}'`
+mem=`grep MemTotal /proc/meminfo | awk '{print $2}'`
+mem_gb=$(echo "scale=2; $mem/(1024^2)" | bc)
+mem_free=`cat /proc/meminfo | grep MemFree | awk '{print $2}'`
+mem_free_gb=$(echo "scale=2; $mem_free/(1024^2)" | bc)
+mem_used_gb=$(echo "scale=2; $mem_gb - $mem_free_gb" | bc)
+
+echo
+echo -e "${co}"'               ____                                 '"${cc}""${co}"' OS: '"${cy}"$os"${cc}"
+echo -e "${co}"'                /___.`--.____ .--. ____.--(         '"${cc}""${co}"'  Kernel: '"${cy}"$kernel"${cc}"
+echo -e "${cb}"'                       .^_.- (    ) -._^.           '"${cc}""${co}"'  Architecture: '"${cy}"$arch"${cc}"
+echo -e "${cb}"'                     .^.^    |^..^|    ^.^.         '"${cc}""${co}"' Disk size: '"${cy}"$ds_size_gb' [GB]'"${cc}"
+echo -e "${cb}"'              .-.  .^ /^--.__|____|__.--^\ ^.  .-.  '"${cc}""${co}"'  Disk used: '"${cy}"$ds_used_gb' [GB] '$ds_used_pc'%'"${cc}"
+echo -e "${cb}"'             (O).)-| |  \    |    |    /  | |-(.(O) '"${cc}""${co}"'  Disk available: '"${cy}"$ds_avail_gb' [GB] '$ds_avail_pc'%'"${cc}"
+echo -e "${cb}"'              `-^  ^-^-._^-./      \.-^_.-^-^  `-^  '"${cc}""${co}"' Processor: '"${cy}"$cpu_model"${cc}"
+echo -e        '                 _ | |   ^-.________.-^   | | _    '       "${co}"'  #CPUs: '"${cy}"$cpus"${cc}${co}"' #COREs/CPU: '"${cc}${cy}"$cores"${cc}"
+echo -e        '              .^ _ | |  ||||'"${cy}"'   __   '"${cc}"'||||  | | _ ^.  '"${co}"' RAM: '"${cy}"$mem_gb' [GB]'"${cc}${co}"' Free: '"${cc}${cy}"$mem_free_gb' [GB]'"${cc}${co}"' Used: '"${cc}${cy}"$mem_used_gb' [GB]'"${cc}"
+echo -e        '             / '"${cy}"'.^ ^^.'"${cc}"'|   |||'"${cy}"' /    \ '"${cc}"'|||   |'"${cy}"'.^^ ^.'"${cc}"' \ '"${co}"' IP: '"${cy}"$ip"${cc}"
+echo -e        '             | '"${cy}"'|( )| '"${cc}"'^.   ||'"${cy}"'|      |'"${cc}"'||   .^'"${cy}"' |( )|'"${cc}"' | '
+echo -e        '             \ '"${cy}"'^._.^ '"${cc}"'  ^.  |'"${cy}"' \    / '"${cc}"'|  .^  '"${cy}"' ^._.^'"${cc}"' / '
+echo -e        '              ^.__ ______^.|'"${cy}"'__^--^__'"${cc}"'|.^______ __.^                                      '
+echo -e "${co}"'             .^. '"${cc}"' |         '"${co}"'|------|'"${cc}"'         |  '"${co}"'.^.                   '"${cc}"
+echo -e "${co}"'            //\\\\'"${cc}"'  |         '"${co}"'|--::--|'"${cc}"'         |  '"${co}"'//\\\               '"${cc}"
+echo -e "${co}"'           //  \\\\'"${cc}"' |         '"${co}"'|--::--|'"${cc}"'         | '"${co}"'//  \\\              '"${cc}"
+echo -e "${co}"'          //    \\\\'"${cc}"'|        /'"${co}"'|--::--|'"${cc}"'\        |'"${co}"'//    \\\             '"${cc}"
+echo -e "${co}"'         / ^._.-^/'"${cc}"'|_______/ '"${co}"'|--::--|'"${cc}"' \_______|'"${co}"'\`-._.^ \               '"${cc}"
+echo -e "${co}"'        / __..--^'"${cc}"'        /__'"${co}"'|--::--|'"${cc}"'__\        '"${co}"'`--..__ \              '"${cc}"
+echo -e "${co}"'       / /'"${cc}"'               ^-.'"${co}"'|--::--|'"${cc}"'.-^               '"${co}"'\ \             '"${cc}"
+echo -e "${co}"'      / /'"${cc}"'                   '"${co}"'|--::--|'"${cc}"'                   '"${co}"'\ \            '"${cc}"
+echo -e "${co}"'     / /'"${cc}"'                    '"${co}"'|--::--|'"${cc}"'                    '"${co}"'\ \           '"${cc}"
+echo -e "${co}"' _.-^  `-._'"${cc}"'                 '"${co}"'_..||.._'"${cc}"'                  '"${co}"'_.-` ^-._       '"${cc}"
+echo -e "${co}"'^--..__..--^'"${cc}"'               '"${co}"'^-.____.-^'"${cc}"'                '"${co}"'^--..__..-^      '"${cc}"

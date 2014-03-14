@@ -1,0 +1,7 @@
+set bell-style              none
+set mark-directories        on
+set match-hidden-files      off
+"\C-b":backward-word
+"\C-f":forward-word
+"\C-p":history-search-backward
+"\M-'":possible-completions
