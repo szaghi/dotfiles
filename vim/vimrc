@@ -135,6 +135,10 @@ if has("autocmd")
   autocmd InsertEnter * let w:last_fdm=&foldmethod | setlocal foldmethod=manual
   autocmd InsertLeave * let &l:foldmethod=w:last_fdm
 
+  " MarkDown tips {{{
+  autocmd BufEnter,BufRead,BufNewFile *.md,*.markdown,*.textile set filetype=octopress
+  " }}}
+
   " Fortran tips {{{
   let fortran = "$VIM/syntax/fortran.vim"
   " associate *.inc file to fortran type
@@ -149,11 +153,11 @@ if has("autocmd")
 
   " programming tips {{{
   " removing trailing space
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml autocmd BufWritePre <buffer> :%s/\s\+$//e
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,octopress autocmd BufWritePre <buffer> :%s/\s\+$//e
   " condensing multiple blank lines into a single blank line
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,octopress autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
   " set fold method to syntax
-  autocmd FileType fortran,make,sh,bash,c,cpp,tex,css,java,php,xml set foldmethod=syntax
+  autocmd FileType fortran,make,sh,bash,c,cpp,tex,css,java,php,xml,octopress set foldmethod=syntax
   autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2
   " }}}
 
