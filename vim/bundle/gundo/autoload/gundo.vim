@@ -46,6 +46,12 @@ endif"}}}
 if !exists("g:gundo_prefer_python3")"{{{
     let g:gundo_prefer_python3 = 0
 endif"}}}
+if !exists("g:gundo_auto_preview")"{{{
+    let g:gundo_auto_preview = 1
+endif"}}}
+if !exists("g:gundo_playback_delay")"{{{
+    let g:gundo_playback_delay = 60
+endif"}}}
 
 let s:has_supported_python = 0
 if g:gundo_prefer_python3 && has('python3')"{{{
@@ -111,6 +117,7 @@ function! s:GundoMapGraph()"{{{
     nnoremap <script> <silent> <buffer> gg            gg:call <sid>GundoMove(1)<CR>
     nnoremap <script> <silent> <buffer> P             :call <sid>GundoPlayTo()<CR>
     nnoremap <script> <silent> <buffer> p             :call <sid>GundoRenderChangePreview()<CR>
+    nnoremap <script> <silent> <buffer> r             :call <sid>GundoRenderPreview()<CR>
     nnoremap <script> <silent> <buffer> q             :call <sid>GundoClose()<CR>
     cabbrev  <script> <silent> <buffer> q             call <sid>GundoClose()
     cabbrev  <script> <silent> <buffer> quit          call <sid>GundoClose()
@@ -318,11 +325,17 @@ function! s:GundoToggle()"{{{
 endfunction"}}}
 
 function! s:GundoShow()"{{{
-    call s:GundoOpen()
+    if !s:GundoIsVisible()
+        let g:gundo_target_n = bufnr('')
+        let g:gundo_target_f = @%
+        call s:GundoOpen()
+    endif
 endfunction"}}}
 
 function! s:GundoHide()"{{{
-    call s:GundoClose()
+    if s:GundoIsVisible()
+        call s:GundoClose()
+    endif
 endfunction"}}}
 
 "}}}
@@ -377,7 +390,9 @@ function! s:GundoMove(direction) range"{{{
         call cursor(0, idx2 + 1)
     endif
 
-    call s:GundoRenderPreview()
+    if g:gundo_auto_preview == 1
+        call s:GundoRenderPreview()
+    endif
 endfunction"}}}
 
 "}}}
@@ -434,6 +449,14 @@ endfunction"}}}
 
 function! gundo#GundoToggle()"{{{
     call s:GundoToggle()
+endfunction"}}}
+
+function! gundo#GundoShow()"{{{
+    call s:GundoShow()
+endfunction"}}}
+
+function! gundo#GundoHide()"{{{
+    call s:GundoHide()
 endfunction"}}}
 
 function! gundo#GundoRenderGraph()"{{{

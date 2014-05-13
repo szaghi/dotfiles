@@ -1,1 +1,0 @@
-hyperlist.vba: call delete('/home/stefano/.vim/bundle/hyperlist//syntax/hyperlist.vim')|call delete('/home/stefano/.vim/bundle/hyperlist//doc/hyperlist.txt')|call delete('/home/stefano/.vim/bundle/hyperlist//ftdetect/hyperlist.vim')|call delete('/home/stefano/.vim/bundle/hyperlist//README_HyperList')

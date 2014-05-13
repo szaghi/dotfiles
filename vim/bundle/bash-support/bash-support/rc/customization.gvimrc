@@ -1,15 +1,21 @@
-"===================================================================================
-"         FILE:  .gvimrc
-"  DESCRIPTION:  suggestion for a personal configuration file ~/.gvimrc
-"       AUTHOR:  Dr.-Ing. Fritz Mehner
-"      VERSION:  1.0
-"      CREATED:  04.04.2009
-"     REVISION:  $Id: customization.gvimrc,v 1.2 2009/07/04 10:47:41 mehner Exp $
-"===================================================================================
+"===============================================================================
 "
-"===================================================================================
+"          File:  customization.gvimrc
+" 
+"   Description:  suggestion for a personal configuration file ~/.gvimrc
+" 
+"   VIM Version:  7.0+
+"        Author:  Dr. Fritz Mehner (fgm), mehner.fritz@fh-swf.de
+"  Organization:  FH Südwestfalen, Iserlohn
+"       Version:  1.0
+"       Created:  18.05.2013 21:58
+"      Revision:  ---
+"       License:  Copyright (c) 2013, Dr. Fritz Mehner
+"===============================================================================
+"
+"===============================================================================
 " GENERAL SETTINGS
-"===================================================================================
+"===============================================================================
 set cmdheight=2                                 " Make command line two lines high
 set mousehide                                   " Hide the mouse when typing text
 
@@ -30,25 +36,25 @@ let c_comment_strings=1   " highlight strings inside C comments
 " shift left   : change window focus to one on left
 " shift right  : change window focus to one on right
 "-------------------------------------------------------------------------------
-nmap <s-down>   <c-w>w
-nmap <s-up>     <c-w>W
-nmap <s-left>   <c-w>h
-nmap <s-right>  <c-w>l
+nnoremap <s-down>   <c-w>w
+nnoremap <s-up>     <c-w>W
+nnoremap <s-left>   <c-w>h
+nnoremap <s-right>  <c-w>l
 "
 "-------------------------------------------------------------------------------
 "  some additional hot keys
 "-------------------------------------------------------------------------------
 "   S-F3  -  call gvim file browser
 "-------------------------------------------------------------------------------
- map  <silent> <s-F3>       :silent browse confirm e<CR>
-imap  <silent> <s-F3>  <Esc>:silent browse confirm e<CR>
+ noremap  <silent> <s-F3>       :silent browse confirm e<CR>
+inoremap  <silent> <s-F3>  <Esc>:silent browse confirm e<CR>
 "
 "-------------------------------------------------------------------------------
 " toggle insert mode <--> 'normal mode with the <RightMouse>-key
 "-------------------------------------------------------------------------------
 "
-nmap	<RightMouse> <Insert>
-imap	<RightMouse> <ESC>
+nnoremap	<RightMouse> <Insert>
+inoremap	<RightMouse> <ESC>
 "
 "-------------------------------------------------------------------------------
 " use font with clearly distinguishable brackets : ()[]{}

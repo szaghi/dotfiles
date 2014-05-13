@@ -5,6 +5,10 @@ let b:loaded_SimpylFold = 1
 
 let s:blank_regex = '^\s*$'
 let s:def_regex = '^\s*\%(class\|def\) \w\+'
+let s:multiline_def_end_regex = '):$'
+let s:docstring_start_regex = '^\s*\("""\|''''''\)\%(.*\1\s*$\)\@!'
+let s:docstring_end_single_regex = '''''''\s*$'
+let s:docstring_end_double_regex = '"""\s*$'
 
 " Determine the number of containing class or function definitions for the
 " given line
@@ -24,7 +28,17 @@ function! s:NumContainingDefs(lnum)
     " Walk backwards to the previous non-blank line with a lower indent level
     " than this line
     let i = a:lnum - 1
-    while (getline(i) =~ s:blank_regex || indent(i) >= this_ind)
+    while 1
+        if getline(i) !~ s:blank_regex
+            let i_ind = indent(i)
+            if i_ind < this_ind
+                let ncd = s:NumContainingDefs(i) + (getline(i) =~ s:def_regex)
+                break
+            elseif i_ind == this_ind && has_key(b:cache_NumContainingDefs, i)
+                let ncd = b:cache_NumContainingDefs[i]
+                break
+            endif
+        endif
 
         let i -= 1
 
@@ -34,14 +48,14 @@ function! s:NumContainingDefs(lnum)
         " the syntactically invalid pathological case in which the first line
         " or lines has an indent level greater than 0.
         if i <= 1
-            return getline(1) =~ s:def_regex
+            let ncd = getline(1) =~ s:def_regex
+            break
         endif
 
     endwhile
 
     " Memoize the return value to avoid duplication of effort on subsequent
     " lines
-    let ncd = s:NumContainingDefs(i) + (getline(i) =~ s:def_regex)
     let b:cache_NumContainingDefs[a:lnum] = ncd
 
     return ncd
@@ -56,6 +70,7 @@ function! SimpylFold(lnum)
     " the cache of results of calls to `s:NumContainingDefs`
     if !exists('b:last_folded_line') || b:last_folded_line > a:lnum
         let b:cache_NumContainingDefs = {}
+        let b:in_docstring = 0
     endif
     let b:last_folded_line = a:lnum
 
@@ -74,10 +89,34 @@ function! SimpylFold(lnum)
         endif
     endif
 
-    " Otherwise, its fold level is equal to its number of containing
-    " definitions, plus 1, if this line starts a definition of its own
-    let this_fl = s:NumContainingDefs(a:lnum) + (line =~ s:def_regex)
+    let fold_docstrings =
+        \ !exists('g:SimpylFold_fold_docstring') || g:SimpylFold_fold_docstring
+    let docstring_match = matchlist(line, s:docstring_start_regex)
+    let prev_line = getline(a:lnum - 1)
+    if !b:in_docstring &&
+        \ (
+          \ prev_line =~ s:def_regex ||
+          \ prev_line =~ s:multiline_def_end_regex
+        \ ) &&
+        \ len(docstring_match)
+        let this_fl = s:NumContainingDefs(a:lnum) + fold_docstrings
+        let b:in_docstring = 1
+        if docstring_match[1] == '"""'
+            let b:docstring_end_regex = s:docstring_end_double_regex
+        else
+            let b:docstring_end_regex = s:docstring_end_single_regex
+        endif
+    elseif b:in_docstring
+        let this_fl = s:NumContainingDefs(a:lnum) + fold_docstrings
+        if line =~ b:docstring_end_regex
+            let b:in_docstring = 0
+        endif
+    else
+        " Otherwise, its fold level is equal to its number of containing
+        " definitions, plus 1, if this line starts a definition of its own
+        let this_fl = s:NumContainingDefs(a:lnum) + (line =~ s:def_regex)
 
+    endif
     " If the very next line starts a definition with the same fold level as
     " this one, explicitly indicate that a fold ends here
     if getline(a:lnum + 1) =~ s:def_regex && SimpylFold(a:lnum + 1) == this_fl

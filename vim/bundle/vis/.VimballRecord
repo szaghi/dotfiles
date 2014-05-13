@@ -1,1 +1,0 @@
-vis.vba.gz: call delete('/home/stefano/.vim/bundle/vis/plugin/visPlugin.vim')|call delete('/home/stefano/.vim/bundle/vis/autoload/vis.vim')|call delete('/home/stefano/.vim/bundle/vis/plugin/cecutil.vim')|call delete('/home/stefano/.vim/bundle/vis/doc/vis.txt')

@@ -11,6 +11,17 @@ query = process.argv[2]
 langpair = process.argv[3]
 goog = {}
 
+rightFill = (symbol, len, str) ->
+    symbols = ''
+    if str.length >= len
+        return str
+    for i in [1..(len - str.length)]
+        symbols += symbol
+    "#{str}#{symbols}"
+
+# TODO: make part of plugin's configuration
+LIMIT = 3
+
 goog.translator = {
   langpair: "en|ru"
   translate: (query,langpair) ->
@@ -30,10 +41,29 @@ goog.translator = {
       }
     }, (res) ->
       #handle response
+      body = []
       res.on "data", (chunk) ->
-        jschunk = eval "(#{chunk})"
-        _outp += jschunk[0][0][0]
-      .on "end", () -> console.log _outp
+        body.push chunk
+      .on "end", () ->
+
+       result = eval body.join ''
+       if decodeURIComponent(query).split(' ').length == 1
+           [header, translates, misc] = result
+           for translate in translates
+               [entity, variants, details] = translate.slice(0, 3)
+
+               console.log entity
+               for variant, variantIx in variants
+                   if variantIx == LIMIT
+                       break
+                   [word, trWords] = details[variantIx].slice(0, 2)
+                   trWords = trWords.join ', '
+                   console.log " -  #{rightFill(' ', 25, word + ":")}#{trWords}"
+       else
+           header = result[0]
+           console.log header[0][0]
+
+
     .on 'error', (e) -> console.log "Error #{e}"
 }
 

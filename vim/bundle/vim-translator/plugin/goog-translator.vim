@@ -12,7 +12,7 @@ function! s:googMergeConf(gconf,uconf)
   endif
 endfunction
 
-let s:goog_conf = { 'langpair' : 'en|it', 'cmd' : 'ruby'}
+let s:goog_conf = { 'langpair' : 'en|ru', 'cmd' : 'ruby'}
 
 "set root script path
 let s:root_path = expand("<sfile>:p:h")
@@ -37,6 +37,7 @@ function! s:check(...)
 
   return haz
 endfunction
+
 
 "@complete
 "gets words from open file

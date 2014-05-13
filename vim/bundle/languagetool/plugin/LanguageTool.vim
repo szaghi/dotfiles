@@ -2,8 +2,8 @@
 " Maintainer:   Dominique Pellé <dominique.pelle@gmail.com>
 " Screenshots:  http://dominique.pelle.free.fr/pic/LanguageToolVimPlugin_en.png
 "               http://dominique.pelle.free.fr/pic/LanguageToolVimPlugin_fr.png
-" Last Change:  2013/08/10
-" Version:      1.26
+" Last Change:  2014/02/20
+" Version:      1.28
 "
 " Long Description: {{{1
 "
@@ -159,15 +159,16 @@ function s:LanguageToolSetUp() "{{{1
 
   let s:languagetool_jar = exists("g:languagetool_jar")
   \ ? g:languagetool_jar
-  \ : $HOME . '/languagetool/dist/LanguageTool.jar'
+  \ : $HOME . '/languagetool-2.4.1/languagetool-commandline.jar'
 
   if !filereadable(s:languagetool_jar)
     " Hmmm, can't find the jar file.  Try again with expand() in case user
-    " set it up as: let g:languagetool_jar = '$HOME/LanguageTool.jar'
+    " set it up as: let g:languagetool_jar = '$HOME/.../languagetool-commandline.jar'
     let l:languagetool_jar = expand(s:languagetool_jar)
     if !filereadable(expand(l:languagetool_jar))
       echomsg "LanguageTool cannot be found at: " . s:languagetool_jar
       echomsg "You need to install LanguageTool and/or set up g:languagetool_jar"
+      echomsg "to indicate the location of the languagetool-commandline.jar file."
       return -1
     endif
     let s:languagetool_jar = l:languagetool_jar
@@ -230,6 +231,7 @@ function s:LanguageToolCheck(line1, line2) "{{{1
   " reading from stdin so we need to use a temporary file to get
   " correct results.
   let l:tmpfilename = tempname()
+  let l:tmperror    = tempname()
 
   let l:range = a:line1 . ',' . a:line2
   silent exe l:range . 'w!' . l:tmpfilename
@@ -240,6 +242,7 @@ function s:LanguageToolCheck(line1, line2) "{{{1
   \ . ' -d '    . s:languagetool_disable_rules
   \ . ' -l '    . s:languagetool_lang
   \ . ' --api ' . l:tmpfilename
+  \ . ' 2> '    . l:tmperror
 
   sil exe '%!' . l:languagetool_cmd
   call delete(l:tmpfilename)
@@ -247,9 +250,14 @@ function s:LanguageToolCheck(line1, line2) "{{{1
   if v:shell_error
     echoerr 'Command [' . l:languagetool_cmd . '] failed with error: '
     \      . v:shell_error
+    if filereadable(l:tmperror)
+      echoerr string(readfile(l:tmperror))
+    endif
+    call delete(l:tmperror)
     call s:LanguageToolClear()
     return -1
   endif
+  call delete(l:tmperror)
 
   " Loop on all errors in XML output of LanguageTool and
   " collect information about all errors in list s:errors
