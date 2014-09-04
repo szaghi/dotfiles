@@ -1,0 +1,22 @@
+[user]
+	name = Stefano Zaghi
+	email = stefano.zaghi@gmail.com
+[http]
+	sslVerify = false
+[credential]
+	helper = cache
+[giggle]
+	main-window-maximized = true
+	main-window-geometry = 700x550+599+282
+	history-view-vpane-position = 639
+	main-window-view = HistoryView
+	file-view-vpane-position = 469
+[diff]
+	tool = vimdiff
+[difftool]
+	prompt = false
+[alias]
+	d = difftool
+	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+[core]
+	editor = vim

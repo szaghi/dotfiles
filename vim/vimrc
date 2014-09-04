@@ -95,7 +95,7 @@ set showcmd                     " show (partial) command in the last line of the
                                 "    this also shows visual selection info
 set nomodeline                  " disable mode lines (security measure)
 "set cursorline                  " underline the current line, for quick orientation
-set diffopt+=iwhite             " ignoring trailing white spaces when doing diff
+"set diffopt+=iwhite             " ignoring trailing white spaces when doing diff
 set iskeyword+=:                " turn on the search of keyword
 " }}}
 
@@ -158,7 +158,7 @@ if has("autocmd")
   autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,octopress autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
   " set fold method to syntax
   autocmd FileType fortran,make,sh,bash,c,cpp,tex,css,java,php,xml,octopress set foldmethod=syntax
-  autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2
+  autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2 softtabstop=2
   " }}}
 
   " latex tips {{{

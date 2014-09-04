@@ -57,4 +57,5 @@ xhost + >/dev/null
 
 # variables exporting
 export EDITOR="vim"
+export PYLINTRC=~/.pylint.d/pylintrc
 export PATH SHOST CPU HOSTNAME HOSTTYPE OSTYPE MACHTYPE SHELL INDEXSTYLE
