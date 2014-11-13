@@ -53,9 +53,13 @@ if [ -f ~/.bash_compilers ]; then
   . ~/.bash_compilers
 fi
 
+# mails storing
+MAIL=/var/spool/mail/stefano
+
 xhost + >/dev/null
 
 # variables exporting
+export MAIL
 export EDITOR="vim"
 export PYLINTRC=~/.pylint.d/pylintrc
 export PATH SHOST CPU HOSTNAME HOSTTYPE OSTYPE MACHTYPE SHELL INDEXSTYLE
