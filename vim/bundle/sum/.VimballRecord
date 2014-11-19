@@ -1,1 +1,0 @@
-Sum.vba.gz: call delete('/home/stefano/.vim/bundle/sum//plugin/Sum.vim')|call delete('/home/stefano/.vim/bundle/sum//doc/Sum.txt')

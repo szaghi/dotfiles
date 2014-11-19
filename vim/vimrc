@@ -3,13 +3,40 @@
 
 " Use vim settings, rather then vi settings (much better!)
 " This must be first, because it changes other options as a side effect.
-set nocompatible
+""set nocompatible
 
 " Use pathogen to easily modify the runtime path to include all plugins under
 " the ~/.vim/bundle directory
-filetype off              " force reloading *after* pathogen loaded
-call pathogen#infect()
-filetype plugin indent on " enable detection, plugins and indenting in one step
+""filetype off              " force reloading *after* pathogen loaded
+""call pathogen#infect()
+""filetype plugin indent on " enable detection, plugins and indenting in one step
+
+call plug#begin('~/.vim/plugged')
+Plug 'romainl/Apprentice'
+Plug 'kien/rainbow_parentheses.vim'
+Plug 'majutsushi/tagbar'
+Plug 'kien/ctrlp.vim'
+Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
+Plug 'Shougo/neocomplete.vim'
+Plug 'myusuf3/numbers.vim'
+Plug 'scrooloose/syntastic'
+Plug 'bling/vim-airline'
+Plug 'paranoida/vim-airlineish'
+Plug 'moll/vim-bbye'
+Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-repeat'
+Plug 'junegunn/vim-easy-align'
+Plug 'vasconcelloslf/vim-foldfocus'
+Plug 'jamessan/vim-gnupg'
+Plug 'lervag/vim-latex'
+Plug 'gabrielelana/vim-markdown'
+Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
+Plug 'deris/vim-rengbang'
+Plug 'maksimr/vim-translator', { 'on': 'Translate' }
+Plug 'vim-scripts/VisIncr'
+Plug 'yaroot/vissort'
+Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
+call plug#end()
 
 " Editing behaviour {{{
 let mapleader = ","                                                      " leader symbol
@@ -38,7 +65,6 @@ set encoding=utf-8                                                       " file 
 set lazyredraw                                                           " don't update the display while executing macros
 set laststatus=2                                                         " tell VIM to always put a status line in, even if there is only one window
 set cmdheight=2                                                          " use a status bar that is 2 rows high
-let g:indent_guides_guide_size = 1                                       " indent guides size set to 1
 let g:buftabs_only_basename = 1                                          " show only basename in tabs title
 let g:buftabs_marker_modified = "+"                                      " tabs marker
 set hidden                                                               " hide buffers instead of closing them this
@@ -59,9 +85,9 @@ set foldcolumn=1                                                         " add a
 set foldmethod=marker                                                    " detect triple-{ style fold markers
 set foldlevelstart=0                                                     " start out with everything folded
 set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo " which commands trigger auto-unfold
-set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·
-set fileformats="unix,dos,mac"
-set termencoding=utf-8
+set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·                           " characters are not displayed on long lines
+set fileformats="unix,dos,mac"                                           " file formats
+set termencoding=utf-8                                                   " file encoding
 " }}}
 
 " Highlighting and colors {{{
@@ -75,7 +101,10 @@ colorscheme apprentice
 "colorscheme jellybeans
 "colorscheme noctu
 hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
-au syntax * cal rainbow#activate() " colored parantheses
+au VimEnter * RainbowParenthesesToggle
+au Syntax * RainbowParenthesesLoadRound
+au Syntax * RainbowParenthesesLoadSquare
+au Syntax * RainbowParenthesesLoadBraces
 let g:airline_theme = 'airlineish'
 let g:airline#extensions#tabline#enabled = 1
 " }}}
@@ -84,6 +113,9 @@ let g:airline#extensions#tabline#enabled = 1
 " Fortran tips {{{
 let fortran_fold=1
 let fortran_fold_conditionals=1
+let g:fortran_free_source=1
+let g:syntastic_fortran_compiler = 'ifort'
+let g:syntastic_fortran_compiler_options = '-std03'
 " }}}
 " sh tips {{{
 let sh_fold_enabled=1
@@ -115,7 +147,7 @@ if has("autocmd")
   let fortran = "$VIM/syntax/fortran.vim"
   " associate *.inc file to fortran type
   autocmd BufEnter,BufRead,BufNewFile *.inc set syntax=fortran
-  " marking columns > 132 for free form
+  " marking columns > 132(72)
   autocmd BufEnter,BufRead,BufNewFile *.F,*.FOR,*.FPP,*.F77,*.f,*.for,*.fortran,*.fpp,*.f77 let w:m2=matchadd('ErrorMsg', '\%>72v.\+', -1)
   autocmd BufEnter,BufRead,BufNewFile *.F90,*.F95,*.F03,*.F08,*.f90,*.f95,*.f03,*.f08,*.inc let w:m2=matchadd('ErrorMsg', '\%>132v.\+', -1)
   " fixing indent
@@ -129,7 +161,7 @@ if has("autocmd")
 
   " programming tips {{{
   " automatically open Tagbar
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php,xml :TagbarOpen
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php :TagbarOpen
   " removing trailing space
   autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
   " condensing multiple blank lines into a single blank line
@@ -162,19 +194,16 @@ vnoremap / /\v
 nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
 " change window splits
-nmap <silent> <A-Up> :wincmd k<CR>
-nmap <silent> <A-Down> :wincmd j<CR>
-nmap <silent> <A-Left> :wincmd h<CR>
-nmap <silent> <A-Right> :wincmd l<CR>
-" Remapping NERDCommenter
-map C <plug>NERDCommenterComment
-map X <plug>NERDCommenterToggle
+nnoremap <silent> <A-Up> :wincmd k<CR>
+nnoremap <silent> <A-Down> :wincmd j<CR>
+nnoremap <silent> <A-Left> :wincmd h<CR>
+nnoremap <silent> <A-Right> :wincmd l<CR>
 " Map Y do be analog of D
-map Y y$
+noremap Y y$
 " wrap ON/OFF
-map <F2> :set wrap! wrap?<CR>
+noremap <F2> :set wrap! wrap?<CR>
 " Tagbar
-map <F3> :TagbarToggle<CR>
+noremap <F3> :TagbarToggle<CR>
 let g:tagbar_left = 1
 let g:tagbar_width = 30
 " buffer navigation
@@ -183,10 +212,10 @@ nnoremap <C-Left> :bprevious<CR>
 " CtrlP file explorer
 nnoremap <C-e> :CtrlP<CR>
 " Buffure close
-nnoremap <C-q> :Bdelete<CR>
+nnoremap qq :Bdelete<CR>
 " Maps for vim-easy-align
-vmap <Enter> <Plug>(EasyAlign)
-nmap <Leader>a <Plug>(EasyAlign)
+vnoremap <Enter> <Plug>(EasyAlign)
+nnoremap <Leader>a <Plug>(EasyAlign)
 " fold-focusing
 nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " vim-latex
