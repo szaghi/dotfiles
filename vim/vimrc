@@ -3,21 +3,19 @@
 
 " Use vim settings, rather then vi settings (much better!)
 " This must be first, because it changes other options as a side effect.
-""set nocompatible
+set nocompatible
 
-" Use pathogen to easily modify the runtime path to include all plugins under
-" the ~/.vim/bundle directory
-""filetype off              " force reloading *after* pathogen loaded
-""call pathogen#infect()
-""filetype plugin indent on " enable detection, plugins and indenting in one step
-
+" Plugins handling with vim-plug {{{
 call plug#begin('~/.vim/plugged')
 Plug 'romainl/Apprentice'
 Plug 'kien/rainbow_parentheses.vim'
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
-Plug 'Shougo/neocomplete.vim'
+Plug 'Shougo/neocomplcache.vim'
+Plug 'Shougo/neosnippet.vim'
+Plug 'rbonvall/snipmate-snippets-fortran95'
+Plug 'honza/vim-snippets', { 'do': 'cd snippets/ ; ln -fs ../../snipmate-snippets-fortran95/snippets/fortran.snippets . ; cd -' }
 Plug 'myusuf3/numbers.vim'
 Plug 'scrooloose/syntastic'
 Plug 'bling/vim-airline'
@@ -25,7 +23,7 @@ Plug 'paranoida/vim-airlineish'
 Plug 'moll/vim-bbye'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-repeat'
-Plug 'junegunn/vim-easy-align'
+Plug 'tpope/vim-obsession'
 Plug 'vasconcelloslf/vim-foldfocus'
 Plug 'jamessan/vim-gnupg'
 Plug 'lervag/vim-latex'
@@ -36,7 +34,50 @@ Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 Plug 'vim-scripts/VisIncr'
 Plug 'yaroot/vissort'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
+Plug 'godlygeek/tabular'
+Plug 'jiangmiao/auto-pairs'
 call plug#end()
+" }}}
+
+" Syntastic checker {{{
+let g:syntastic_always_populate_loc_list = 1
+" }}}
+
+" Translators plugin {{{
+let g:goog_user_conf={'langpair': 'it|en'}
+let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
+" }}}
+
+" neocompletecache plugin {{{
+  " let g:neocomplete#enable_at_startup = 1
+  " Disable AutoComplPop.
+  let g:acp_enableAtStartup = 0
+  " Use neocomplcache.
+  let g:neocomplcache_enable_at_startup = 1
+  " Use smartcase.
+  let g:neocomplcache_enable_smart_case = 1
+  " Set minimum syntax keyword length.
+  let g:neocomplcache_min_syntax_length = 3
+" }}}
+
+" neosnippet plugin {{{
+  " Plugin key-mappings.
+  imap <C-k>     <Plug>(neosnippet_expand_or_jump)
+  smap <C-k>     <Plug>(neosnippet_expand_or_jump)
+  xmap <C-k>     <Plug>(neosnippet_expand_target)
+  " SuperTab like snippets behavior.
+  imap <expr><TAB> neosnippet#expandable_or_jumpable() ?
+  \ "\<Plug>(neosnippet_expand_or_jump)"
+  \: pumvisible() ? "\<C-n>" : "\<TAB>"
+  smap <expr><TAB> neosnippet#expandable_or_jumpable() ?
+  \ "\<Plug>(neosnippet_expand_or_jump)"
+  \: "\<TAB>"
+  " For snippet_complete marker.
+  if has('conceal')
+    set conceallevel=2 concealcursor=i
+  endif
+  let g:neosnippet#snippets_directory='~/.vim/plugged/vim-snippets/snippets'
+" }}}
 
 " Editing behaviour {{{
 let mapleader = ","                                                      " leader symbol
@@ -173,19 +214,6 @@ if has("autocmd")
 endif
 " }}}
 
-" Syntax checker {{{
-let g:syntastic_always_populate_loc_list = 1
-" }}}
-
-" Translators plugin {{{
-let g:goog_user_conf={'langpair': 'it|en'}
-let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
-" }}}
-
-" neocomplete plugin {{{
-  let g:neocomplete#enable_at_startup = 1
-" }}}
-
 " Mappings {{{
 " Perl/Python regex
 nnoremap / /\v
@@ -213,9 +241,6 @@ nnoremap <C-Left> :bprevious<CR>
 nnoremap <C-e> :CtrlP<CR>
 " Buffure close
 nnoremap qq :Bdelete<CR>
-" Maps for vim-easy-align
-vnoremap <Enter> <Plug>(EasyAlign)
-nnoremap <Leader>a <Plug>(EasyAlign)
 " fold-focusing
 nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " vim-latex
