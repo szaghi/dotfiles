@@ -24,7 +24,7 @@ Plug 'moll/vim-bbye'
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-obsession'
-Plug 'vasconcelloslf/vim-foldfocus'
+Plug 'vasconcelloslf/vim-foldfocus', { 'on': 'FoldFocus' }
 Plug 'jamessan/vim-gnupg'
 Plug 'lervag/vim-latex'
 Plug 'gabrielelana/vim-markdown'
@@ -36,6 +36,10 @@ Plug 'yaroot/vissort'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'godlygeek/tabular'
 Plug 'jiangmiao/auto-pairs'
+Plug 'airblade/vim-gitgutter'
+Plug 'chrisbra/NrrwRgn'
+Plug 'junegunn/limelight.vim', { 'on': 'Limelight' }
+Plug 'tpope/vim-fugitive'
 call plug#end()
 " }}}
 
@@ -77,6 +81,10 @@ let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
     set conceallevel=2 concealcursor=i
   endif
   let g:neosnippet#snippets_directory='~/.vim/plugged/vim-snippets/snippets'
+" }}}
+
+" limelight plugin {{{
+  autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php :Limelight 0.6
 " }}}
 
 " Editing behaviour {{{
