@@ -41,9 +41,7 @@ Plug 'jiangmiao/auto-pairs'
 Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-fugitive'
 Plug 'ap/vim-css-color'
-Plug 'Shougo/vimproc.vim', { 'do': 'make' }
-" Plug 'idanarye/vim-vebugger'
-Plug 'gilligan/vim-lldb'
+" Plug 'Shougo/vimproc.vim', { 'do': 'make' }
 " }}}
 " filetypes {{{
 Plug 'scrooloose/syntastic', { 'for':  ['python','fortran'] }
