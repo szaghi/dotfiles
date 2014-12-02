@@ -7,27 +7,29 @@ set nocompatible
 
 " Plugins handling with vim-plug {{{
 call plug#begin('~/.vim/plugged')
+" interface {{{
 Plug 'romainl/Apprentice'
 Plug 'kien/rainbow_parentheses.vim'
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
-Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
-Plug 'Shougo/neocomplcache.vim'
-Plug 'Shougo/neosnippet.vim'
-Plug 'rbonvall/snipmate-snippets-fortran95'
-Plug 'honza/vim-snippets', { 'do': 'cd snippets/ ; ln -fs ../../snipmate-snippets-fortran95/snippets/fortran.snippets . ; cd -' }
 Plug 'myusuf3/numbers.vim'
-Plug 'scrooloose/syntastic'
 Plug 'bling/vim-airline'
 Plug 'paranoida/vim-airlineish'
+Plug 'junegunn/limelight.vim'
 Plug 'moll/vim-bbye'
+Plug 'vasconcelloslf/vim-foldfocus', { 'on': 'FoldFocus' }
+Plug 'chrisbra/NrrwRgn'
+" }}}
+" utilities {{{
+Plug 'csexton/trailertrash.vim'
+Plug 'Shougo/neocomplcache.vim'
+Plug 'marcweber/vim-addon-mw-utils'
+Plug 'garbas/vim-snipmate'
+Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
 Plug 'tpope/vim-commentary'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-obsession'
-Plug 'vasconcelloslf/vim-foldfocus', { 'on': 'FoldFocus' }
 Plug 'jamessan/vim-gnupg'
-Plug 'lervag/vim-latex'
-Plug 'gabrielelana/vim-markdown'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'deris/vim-rengbang'
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
@@ -37,17 +39,33 @@ Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'godlygeek/tabular'
 Plug 'jiangmiao/auto-pairs'
 Plug 'airblade/vim-gitgutter'
-Plug 'chrisbra/NrrwRgn'
-Plug 'junegunn/limelight.vim', { 'on': 'Limelight' }
 Plug 'tpope/vim-fugitive'
+Plug 'ap/vim-css-color'
+Plug 'Shougo/vimproc.vim', { 'do': 'make' }
+" Plug 'idanarye/vim-vebugger'
+Plug 'gilligan/vim-lldb'
+" }}}
+" filetypes {{{
+Plug 'scrooloose/syntastic', { 'for':  ['python','fortran'] }
+Plug 'rbonvall/snipmate-snippets-fortran95', { 'for': 'fortran' }
+Plug 'honza/vim-snippets', { 'do': 'cd snippets/ ; ln -fs ../../snipmate-snippets-fortran95/snippets/fortran.snippets . ; cd -' }
+Plug 'lervag/vim-latex', { 'for': 'tex' }
+Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
+" }}}
 call plug#end()
 " }}}
 
-" Syntastic checker {{{
+" tagbar pluging {{{
+let g:tagbar_left = 1
+let g:tagbar_width = 30
+let g:tagbar_sort = 1
+" }}}
+"
+" syntastic pluging {{{
 let g:syntastic_always_populate_loc_list = 1
 " }}}
 
-" Translators plugin {{{
+" translators plugin {{{
 let g:goog_user_conf={'langpair': 'it|en'}
 let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
 " }}}
@@ -65,22 +83,22 @@ let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
 " }}}
 
 " neosnippet plugin {{{
-  " Plugin key-mappings.
-  imap <C-k>     <Plug>(neosnippet_expand_or_jump)
-  smap <C-k>     <Plug>(neosnippet_expand_or_jump)
-  xmap <C-k>     <Plug>(neosnippet_expand_target)
-  " SuperTab like snippets behavior.
-  imap <expr><TAB> neosnippet#expandable_or_jumpable() ?
-  \ "\<Plug>(neosnippet_expand_or_jump)"
-  \: pumvisible() ? "\<C-n>" : "\<TAB>"
-  smap <expr><TAB> neosnippet#expandable_or_jumpable() ?
-  \ "\<Plug>(neosnippet_expand_or_jump)"
-  \: "\<TAB>"
-  " For snippet_complete marker.
-  if has('conceal')
-    set conceallevel=2 concealcursor=i
-  endif
-  let g:neosnippet#snippets_directory='~/.vim/plugged/vim-snippets/snippets'
+  " " Plugin key-mappings.
+  " imap <C-k>     <Plug>(neosnippet_expand_or_jump)
+  " smap <C-k>     <Plug>(neosnippet_expand_or_jump)
+  " xmap <C-k>     <Plug>(neosnippet_expand_target)
+  " " SuperTab like snippets behavior.
+  " imap <expr><TAB> neosnippet#expandable_or_jumpable() ?
+  " \ "\<Plug>(neosnippet_expand_or_jump)"
+  " \: pumvisible() ? "\<C-n>" : "\<TAB>"
+  " smap <expr><TAB> neosnippet#expandable_or_jumpable() ?
+  " \ "\<Plug>(neosnippet_expand_or_jump)"
+  " \: "\<TAB>"
+  " " For snippet_complete marker.
+  " if has('conceal')
+  "   set conceallevel=2 concealcursor=i
+  " endif
+  " let g:neosnippet#snippets_directory='~/.vim/plugged/vim-snippets/snippets'
 " }}}
 
 " limelight plugin {{{
@@ -144,11 +162,7 @@ if &t_Co > 2 || has("gui_running")
    syntax on " switch syntax highlighting on, when the terminal has colors
 endif
 set background=dark
-"colorscheme xoria256
 colorscheme apprentice
-"colorscheme iceberg
-"colorscheme jellybeans
-"colorscheme noctu
 hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
 au VimEnter * RainbowParenthesesToggle
 au Syntax * RainbowParenthesesLoadRound
@@ -192,6 +206,10 @@ if has("autocmd")
   autocmd InsertEnter * let w:last_fdm=&foldmethod | setlocal foldmethod=manual
   autocmd InsertLeave * let &l:foldmethod=w:last_fdm
 
+  " fobos tips {{{
+  autocmd BufEnter,BufRead,BufNewFile *fobos* set syntax=dosini
+  " }}}
+
   " Fortran tips {{{
   let fortran = "$VIM/syntax/fortran.vim"
   " associate *.inc file to fortran type
@@ -205,12 +223,15 @@ if has("autocmd")
   " }}}
 
   " LaTeX tips {{{
-  autocmd FileType tex :call latex#toc#open()
+  " autocmd FileType tex :call latex#toc#open()
   " }}}
 
   " programming tips {{{
   " automatically open Tagbar
   autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php :TagbarOpen
+  if &diff
+    autocmd FileType * :TagbarClose
+  endif
   " removing trailing space
   autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
   " condensing multiple blank lines into a single blank line
@@ -240,8 +261,6 @@ noremap Y y$
 noremap <F2> :set wrap! wrap?<CR>
 " Tagbar
 noremap <F3> :TagbarToggle<CR>
-let g:tagbar_left = 1
-let g:tagbar_width = 30
 " buffer navigation
 nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
@@ -253,4 +272,5 @@ nnoremap qq :Bdelete<CR>
 nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " vim-latex
 nnoremap <C-L> :call latex#latexmk#toggle()<CR>
+nnoremap <C-T> :call SyncTexForward()<CR>
 " }}}
