@@ -271,4 +271,15 @@ nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " vim-latex
 nnoremap <C-L> :call latex#latexmk#toggle()<CR>
 nnoremap <C-T> :call SyncTexForward()<CR>
+" cursor movements limited or not (for gigino...)
+function! ToggleVirtualedit()
+  if &virtualedit != ""
+    set virtualedit&
+    echo "Cursor movements limited"
+  else
+    set virtualedit=all
+    echo "Cursor movements unlimited"
+  endif
+endfunction
+noremap <C-C> :call ToggleVirtualedit()<CR>
 " }}}
