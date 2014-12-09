@@ -22,7 +22,8 @@ Plug 'chrisbra/NrrwRgn'
 " }}}
 " utilities {{{
 Plug 'csexton/trailertrash.vim'
-Plug 'Shougo/neocomplcache.vim'
+" Plug 'Shougo/neocomplcache.vim'
+Plug 'Shougo/neocomplete.vim'
 Plug 'marcweber/vim-addon-mw-utils'
 Plug 'garbas/vim-snipmate'
 Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
@@ -69,16 +70,15 @@ let g:goog_user_conf={'langpair': 'it|en'}
 let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
 " }}}
 
-" neocompletecache plugin {{{
-  " let g:neocomplete#enable_at_startup = 1
+" neocomplete plugin {{{
   " Disable AutoComplPop.
   let g:acp_enableAtStartup = 0
-  " Use neocomplcache.
-  let g:neocomplcache_enable_at_startup = 1
+  " Use neocomplete.
+  let g:neocomplete#enable_at_startup = 1
   " Use smartcase.
-  let g:neocomplcache_enable_smart_case = 1
+  let g:neocomplete#enable_smart_case = 1
   " Set minimum syntax keyword length.
-  let g:neocomplcache_min_syntax_length = 3
+  let g:neocomplete#sources#syntax#min_keyword_length = 3
 " }}}
 
 " neosnippet plugin {{{
