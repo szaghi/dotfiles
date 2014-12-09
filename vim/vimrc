@@ -17,7 +17,7 @@ Plug 'bling/vim-airline'
 Plug 'paranoida/vim-airlineish'
 Plug 'junegunn/limelight.vim'
 Plug 'moll/vim-bbye'
-Plug 'vasconcelloslf/vim-foldfocus', { 'on': 'FoldFocus' }
+Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 Plug 'chrisbra/NrrwRgn'
 " }}}
 " utilities {{{
@@ -41,6 +41,7 @@ Plug 'jiangmiao/auto-pairs'
 Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-fugitive'
 Plug 'ap/vim-css-color'
+Plug 'gorkunov/smartpairs.vim'
 " Plug 'Shougo/vimproc.vim', { 'do': 'make' }
 " }}}
 " filetypes {{{
@@ -174,7 +175,14 @@ let g:airline#extensions#tabline#enabled = 1
 " Fortran tips {{{
 let fortran_fold=1
 let fortran_fold_conditionals=1
-let g:fortran_free_source=1
+let s:extfname = expand("%:e")
+if s:extfname ==? "f77"
+  let g:fortran_fixed_source=1
+elseif s:extfname ==? "f"
+  let g:fortran_fixed_source=1
+else
+  let g:fortran_free_source=1
+endif
 let g:syntastic_fortran_compiler = 'ifort'
 let g:syntastic_fortran_compiler_options = '-std03'
 " }}}
