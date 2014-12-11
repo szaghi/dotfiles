@@ -12,43 +12,43 @@ Plug 'romainl/Apprentice'
 Plug 'kien/rainbow_parentheses.vim'
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
+Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
 Plug 'bling/vim-airline'
 Plug 'paranoida/vim-airlineish'
-Plug 'junegunn/limelight.vim'
-Plug 'moll/vim-bbye'
-Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
-Plug 'chrisbra/NrrwRgn'
 " }}}
 " utilities {{{
+Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
+Plug 'chrisbra/NrrwRgn'
 Plug 'csexton/trailertrash.vim'
-" Plug 'Shougo/neocomplcache.vim'
-Plug 'Shougo/neocomplete.vim'
-Plug 'marcweber/vim-addon-mw-utils'
-Plug 'garbas/vim-snipmate'
-Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
+" Plug 'Shougo/neocomplete.vim'
+" Plug 'marcweber/vim-addon-mw-utils'
+" Plug 'garbas/vim-snipmate'
+" Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
 Plug 'tpope/vim-commentary'
-Plug 'tpope/vim-repeat'
-Plug 'tpope/vim-obsession'
+" Plug 'tpope/vim-repeat'
+" Plug 'tpope/vim-obsession'
 Plug 'jamessan/vim-gnupg'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
-Plug 'deris/vim-rengbang'
+" Plug 'deris/vim-rengbang'
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 Plug 'vim-scripts/VisIncr'
 Plug 'yaroot/vissort'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
-Plug 'godlygeek/tabular'
+" Plug 'godlygeek/tabular'
 Plug 'jiangmiao/auto-pairs'
 Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-fugitive'
-Plug 'ap/vim-css-color'
-Plug 'gorkunov/smartpairs.vim'
+" Plug 'ap/vim-css-color'
+" Plug 'gorkunov/smartpairs.vim'
+Plug 'xolox/vim-misc'
+Plug 'xolox/vim-notes'
 " Plug 'Shougo/vimproc.vim', { 'do': 'make' }
 " }}}
 " filetypes {{{
-Plug 'scrooloose/syntastic', { 'for':  ['python','fortran'] }
-Plug 'rbonvall/snipmate-snippets-fortran95', { 'for': 'fortran' }
-Plug 'honza/vim-snippets', { 'do': 'cd snippets/ ; ln -fs ../../snipmate-snippets-fortran95/snippets/fortran.snippets . ; cd -' }
+" Plug 'scrooloose/syntastic', { 'for':  ['python','fortran'] }
+" Plug 'rbonvall/snipmate-snippets-fortran95', { 'for': 'fortran' }
+" Plug 'honza/vim-snippets', { 'do': 'cd snippets/ ; ln -fs ../../snipmate-snippets-fortran95/snippets/fortran.snippets . ; cd -' }
 Plug 'lervag/vim-latex', { 'for': 'tex' }
 Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
 " }}}
@@ -62,23 +62,23 @@ let g:tagbar_sort = 1
 " }}}
 "
 " syntastic pluging {{{
-let g:syntastic_always_populate_loc_list = 1
+" let g:syntastic_always_populate_loc_list = 1
 " }}}
 
 " translators plugin {{{
-let g:goog_user_conf={'langpair': 'it|en'}
-let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
+" let g:goog_user_conf={'langpair': 'it|en'}
+" let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
 " }}}
 
 " neocomplete plugin {{{
   " Disable AutoComplPop.
-  let g:acp_enableAtStartup = 0
+  " let g:acp_enableAtStartup = 0
   " Use neocomplete.
-  let g:neocomplete#enable_at_startup = 1
+  " let g:neocomplete#enable_at_startup = 1
   " Use smartcase.
-  let g:neocomplete#enable_smart_case = 1
+  " let g:neocomplete#enable_smart_case = 1
   " Set minimum syntax keyword length.
-  let g:neocomplete#sources#syntax#min_keyword_length = 3
+  " let g:neocomplete#sources#syntax#min_keyword_length = 3
 " }}}
 
 " neosnippet plugin {{{
@@ -100,8 +100,8 @@ let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
   " let g:neosnippet#snippets_directory='~/.vim/plugged/vim-snippets/snippets'
 " }}}
 
-" limelight plugin {{{
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php :Limelight 0.6
+" notes plugin {{{
+  " let g:notes_directories = ['~/Dropbox/notes']
 " }}}
 
 " Editing behaviour {{{
@@ -193,9 +193,9 @@ let sh_fold_enabled=1
 let xml_syntax_folding=1
 " }}}
 " LaTeX tips {{{
-let g:latex_viewer = 'okular'
+  let g:latex_view_general_viewer = 'okular'
   function! SyncTexForward()
-    call latex#view('--unique '
+    call latex#view#view('--unique '
       \ . g:latex#data[b:latex.id].out()
       \ . '\#src:' . line(".") . expand('%:p'))
   endfunction
@@ -229,7 +229,7 @@ if has("autocmd")
   " }}}
 
   " LaTeX tips {{{
-  " autocmd FileType tex :call latex#toc#open()
+  autocmd FileType tex :call latex#toc#open()
   " }}}
 
   " programming tips {{{
@@ -279,7 +279,7 @@ nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " vim-latex
 nnoremap <C-L> :call latex#latexmk#toggle()<CR>
 nnoremap <C-T> :call SyncTexForward()<CR>
-" cursor movements limited or not (for gigino...)
+" cursor movements limited or not
 function! ToggleVirtualedit()
   if &virtualedit != ""
     set virtualedit&
