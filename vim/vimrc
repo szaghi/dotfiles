@@ -39,6 +39,7 @@ Plug 'xolox/vim-misc'
 Plug 'xolox/vim-notes'
 Plug 'laurentgoudet/vim-howdoi'
 Plug 'ajh17/VimCompletesMe'
+Plug 'dbakker/vim-lint'
 " Plug 'Shougo/vimproc.vim', { 'do': 'make' }
 " }}}
 " filetypes {{{
@@ -101,7 +102,7 @@ set hidden                                                               " hide 
 set switchbuf=useopen                                                    " reveal already opened files from the quickfix window instead of opening new buffers
 set nobackup                                                             " do not keep backup files, it's 70's style cluttering
 set noswapfile                                                           " do not write annoying intermediate swap files
-set viminfo='20,\"80                                                     " read/write a .viminfo file, don't store more than 80 lines of registers
+set viminfo='10,\"100,:20,%,n~/.viminfo                                  " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line, % save buffer list
 set wildmenu                                                             " make tab completion for files/buffers act like bash
 set wildmode=list:full                                                   " show a list when pressing tab and complete first full match
 set title                                                                " change the terminal's title
@@ -194,6 +195,9 @@ if has("autocmd")
 
   " LaTeX tips {{{
   autocmd FileType tex :call latex#toc#open()
+  if &diff
+    autocmd FileType tex :call latex#toc#toggle()
+  endif
   " }}}
 
   " programming tips {{{
@@ -216,7 +220,7 @@ endif
 " Mappings {{{
 " Perl/Python regex
 nnoremap / /\v
-vnoremap / /\v
+xnoremap / /\v
 " Speed up scrolling of the viewport slightly
 nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
