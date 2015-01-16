@@ -9,13 +9,13 @@ set nocompatible
 call plug#begin('~/.vim/plugged')
 " interface {{{
 Plug 'romainl/Apprentice'
+Plug 'KabbAmine/yowish.vim'
 Plug 'kien/rainbow_parentheses.vim'
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
 Plug 'bling/vim-airline'
-Plug 'paranoida/vim-airlineish'
 Plug 'Yggdroot/indentLine'
 Plug 'kshenoy/vim-signature'
 " }}}
@@ -44,6 +44,7 @@ Plug 'ajh17/VimCompletesMe'
 Plug 'dbakker/vim-lint'
 Plug 'itchyny/calendar.vim'
 Plug 'jaxbot/github-issues.vim'
+Plug 'kopischke/vim-fetch'
 " Plug 'Shougo/vimproc.vim', { 'do': 'make' }
 " }}}
 " filetypes {{{
@@ -135,13 +136,14 @@ if &t_Co > 2 || has("gui_running")
    syntax on " switch syntax highlighting on, when the terminal has colors
 endif
 set background=dark
-colorscheme apprentice
+" colorscheme apprentice
+colorscheme yowish
 hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
 au VimEnter * RainbowParenthesesToggle
 au Syntax * RainbowParenthesesLoadRound
 au Syntax * RainbowParenthesesLoadSquare
 au Syntax * RainbowParenthesesLoadBraces
-let g:airline_theme = 'airlineish'
+let g:airline_theme = 'yowish'
 let g:airline#extensions#tabline#enabled = 1
 " }}}
 
