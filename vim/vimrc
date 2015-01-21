@@ -44,9 +44,14 @@ Plug 'jaxbot/github-issues.vim'
 Plug 'kopischke/vim-fetch'
 Plug 'scrooloose/syntastic', { 'for':  ['python','fortran'] }
 Plug 'lervag/vim-latex', { 'for': 'tex' }
+Plug 'gi1242/vim-tex-syntax', { 'for': 'tex' }
 Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
 Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
 Plug 'MattesGroeger/vim-bookmarks'
+Plug 'itchyny/thumbnail.vim', { 'on': 'Thumbnail' }
+Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
+Plug 'gcmt/wildfire.vim'
+Plug 'Shougo/vimshell.vim'
 call plug#end()
 " }}}
 
@@ -88,6 +93,10 @@ let g:notes_directories = ['~/Dropbox/notes']
 " calendar plugin {{{
 let g:calendar_google_calendar = 1
 let g:calendar_google_task = 1
+" }}}
+
+" indentline plugin {{{
+let g:indentLine_faster = 1
 " }}}
 
 " Editing behaviour {{{
