@@ -273,4 +273,6 @@ function! ToggleVirtualedit()
   endif
 endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
+" numbers plugin ON/OFF
+nnoremap <C-N> :NumbersToggle<CR>
 " }}}
