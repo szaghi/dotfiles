@@ -47,11 +47,15 @@ Plug 'gi1242/vim-tex-syntax', { 'for': 'tex' }
 Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
 Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
 Plug 'MattesGroeger/vim-bookmarks'
+Plug 'kshenoy/vim-signature'
 Plug 'itchyny/thumbnail.vim', { 'on': 'Thumbnail' }
 Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
 Plug 'Shougo/vimshell.vim'
 Plug 'gcmt/wildfire.vim'
 Plug 'Konfekt/FastFold'
+Plug 'EinfachToll/DidYouMean'
+Plug 'Z1MM32M4N/vim-superman'
+Plug 'pelodelfuego/vim-swoop'
 call plug#end()
 " }}}
 
