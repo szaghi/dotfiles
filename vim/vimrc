@@ -80,6 +80,20 @@ hi GitGutterAdd ctermbg=NONE ctermfg=208 guibg=NONE guifg=#ff8700 cterm=NONE gui
 let g:tagbar_left = 1
 let g:tagbar_width = 30
 let g:tagbar_sort = 1
+let g:tagbar_type_dosini = {
+    \ 'ctagstype': 'dosini',
+    \ 'kinds' : [
+        \'s:section'
+    \]
+\}
+let g:tagbar_type_markdown = {
+    \ 'ctagstype' : 'markdown',
+    \ 'kinds' : [
+        \ 'h:Heading_L1',
+        \ 'i:Heading_L2',
+        \ 'k:Heading_L3'
+    \]
+\}
 " }}}
 "
 " syntastic pluging {{{
@@ -203,6 +217,7 @@ if has("autocmd")
 
   " fobos tips {{{
   autocmd BufEnter,BufRead,BufNewFile *fobos* set syntax=dosini
+  autocmd BufEnter,BufRead,BufNewFile *fobos*	set filetype=dosini
   " }}}
 
   " Fortran tips {{{
@@ -226,17 +241,17 @@ if has("autocmd")
 
   " programming tips {{{
   " automatically open Tagbar
-  autocmd FileType fortran,sh,bash,python,c,cpp,vim,css,java,php :TagbarOpen
   if &diff
-    autocmd FileType fortran :TagbarClose
-    autocmd FileType sh :TagbarClose
+    " do nothing
+  else
+    autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown :TagbarOpen
   endif
   " removing trailing space
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
+  autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
   " condensing multiple blank lines into a single blank line
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
+  autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
   " set fold method to syntax
-  autocmd FileType fortran,make,sh,bash,c,cpp,tex,css,java,php,xml,octopress set foldmethod=syntax
+  autocmd FileType fortran,make,dosini,sh,bash,c,cpp,tex,css,java,php,xml,markdown set foldmethod=syntax
   autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2 softtabstop=2
   " }}}
 endif
