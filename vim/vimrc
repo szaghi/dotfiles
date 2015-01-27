@@ -56,6 +56,7 @@ Plug 'Konfekt/FastFold'
 Plug 'EinfachToll/DidYouMean'
 Plug 'Z1MM32M4N/vim-superman'
 Plug 'pelodelfuego/vim-swoop'
+Plug 'kakkyz81/evervim'
 call plug#end()
 " }}}
 
@@ -101,6 +102,10 @@ let g:calendar_google_task = 1
 
 " indentline plugin {{{
 let g:indentLine_faster = 1
+" }}}
+
+" evervim pluging {{{
+source ~/.evernotetoken.vim
 " }}}
 
 " Editing behaviour {{{
@@ -221,9 +226,10 @@ if has("autocmd")
 
   " programming tips {{{
   " automatically open Tagbar
-  autocmd FileType fortran,make,sh,bash,python,c,cpp,vim,css,java,php :TagbarOpen
+  autocmd FileType fortran,sh,bash,python,c,cpp,vim,css,java,php :TagbarOpen
   if &diff
-    autocmd FileType * :TagbarClose
+    autocmd FileType fortran :TagbarClose
+    autocmd FileType sh :TagbarClose
   endif
   " removing trailing space
   autocmd FileType fortran,make,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
