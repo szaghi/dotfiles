@@ -23,7 +23,6 @@ Plug 'bling/vim-airline'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
-Plug 'ryanoasis/vim-webdevicons'
 " selection
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 Plug 'chrisbra/NrrwRgn'
