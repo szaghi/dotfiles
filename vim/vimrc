@@ -56,6 +56,9 @@ Plug 'mattn/gist-vim'
 Plug 'gregsexton/gitv'
 " utilities
 Plug 'tpope/vim-repeat'
+Plug 'tpope/vim-dispatch'
+Plug 'tpope/vim-abolish'
+Plug 'sirver/ultisnips'
 Plug 'jamessan/vim-gnupg'
 Plug 'laurentgoudet/vim-howdoi'
 Plug 'ajh17/VimCompletesMe'
@@ -70,14 +73,15 @@ Plug 'kopischke/vim-fetch'
 Plug 'kakkyz81/evervim'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
-Plug 'kopischke/vim-stay'
+Plug 'chrisbra/vim-diff-enhanced'
+Plug 'niboan/plugconf'
 " programming languages
 Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 Plug 'lervag/vim-latex', { 'for': 'tex' }
-Plug 'gi1242/vim-tex-syntax', { 'for': 'tex' }
 Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
 " unknown
 call plug#end()
+call plugconf#load()
 " }}}
 
 " Highlighting and colors {{{
@@ -94,65 +98,6 @@ au Syntax * RainbowParenthesesLoadBraces
 let g:airline_theme = 'yowish'
 let g:airline#extensions#tabline#enabled = 1
 hi GitGutterAdd ctermbg=NONE ctermfg=208 guibg=NONE guifg=#ff8700 cterm=NONE gui=NONE
-" }}}
-
-" tagbar pluging {{{
-let g:tagbar_left = 1
-let g:tagbar_width = 30
-let g:tagbar_sort = 1
-let g:tagbar_type_dosini = {
-    \ 'ctagstype': 'dosini',
-    \ 'kinds' : [
-        \'s:section'
-    \]
-\}
-let g:tagbar_type_markdown = {
-    \ 'ctagstype' : 'markdown',
-    \ 'kinds' : [
-        \ 'h:Heading_L1',
-        \ 'i:Heading_L2',
-        \ 'k:Heading_L3'
-    \]
-\}
-" }}}
-"
-" syntastic pluging {{{
-let g:syntastic_always_populate_loc_list = 1
-" }}}
-
- " unite-workflow pluging {{{
-let g:github_user='szaghi'
-" }}}
-
-" translators plugin {{{
-let g:goog_user_conf={'langpair': 'it|en'}
-let g:languagetool_jar='/opt/arch/LanguageTool-2.3/languagetool-commandline.jar'
-" }}}
-
-" notes plugin {{{
-let g:notes_directories = ['~/Dropbox/notes']
-" }}}
-
-" calendar plugin {{{
-let g:calendar_google_calendar = 1
-let g:calendar_google_task = 1
-" }}}
-
-" indentline plugin {{{
-let g:indentLine_faster = 1
-" }}}
-
-" evervim pluging {{{
-source ~/.evernotetoken.vim
-" }}}
-
-" colorscheme-switcher-manger pluging {{{
-let g:colorscheme_switcher_exclude_builtins=1
-" }}}
-
-" colorscheme-switcher-manger pluging {{{
-let g:fastfold_togglehook = 1
-let g:fastfold_mapsuffixes = ['x','X','a','A']
 " }}}
 
 " Editing behaviour {{{
@@ -208,37 +153,12 @@ set termencoding=utf-8                                                   " file 
 " }}}
 
 " Filetype specific handling {{{
-" Fortran tips {{{
-let fortran_fold=1
-let fortran_fold_conditionals=1
-let s:extfname = expand("%:e")
-if s:extfname ==? "f77"
-  let g:fortran_fixed_source=1
-elseif s:extfname ==? "f"
-  let g:fortran_fixed_source=1
-else
-  let g:fortran_free_source=1
-endif
-let g:syntastic_fortran_compiler = 'ifort'
-let g:syntastic_fortran_compiler_options = '-std03'
-" }}}
-" sh tips {{{
-let sh_fold_enabled=1
-" }}}
-" xml tips {{{
-let xml_syntax_folding=1
-" }}}
-" LaTeX tips {{{
-  let g:latex_view_general_viewer = 'okular'
-  function! SyncTexForward()
-    call latex#view#view('--unique '
-      \ . g:latex#data[b:latex.id].out()
-      \ . '\#src:' . line(".") . expand('%:p'))
-  endfunction
-" }}}
+source ~/.fortranrc.vim
+source ~/.fobosrc.vim
+source ~/.pythonrc.vim
 " }}}
 
-" Autocommands stuffs {{{
+" Autocommands {{{
 if has("autocmd")
   " let terminal resize scale the internal windows
   autocmd VimResized * :wincmd =
@@ -252,54 +172,19 @@ if has("autocmd")
     autocmd!
     autocmd InsertEnter * let w:last_fdm=&foldmethod | setlocal foldmethod=manual
     autocmd InsertLeave * let &l:foldmethod=w:last_fdm
+    autocmd FileType sh,bash let sh_fold_enabled=1
+    autocmd FileType xml let xml_syntax_folding=1
   augroup END
-
-  " fobos tips {{{
-  augroup fobos
-    autocmd!
-    autocmd BufEnter,BufRead,BufNewFile *fobos* set syntax=dosini
-    autocmd BufEnter,BufRead,BufNewFile *fobos*	set filetype=dosini
-  augroup END
-  " }}}
-
-  " Fortran tips {{{
-  let fortran = "$VIM/syntax/fortran.vim"
-  augroup fortran
-    autocmd!
-    " associate *.inc file to fortran type
-    autocmd BufEnter,BufRead,BufNewFile *.inc set syntax=fortran
-    " marking columns > 132(72)
-    autocmd BufEnter,BufRead,BufNewFile *.F,*.FOR,*.FPP,*.F77,*.f,*.for,*.fortran,*.fpp,*.f77 let w:m2=matchadd('ErrorMsg', '\%>72v.\+', -1)
-    autocmd BufEnter,BufRead,BufNewFile *.F90,*.F95,*.F03,*.F08,*.f90,*.f95,*.f03,*.f08,*.inc let w:m2=matchadd('ErrorMsg', '\%>132v.\+', -1)
-    " fixing indent
-    autocmd BufEnter,BufRead,BufNewFile *.F,*.FOR,*.FPP,*.F77,*.f,*.for,*.fortran,*.fpp,*.f77 set tw=72
-    autocmd BufEnter,BufRead,BufNewFile *.F90,*.F95,*.F03,*.F08,*.f90,*.f95,*.f03,*.f08,*.inc set tw=132
-  augroup END
-  " }}}
-
-  " LaTeX tips {{{
-  " autocmd FileType tex :call latex#toc#open()
-  " if &diff
-    " autocmd FileType tex :call latex#toc#toggle()
-  " endif
-  " }}}
 
   " programming tips {{{
   augroup programming
     autocmd!
-    " automatically open Tagbar
-    if &diff
-      " do nothing
-    else
-      autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown :TagbarOpen
-    endif
     " removing trailing space
     autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
     " condensing multiple blank lines into a single blank line
     autocmd FileType fortran,make,sh,bash,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
     " set fold method to syntax
     autocmd FileType fortran,make,dosini,sh,bash,c,cpp,tex,css,java,php,xml,markdown set foldmethod=syntax
-    autocmd FileType python set foldmethod=indent foldlevel=0 expandtab tabstop=2 shiftwidth=2 softtabstop=2
   augroup END
   " }}}
 endif
@@ -321,8 +206,6 @@ nnoremap <silent> <A-Right> :wincmd l<CR>
 noremap Y y$
 " wrap ON/OFF
 noremap <F2> :set wrap! wrap?<CR>
-" Tagbar
-noremap <F3> :TagbarToggle<CR>
 " buffer navigation
 nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
@@ -332,12 +215,6 @@ nnoremap <C-e> :CtrlP<CR>
 nnoremap qq :Bdelete<CR>
 " fold-focusing
 nnoremap <C-f> :call FoldFocus('vnew')<CR>
-" vim-latex
-augroup tex_mapping
-  autocmd!
-  autocmd FileType tex nnoremap <C-L> :call latex#latexmk#toggle()<CR>
-  autocmd FileType tex nnoremap <C-T> :call SyncTexForward()<CR>
-augroup END
 " cursor movements limited or not
 function! ToggleVirtualedit()
   if &virtualedit != ""
@@ -351,4 +228,6 @@ endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
 " numbers plugin ON/OFF
 nnoremap <C-N> :NumbersToggle<CR>
+"Maps Ctrl-J to insert line break (like the opposite of J)
+nnoremap <NL> i<CR><ESC>
 " }}}
