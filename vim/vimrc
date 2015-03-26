@@ -13,7 +13,7 @@ Plug 'KabbAmine/yowish.vim'
 Plug 'hickop/vim-hickop-colors'
 Plug 'jordwalke/flatlandia'
 Plug 'w0ng/vim-hybrid'
-Plug 'kien/rainbow_parentheses.vim'
+Plug 'luochen1990/rainbow'
 Plug 'xolox/vim-misc'
 Plug 'xolox/vim-colorscheme-switcher'
 Plug 'Taverius/vim-colorscheme-manager'
@@ -91,12 +91,6 @@ endif
 set background=dark
 colorscheme hickop " default colorscheme, change on the fly with F8
 hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
-au VimEnter * RainbowParenthesesToggle
-au Syntax * RainbowParenthesesLoadRound
-au Syntax * RainbowParenthesesLoadSquare
-au Syntax * RainbowParenthesesLoadBraces
-let g:airline_theme = 'yowish'
-let g:airline#extensions#tabline#enabled = 1
 hi GitGutterAdd ctermbg=NONE ctermfg=208 guibg=NONE guifg=#ff8700 cterm=NONE gui=NONE
 " }}}
 
@@ -153,9 +147,9 @@ set termencoding=utf-8                                                   " file 
 " }}}
 
 " Filetype specific handling {{{
-source ~/.fortranrc.vim
-source ~/.fobosrc.vim
-source ~/.pythonrc.vim
+source ~/.vim/fortranrc.vim
+source ~/.vim/fobosrc.vim
+source ~/.vim/pythonrc.vim
 " }}}
 
 " Autocommands {{{
@@ -197,24 +191,22 @@ xnoremap / /\v
 " Speed up scrolling of the viewport slightly
 nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
-" change window splits
+" Change window splits
 nnoremap <silent> <A-Up> :wincmd k<CR>
 nnoremap <silent> <A-Down> :wincmd j<CR>
 nnoremap <silent> <A-Left> :wincmd h<CR>
 nnoremap <silent> <A-Right> :wincmd l<CR>
 " Map Y do be analog of D
 noremap Y y$
-" wrap ON/OFF
+" Wrap ON/OFF
 noremap <F2> :set wrap! wrap?<CR>
-" buffer navigation
+" Buffer navigation
 nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
 " CtrlP file explorer
 nnoremap <C-e> :CtrlP<CR>
-" Buffure close
+" Buffer close
 nnoremap qq :Bdelete<CR>
-" fold-focusing
-nnoremap <C-f> :call FoldFocus('vnew')<CR>
 " cursor movements limited or not
 function! ToggleVirtualedit()
   if &virtualedit != ""
@@ -226,8 +218,6 @@ function! ToggleVirtualedit()
   endif
 endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
-" numbers plugin ON/OFF
-nnoremap <C-N> :NumbersToggle<CR>
 "Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
 " }}}
