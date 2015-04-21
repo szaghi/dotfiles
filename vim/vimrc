@@ -5,11 +5,10 @@
 " This must be first, because it changes other options as a side effect.
 set nocompatible
 
-" Plugins handling with vim-plug {{{
+" Plugins handling with vim-plug and plugconf {{{
 call plug#begin('~/.vim/plugged')
 " apparence
 Plug 'romainl/Apprentice'
-Plug 'KabbAmine/yowish.vim'
 Plug 'hickop/vim-hickop-colors'
 Plug 'jordwalke/flatlandia'
 Plug 'w0ng/vim-hybrid'
@@ -23,6 +22,7 @@ Plug 'bling/vim-airline'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
+Plug 'jeetsukumaran/vim-filebeagle'
 " selection
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 Plug 'chrisbra/NrrwRgn'
@@ -31,7 +31,8 @@ Plug 'Konfekt/FastFold'
 Plug 'pelodelfuego/vim-swoop'
 Plug 'gcmt/wildfire.vim'
 " spell check and languages
-Plug 'vim-scripts/LanguageTool', { 'on':  ['LanguageToolCheck','LanguageToolClear'] }
+Plug 'scrooloose/syntastic', { 'for':  ['python', 'tex', 'latex'] }
+Plug 'vim-scripts/LanguageTool'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
@@ -39,6 +40,7 @@ Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
 Plug 'yaroot/vissort'
 Plug 'godlygeek/tabular'
+Plug 'junegunn/vim-easy-align'
 Plug 'jiangmiao/auto-pairs'
 Plug 'gorkunov/smartpairs.vim'
 Plug 'tpope/vim-commentary'
@@ -66,6 +68,7 @@ Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
 Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
 Plug 'Shougo/vimshell.vim'
 Plug 'Shougo/unite.vim'
+Plug 'idanarye/vim-vebugger'
 Plug 'farseer90718/unite-workflow'
 Plug 'mhinz/vim-startify'
 Plug 'wakatime/vim-wakatime'
@@ -76,9 +79,9 @@ Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'chrisbra/vim-diff-enhanced'
 Plug 'niboan/plugconf'
 " programming languages
-Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 Plug 'lervag/vim-latex', { 'for': 'tex' }
 Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
+Plug 'shime/vim-livedown', { 'for': 'markdown' }
 " unknown
 call plug#end()
 call plugconf#load()
@@ -207,7 +210,7 @@ nnoremap <C-Left> :bprevious<CR>
 nnoremap <C-e> :CtrlP<CR>
 " Buffer close
 nnoremap qq :Bdelete<CR>
-" cursor movements limited or not
+" Cursor movements limited or not
 function! ToggleVirtualedit()
   if &virtualedit != ""
     set virtualedit&
@@ -218,6 +221,6 @@ function! ToggleVirtualedit()
   endif
 endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
-"Maps Ctrl-J to insert line break (like the opposite of J)
+" Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
 " }}}
