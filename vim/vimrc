@@ -13,9 +13,11 @@ Plug 'hickop/vim-hickop-colors'
 Plug 'jordwalke/flatlandia'
 Plug 'w0ng/vim-hybrid'
 Plug 'luochen1990/rainbow'
+Plug 'raphamorim/lucario', { 'do' : 'ln -fs vim/colors .' }
 Plug 'xolox/vim-misc'
 Plug 'xolox/vim-colorscheme-switcher'
 Plug 'Taverius/vim-colorscheme-manager'
+Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
 " main screen utilities
 Plug 'majutsushi/tagbar'
 Plug 'bling/vim-airline'
@@ -23,6 +25,7 @@ Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
 Plug 'jeetsukumaran/vim-filebeagle'
+Plug 'terryma/vim-multiple-cursors'
 " selection
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 Plug 'chrisbra/NrrwRgn'
@@ -80,8 +83,7 @@ Plug 'chrisbra/vim-diff-enhanced'
 Plug 'niboan/plugconf'
 " programming languages
 Plug 'lervag/vim-latex', { 'for': 'tex' }
-Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
-Plug 'shime/vim-livedown', { 'for': 'markdown' }
+Plug 'tpope/vim-markdown', { 'for': 'markdown' }
 " unknown
 call plug#end()
 call plugconf#load()
@@ -195,10 +197,10 @@ xnoremap / /\v
 nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
 " Change window splits
-nnoremap <silent> <A-Up> :wincmd k<CR>
-nnoremap <silent> <A-Down> :wincmd j<CR>
-nnoremap <silent> <A-Left> :wincmd h<CR>
-nnoremap <silent> <A-Right> :wincmd l<CR>
+nnoremap <silent> <C-A-Up> :wincmd k<CR>
+nnoremap <silent> <C-A-Down> :wincmd j<CR>
+nnoremap <silent> <C-A-Left> :wincmd h<CR>
+nnoremap <silent> <C-A-Right> :wincmd l<CR>
 " Map Y do be analog of D
 noremap Y y$
 " Wrap ON/OFF
@@ -223,4 +225,7 @@ endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
 " Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
+" markdown preview
+" nnoremap G :Start! github-markdown-preview %<CR>
+" nnoremap G :Start! greadme %<CR>
 " }}}
