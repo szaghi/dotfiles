@@ -95,7 +95,7 @@ else
 	hostStyle="${yellow}";
 fi;
 PS1="\[\033]0;\w\007\]";
-PS1+="\[${bold}\]";
+PS1+="\[${bold}\]\n";
 PS1+="\[${userStyle}\]\u";
 PS1+="\[${smerald}\]@";
 PS1+="\[${hostStyle}\]\h";
