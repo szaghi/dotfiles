@@ -20,5 +20,8 @@
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
 [core]
 	editor = vim
+	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
 [git-up "fetch"]
 	all = true
+[apply]
+	whitespace = fix

@@ -126,6 +126,9 @@ set noswapfile                                                           " do no
 set viminfo='10,\"100,:20,n~/.viminfo                                    " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line
 set wildmenu                                                             " make tab completion for files/buffers act like bash
 set wildmode=list:full                                                   " show a list when pressing tab and complete first full match
+set esckeys                                                              " allow cursor keys in insert mode
+set ttyfast                                                              " optimize for fast terminal connections
+set lcs=tab:▸\ ,trail:·,eol:¬,nbsp:_                                     " show “invisible” characters
 set title                                                                " change the terminal's title
 set noerrorbells                                                         " don't beep
 set showcmd                                                              " show (partial) command in the last line of the screen
