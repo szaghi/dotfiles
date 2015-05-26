@@ -8,15 +8,8 @@ set nocompatible
 " Plugins handling with vim-plug and plugconf {{{
 call plug#begin('~/.vim/plugged')
 " apparence
-Plug 'romainl/Apprentice'
-Plug 'hickop/vim-hickop-colors'
-Plug 'jordwalke/flatlandia'
-Plug 'w0ng/vim-hybrid'
+Plug 'altercation/vim-colors-solarized'
 Plug 'luochen1990/rainbow'
-Plug 'raphamorim/lucario', { 'do' : 'ln -fs vim/colors .' }
-Plug 'xolox/vim-misc'
-Plug 'xolox/vim-colorscheme-switcher'
-Plug 'Taverius/vim-colorscheme-manager'
 Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
 " main screen utilities
 Plug 'majutsushi/tagbar'
@@ -94,9 +87,7 @@ if &t_Co > 2 || has("gui_running")
    syntax on " switch syntax highlighting on, when the terminal has colors
 endif
 set background=dark
-colorscheme hickop " default colorscheme, change on the fly with F8
-hi SpellBad term=underline cterm=underline ctermfg=214 ctermbg=16
-hi GitGutterAdd ctermbg=NONE ctermfg=208 guibg=NONE guifg=#ff8700 cterm=NONE gui=NONE
+colorscheme solarized
 " }}}
 
 " Editing behaviour {{{
@@ -159,6 +150,7 @@ source ~/.vim/pythonrc.vim
 
 " Autocommands {{{
 if has("autocmd")
+  autocmd FileType * set list!
   " let terminal resize scale the internal windows
   autocmd VimResized * :wincmd =
 
