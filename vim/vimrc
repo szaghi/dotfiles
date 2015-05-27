@@ -126,9 +126,9 @@ set noswapfile                                                           " do no
 set viminfo='10,\"100,:20,n~/.viminfo                                    " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line
 set wildmenu                                                             " make tab completion for files/buffers act like bash
 set wildmode=list:full                                                   " show a list when pressing tab and complete first full match
-set esckeys                                                              " allow cursor keys in insert mode
-set ttyfast                                                              " optimize for fast terminal connections
-set lcs=tab:▸\ ,trail:·,eol:¬,nbsp:_                                     " show “invisible” characters
+" set esckeys                                                              " allow cursor keys in insert mode
+" set ttyfast                                                              " optimize for fast terminal connections
+" set lcs=tab:▸\ ,trail:·,eol:¬,nbsp:_                                     " show “invisible” characters
 set title                                                                " change the terminal's title
 set noerrorbells                                                         " don't beep
 set showcmd                                                              " show (partial) command in the last line of the screen
@@ -153,7 +153,7 @@ source ~/.vim/pythonrc.vim
 
 " Autocommands {{{
 if has("autocmd")
-  autocmd FileType * set list!
+  " autocmd FileType * set list!
   " let terminal resize scale the internal windows
   autocmd VimResized * :wincmd =
 
@@ -192,10 +192,10 @@ xnoremap / /\v
 nnoremap <C-e> 2<C-e>
 nnoremap <C-y> 2<C-y>
 " Change window splits
-nnoremap <silent> <C-A-Up> :wincmd k<CR>
-nnoremap <silent> <C-A-Down> :wincmd j<CR>
-nnoremap <silent> <C-A-Left> :wincmd h<CR>
-nnoremap <silent> <C-A-Right> :wincmd l<CR>
+nnoremap <silent> <A-Up> :wincmd k<CR>
+nnoremap <silent> <A-Down> :wincmd j<CR>
+nnoremap <silent> <A-Left> :wincmd h<CR>
+nnoremap <silent> <A-Right> :wincmd l<CR>
 " Map Y do be analog of D
 noremap Y y$
 " Wrap ON/OFF

@@ -1,6 +1,8 @@
 let g:tagbar_left = 1
 let g:tagbar_width = 30
 let g:tagbar_sort = 1
+let g:tagbar_autofocus = 0
+let g:tagbar_compact = 1
 let g:tagbar_type_dosini = {
     \ 'ctagstype': 'dosini',
     \ 'kinds' : [
@@ -20,7 +22,7 @@ if has("autocmd")
   if &diff
     " do nothing
   else
-    autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown :TagbarOpen
+    " autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown :TagbarOpen
   endif
 endif
 noremap <F3> :TagbarToggle<CR>

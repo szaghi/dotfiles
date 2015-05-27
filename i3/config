@@ -24,7 +24,7 @@ floating_modifier $mod
 # new window default border
 new_window pixel 1
 new_float pixel 1
-# browser pop-ups
+# windows pop-ups
 for_window [window_role="pop-up"] floating enable,move absolute center
 # start a terminal
 bindsym $mod+Return exec terminology -d `xcwd`
@@ -105,8 +105,6 @@ bindsym $mod+minus scratchpad show
 bindsym $mod+Shift+c reload
 # restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
 bindsym $mod+Shift+r restart
-# exit i3 (logs you out of your X session)
-bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
 
 # logout, reboot, shutdown
 set $Locker i3lock -i ~/pictures/Wallpapers/The_Incredulity_of_Saint_Thomas_by_Caravaggio.png && sleep 1
@@ -185,9 +183,13 @@ exec --no-startup-id unclutter -idle 2
 exec --no-startup-id dunst -config ~/.i3/dunstrc
 exec --no-startup-id feh --bg-scale ~/pictures/Wallpapers/The_Incredulity_of_Saint_Thomas_by_Caravaggio.jpg
 exec --no-startup-id devmon
+exec --no-startup-id blueman-applet
+exec --no-startup-id bitlbee -F
 
 # Most used
 bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'
+bindsym $mod+c exec chromium
+bindsym $mod+g exec chromium --app=https://mail.google.com/mail/u/0/#inbox
 bindsym $mod+i exec ~/scripts/icemcfd11
 bindsym $mod+p exec /opt/arch/paraview/4.3.1/bin/paraview
 bindsym $mod+t exec /opt/arch/tecplot/2008/bin/tec360
