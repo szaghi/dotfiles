@@ -225,6 +225,8 @@ endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
 " Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
+" Set NumberToggle ON/OFF
+nnoremap <F12> :NumbersToggle<CR>
 " markdown preview
 " nnoremap G :Start! github-markdown-preview %<CR>
 " nnoremap G :Start! greadme %<CR>
