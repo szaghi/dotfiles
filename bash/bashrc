@@ -1,0 +1,46 @@
+# ~/.bashrc
+
+# if not running interactively, don't do anything
+[ -z "$PS1" ] && return;
+
+# load the bash dotfiles
+for file in ~/.{bash_aliases,bash_compilers,bash_exports,bash_functions,bash_optprogs,bash_paths,bash_prompt}; do
+	[ -r "$file" ] && [ -f "$file" ] && source "$file";
+done;
+unset file;
+
+# don't put duplicate lines in the history
+export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# check the window size after each command and, if necessary update the values of LINES and COLUMNS
+shopt -s checkwinsize
+
+# case-insensitive globbing (used in pathname expansion)
+shopt -s nocaseglob;
+
+# autocorrect typos in path names when using `cd`
+shopt -s cdspell;
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)";
+
+# enable some Bash 4 features when possible:
+for option in autocd globstar; do
+	shopt -s "$option" 2> /dev/null;
+done;
+
+# add tab completion for many Bash commands
+if [ -f /etc/bash_completion ]; then
+	source /etc/bash_completion;
+fi;
+
+# enable tab completion for `g` by marking it as an alias for `git`
+if type _git &> /dev/null && [ -f /usr/local/etc/bash_completion.d/git-completion.bash ]; then
+	complete -o default -o nospace -F _git g;
+fi;
+
+# add tab completion for SSH hostnames based on ~/.ssh/config, ignoring wildcards
+[ -e "$HOME/.ssh/config" ] && complete -o "default" -o "nospace" -W "$(grep "^Host" ~/.ssh/config | grep -v "[?*]" | cut -d " " -f2- | tr ' ' '\n')" scp sftp ssh;

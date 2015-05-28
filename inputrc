@@ -1,15 +1,31 @@
-set bell-style none
-set mark-directories on
-set mark-symlinked-directories on
-set match-hidden-files off
+# Make Tab autocomplete regardless of filename case
 set completion-ignore-case on
+# List all matches in case multiple possible completions are possible
 set show-all-if-ambiguous on
+# Immediately add a trailing slash when autocompleting symlinks to directories
+set mark-symlinked-directories on
+# Avoid match hidden files
+set match-hidden-files off
+# Mark directories
+set mark-directories on
+# Bell off
+set bell-style none
+# Show all autocomplete results at once
 set page-completions off
+# If there are more than 200 possible completions for a word, ask to show them all
+set completion-query-items 200
+# Show extra file information when completing, like `ls -F` does
 set visible-stats on
+# Be more intelligent when autocompleting by also looking at the text after
+set skip-completed-text on
+# Allow UTF-8 input and output, instead of showing stuff like $'\0123\0456'
 set input-meta on
 set output-meta on
 set convert-meta off
+# Flip through autocompletion matches with Shift-Tab.
+"\e[Z": menu-complete
+# Filtered history search
+"\C-p":history-search-backward
+# Flip through words
 "\C-b":backward-word
 "\C-f":forward-word
-"\C-p":history-search-backward
-"\M-'":possible-completions
