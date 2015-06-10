@@ -1,0 +1,103 @@
+- clean: ['~']
+
+- shell:
+  - [mkdir -p ~/.icons, Creating icons config directory]
+  - [mkdir -p ~/.weechat, Creating weechat config directory]
+
+- link:
+    ~/.bash_aliases:
+      path: bash/bash_aliases
+      relink: true
+      force: true
+    ~/.bash_compilers:
+      path: bash/bash_compilers
+      relink: true
+      force: true
+    ~/.bash_exports:
+      path: bash/bash_exports
+      relink: true
+      force: true
+    ~/.bash_functions:
+      path: bash/bash_functions
+      relink: true
+      force: true
+    ~/.bash_optprogs:
+      path: bash/bash_optprogs
+      relink: true
+      force: true
+    ~/.bash_paths:
+      path: bash/bash_paths
+      relink: true
+      force: true
+    ~/.bash_prompt:
+      path: bash/bash_prompt
+      relink: true
+      force: true
+    ~/.bashrc:
+      path: bash/bashrc
+      relink: true
+      force: true
+    ~/.bash_welcome:
+      path: bash/bash_welcome
+      relink: true
+      force: true
+
+    ~/.pypirc:
+      path: encrypt/pypirc
+      relink: true
+      force: true
+
+    ~/.gitconfig:
+      path: git/gitconfig
+      relink: true
+      force: true
+
+    ~/.i3:
+      path: i3
+      relink: true
+      force: true
+
+    ~/.icons/bridge:
+      path: icons/bridge
+      relink: true
+      force: true
+
+    ~/.latexmkrc:
+      path: miscellanea/latexmkrc
+      relink: true
+      force: true
+
+    ~/.Xresources:
+      path: miscellanea/Xresources
+      relink: true
+      force: true
+
+    ~/.yaourtrc:
+      path: miscellanea/yaourtrc
+      relink: true
+      force: true
+
+    ~/.dircolors.256dark:
+      path: terminal/dircolors.256dark
+      relink: true
+      force: true
+
+    ~/.inputrc:
+      path: terminal/inputrc
+      relink: true
+      force: true
+
+    ~/.vim:
+      path: vim/
+      relink: true
+      force: true
+
+    ~/.vimrc:
+      path: vim/vimrc
+      relink: true
+      force: true
+
+    ~/.weechat/weechat.conf:
+      path: weechat/weechat.conf
+      relink: true
+      force: true
