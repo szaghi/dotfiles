@@ -28,6 +28,7 @@ Plug 'pelodelfuego/vim-swoop'
 Plug 'gcmt/wildfire.vim'
 " spell check and languages
 Plug 'scrooloose/syntastic', { 'for':  ['python', 'tex', 'latex'] }
+Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 Plug 'vim-scripts/LanguageTool'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
@@ -69,7 +70,6 @@ Plug 'farseer90718/unite-workflow'
 Plug 'mhinz/vim-startify'
 Plug 'wakatime/vim-wakatime'
 Plug 'kopischke/vim-fetch'
-Plug 'kakkyz81/evervim'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'chrisbra/vim-diff-enhanced'

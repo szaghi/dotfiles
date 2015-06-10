@@ -1,12 +1,20 @@
-U2FsdGVkX1+dmhxmWkg3ZjbuBIc19rYc4LJCJsSyhlxQwBsYO7tNOFfn5dDBA/P+
-yP6g0K4pL09e/KVlyXKW6C3nQb45Tu6CqoV4PxEuItUW2WhNFxrTwN/o5VjnqS/W
-ccSxF+DNYP2xTfQyFIFfGueyCAD410Mwqh2+BoYr+TwqgKJuH41cKlFf4yEuSdXV
-F1mDZDBl8ObDPj73zzVyT/UyvdOD/Uts4hct4c1yXGk+i+QHCBsu3AUAs7XfLWUp
-vH6XTMNZDOGlshg478ym6yiU64bGXszeDfThmKy3hND1Mr3Tg/1LbOIXLeHNclxp
-k/6/xlYr3xEmJV33b5fh4AKxACrp6o4Zh1Yl+bPpBULzn08F8C8cdCrSq/mTeazr
-zWeHpLpyrAs3Y+J7MWRpO2kmGzul6pFFTjwfV3jEWvHWTvpjnZSe58llaIrnVWHf
-UB84qp6CfSsRK8yV8fApLRTsGHCKEnFJj//XOaHXqcAYiV9c0Yzavb9dWp74PSFV
-Nt2a3PR7o/QIDuVCf3BgLy+U7WZ09+7J6Vv4FVLF5eZrNNN8qLK1Wdz7LzDjzpZd
-F/m/7OBU6gFvkXL4CBRlhCB7Xqm4pkSP14Jd4vhiY3uWCJdg7u8VK1zRQ4rCgn8t
-XJAE8p3M/sGSYT26htWYK7m5R9HAjxeM9OmoYnZthVNviR8Iab9QRc2kmg+SllGv
-jCu/nkhxCGfYVZOaxqa6oMXbGMjMkffGdzGUhmT6JE0=
+# ~/.bash_compilers
+source ~/.bash_functions
+
+# intel parallel studio
+# source /opt/ubuntu/intel/advisor_xe/advixe-vars.sh > /dev/null 2>&1
+# source /opt/ubuntu/intel/composerxe/bin/compilervars.sh intel64
+# source /opt/ubuntu/intel/inspector_xe/inspxe-vars.sh > /dev/null 2>&1
+# source /opt/ubuntu/intel/vtune_amplifier_xe/amplxe-vars.sh > /dev/null 2>&1
+
+# g95
+pathmunge /opt/arch/g95-x86-64-0.94/bin after
+
+# OpenMP
+OMP_NUM_THREADS=6
+export OMP_NUM_THREADS
+
+# mpi
+# module load openmpi-1.6.5-intel
+
+export MANPATH LD_LIBRARY_PATH LD_RUN_PATH

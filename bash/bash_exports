@@ -1,18 +1,33 @@
-U2FsdGVkX1+dmhxmWkg3ZtAP1PK6LxEWEtvYyzmtEH4Fn2IyuOPYu68IsFl3JwsU
-NCCk0NV/ovqiSZasmWacoqEnzy+cn2W1U4xBzK+9cMP7BO5BiBfjoxSGuXnQdwts
-7jqrlul0UEVQFkwk0LBireO+QVCbVxiPpw37XrTHhtUT8mO+GNB9VdZwDFXchV3T
-9BVCpmHrKibAVtpSLjNFj7ANneRr6nK5F4bgd5ZV9AKpDn2Xlgz64z/VjsAAB2cq
-sFswmlTo+78tu5bzHKWjtEeUrFvYGxT6BewgT9QkUyffXvzWcF0XszpJxHwBw78d
-CcdCcDIiU7k+u/Pu8IWTldJLx+eEdy3yEXP5hXUMPcQAhJeg0W5YDwsQlJo21DXk
-IJwxGBkunoM/S01n8z7BrW48jjRGaeExtdV57XpKBpqhh5/2GDN4tW4MuyL3pPmy
-1f8+Q3SPk/Rq3LRu2NFYgLGQZhRDk2xJt1MKQ7RPRktj5tqfcOuJSk5Fg9ONKZSw
-QcDifWPlZ6uPPnasR1KG5x3hJpkQegX36QLR4rDXUmGK0xA1VTHf3mEgYae/js1c
-GYSjMzHo1791zmsv3woEGL8pNzjoK/DZX5KgNwZbWNUY7M44A3Ek/yukBn37PgRj
-weyHtR84Um6i6SljqtOQ2KCys8Zafk4p3Rr019ai/c7s/8DvCCurbUgpSaMlrgAi
-lyL1vtmoFF0oojRlMQUvBw/VdeUxnNjGEDcBRFLMKRVa2ngeBf8M2EkUjgmFjfFG
-0vVT/33UNZq1mjmS58ZtdSaP/NalZrmLmZN0CZBwwzmY8w8N/nB832o88FvqcQCd
-L7zEupLXkGqGpUEfqHsrYV3GdYaLOXars5Imlqs3GQUQn9gOSb7HzdoG+NkmqTOn
-kbM6Bqt4z5bTv1m5giyQ7MZfTaOrj5uujLRITrs+Napl5F6lEnjaUCcLrY+WTCS6
-yiL9rj0UK0SmxximZqaow/gb/9vgV5rk8i42DU7IdNVQZW3nxUqqrG3Lmnta9vl0
-7aUMojbcYaHBxFcY7Y2XweUN3sRhs0N3jWU+7JTdxR/ljoAfnDZUmtNGgWBxbgRp
-l1hkaOmuGMC73U9RMuyg5w==
+#!/bin/bash
+# Make vim the default editor.
+export EDITOR='vim';
+
+# Increase Bash history size. Allow 32³ entries; the default is 500.
+export HISTSIZE='32768';
+export HISTFILESIZE="${HISTSIZE}";
+# Omit duplicates and commands that begin with a space from history.
+export HISTCONTROL='ignoreboth';
+
+# Prefer US English and use UTF-8.
+export LANG='en_US.UTF-8';
+export LC_ALL='en_US.UTF-8';
+
+# Highlight section titles in manual pages.
+export LESS_TERMCAP_md="${yellow}";
+
+# Don’t clear the screen after quitting a manual page.
+export MANPAGER='less -X';
+
+# Colors
+if [ -e /lib/terminfo/x/xterm-256color ]; then
+  export TERM='xterm-256color'
+else
+  export TERM='xterm-color'
+fi
+eval "$(dircolors ~/.dircolors.256dark)"
+
+# Vmail hyperlinks
+export VMAIL_HTML_PART_READER='elinks -dump'
+
+# Some sane exports
+export PATH SHOST CPU HOSTNAME HOSTTYPE OSTYPE MACHTYPE SHELL INDEXSTYLE

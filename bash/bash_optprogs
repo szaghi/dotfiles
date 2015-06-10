@@ -1,8 +1,18 @@
-U2FsdGVkX1+dmhxmWkg3ZhhRrUF6Ol+tr13goDQMy4FvafcdyiAF4hTEayMBIjlo
-kcnRgvI0sudp/O/vUsnCVeMEvwJRyGUIMHoETjC41wX52YMv+NQHwAhbr7G3m47Y
-GDn9gQDF5UiDOAcp/z654ZH2a+dUF6HEWmBq68K4Z8/2SkNTeWHj+OMofv7Xf+Je
-Ty0lc5QqGF4RXUylwBhFP5SdspiNS5pPhWI+ZtOGq0MbLCdVbO2Yji6GqWfx3Goc
-lJt7nFE44U14+DL2sHVTuGTRwD2huHKlpP6Fr79dGwKtB0aRq4IPkkyOPNYYPaWX
-t09aVNgFqJQfXtGVT1bntjRCjWV5J27Dz4c2mcjghkcALlK6C41SuqxF7JjcEFmw
-7UmxbK3R0CoKOgJ1uhXgRlOz1rXyRgXajK2jMrfGKH/2SkNTeWHj+OMofv7Xf+Je
-Q+0YV0uxuSy5JzFyJSxxHXz9iP/ipRVcfIyjDZ/bFhuk7snLjkfjlPY7Nx3dNQiQ
+# ~/.bash_optprogs
+source ~/.bash_functions
+
+# paraview
+pathmunge /opt/arch/paraview/4.3.1/bin after
+
+# acroread
+pathmunge /opt/arch/Adobe/Reader9/bin after
+export GTK_PATH=/usr/lib/gtk-2.0
+
+# tecplot
+pathmunge /opt/arch/tecplot/2008/bin after
+TECPHYFILE=~/.Trash/tecplot.phy
+export TECPHYFILE
+
+# gridgen
+pathmunge /opt/arch/pointwise/PointwiseV16.02R4/ after
+alias gridgen='/opt/arch/pointwise/PointwiseV16.02R4/pointwise'
