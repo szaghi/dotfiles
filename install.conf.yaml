@@ -2,6 +2,7 @@
 
 - shell:
   - [mkdir -p ~/.icons, Creating icons config directory]
+  - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
 
 - link:
@@ -94,6 +95,11 @@
 
     ~/.vimrc:
       path: vim/vimrc
+      relink: true
+      force: true
+
+    ~/.vmailrc:
+      path: encrypt/vmailrc
       relink: true
       force: true
 
