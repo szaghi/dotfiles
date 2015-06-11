@@ -189,11 +189,12 @@ exec --no-startup-id feh --bg-scale ~/pictures/Wallpapers/The_Incredulity_of_Sai
 exec --no-startup-id devmon
 exec --no-startup-id blueman-applet
 exec --no-startup-id bitlbee -F
+exec --no-startup-id ~/scripts/icemcfd11-lmgrd.sh
 
 # Shortcuts
 bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'
 bindsym $mod+c exec chromium
 bindsym $mod+g exec chromium --app=https://mail.google.com/mail/u/0/#inbox
-bindsym $mod+i exec ~/scripts/icemcfd11
+bindsym $mod+i exec ~/scripts/icemcfd11-launch.sh
 bindsym $mod+p exec /opt/arch/paraview/4.3.1/bin/paraview
 bindsym $mod+t exec /opt/arch/tecplot/2008/bin/tec360

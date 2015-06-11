@@ -29,5 +29,8 @@ eval "$(dircolors ~/.dircolors.256dark)"
 # Vmail hyperlinks
 export VMAIL_HTML_PART_READER='elinks -dump'
 
+# icemcfd11 license
+export LM_LICENSE_FILE=/opt/arch/icemcfd-11/shared_files/licensing/license.dat
+
 # Some sane exports
 export PATH SHOST CPU HOSTNAME HOSTTYPE OSTYPE MACHTYPE SHELL INDEXSTYLE

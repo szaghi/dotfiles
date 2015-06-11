@@ -42,6 +42,6 @@ if __name__ == '__main__':
         j = json.loads(line)
         # insert information into the start of the json, but could be anywhere
         # CHANGE THIS LINE TO INSERT SOMETHING ELSE
-        j.insert(0, {'full_text' : '%s' % get_focused_win_title(), 'name' : 'gov'})
+        j.insert(0, {'full_text' : '%s' % get_focused_win_title(), 'name' : 'wtitle', 'color' : '#cb4b16'})
         # and echo back new encoded json
         print_line(prefix+json.dumps(j))
