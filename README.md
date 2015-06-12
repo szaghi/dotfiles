@@ -34,7 +34,7 @@ For my *buggy* memory and for your *inspiration*, in the following I give some d
 
 > Your help is very appreciated: share with me your dotfiles (and idea), **open an issue** in this repository!
 
-##Table of contents
+## Table of contents
 
 - [Bootstrap](#bootstrap)
 - [dotfiles Tree](#dotfiles-tree)
@@ -90,7 +90,7 @@ For example, the **vim** bootstrapping is done by (extracted from my [install.co
 
 For more details see dotbot [documentation](https://github.com/anishathalye/dotbot).
 
-Go to [Top](#top) or [TOC](#dotfiles-tree)
+Go to [Top](#top) or [TOC](#table-of-contents)
 
 ## Dotfiles Tree
 
@@ -141,10 +141,10 @@ In particular, when dealing with git repositories, my prompt is like the *liquid
 
 To be written.
 
-Go to [Top](#top) or [TOC](#dotfiles-tree)
+Go to [Top](#top) or [TOC](#table-of-contents)
 
 ## Copyrights
 
 My dotfiles come from a long time usage of GNU/Linux boxes. I take inspiration from a lot of people sharing their dotfiles into the web, I cannot precisely say from where and who. Anyhow, my dotfiles are distributed and the terms of [*WTFPL, Do What the Fuck You Want to Public License*](http://www.wtfpl.net/) without any warranty.
 
-Go to [Top](#top) or [TOC](#dotfiles-tree)
+Go to [Top](#top) or [TOC](#table-of-contents)
