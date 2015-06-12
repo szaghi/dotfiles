@@ -16,7 +16,7 @@
 |chat         | [wheechat](https://weechat.org/)                               |
 |theme        | [solarized (everywhere)](http://ethanschoonover.com/solarized) |
 
-> A dotfiles repository is not intended to be forked, commonly it is backup, this is my home not your...
+> A dotfiles repository is not intended to be forked, commonly it is a backup, this is my home not your...
 
 > However, my settings can inspire yours and viceversa, sharing our configs is great!
 
@@ -111,7 +111,7 @@ I will not give you details about each of them. In the following there are some 
 
 ### i3
 
-[i3-gaps](https://github.com/Airblader/i3) is **great**, but it has big cons... it creates addiction! Be careful.
+[i3-gaps](https://github.com/Airblader/i3) is **great**, but it has a big cons... it creates addiction, be careful!
 
 I do not use the main branch of i3: I prefer to have a small gap between each window: my settings refers to the [i3-gaps](https://github.com/Airblader/i3) fork.
 
@@ -145,6 +145,6 @@ Go to [Top](#top) or [TOC](#table-of-contents)
 
 ## Copyrights
 
-My dotfiles come from a long time usage of GNU/Linux boxes. I take inspiration from a lot of people sharing their dotfiles into the web, I cannot precisely say from where and who. Anyhow, my dotfiles are distributed and the terms of [*WTFPL, Do What the Fuck You Want to Public License*](http://www.wtfpl.net/) without any warranty.
+My dotfiles come from a long time usage of GNU/Linux boxes. I take inspiration from a lot of people sharing their dotfiles into the web, I cannot precisely say from where and who. Anyhow, my dotfiles are distributed under the terms of [*WTFPL, Do What the Fuck You Want to*](http://www.wtfpl.net/) Public License without any warranty.
 
 Go to [Top](#top) or [TOC](#table-of-contents)
