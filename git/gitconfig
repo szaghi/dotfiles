@@ -1,6 +1,15 @@
 [user]
 	name = Stefano Zaghi
 	email = stefano.zaghi@gmail.com
+[color]
+  branch = always
+  diff = always
+  grep = always
+  interactive = always
+  pager = true
+  showbranch = auto
+  status = auto
+  ui = always
 [http]
 	sslVerify = false
 [credential]
@@ -15,6 +24,8 @@
 	tool = vimdiff
 [difftool]
 	prompt = false
+[merge]
+  tool = vimdiff
 [alias]
 	d = difftool
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short

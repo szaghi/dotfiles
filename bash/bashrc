@@ -4,7 +4,7 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.{bash_aliases,bash_compilers,bash_exports,bash_functions,bash_optprogs,bash_paths,bash_prompt}; do
+for file in ~/.{bashmarks,bash_aliases,bash_compilers,bash_exports,bash_functions,bash_optprogs,bash_paths,bash_prompt,commacd,grip-chromium}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;

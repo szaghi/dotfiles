@@ -3,7 +3,6 @@
 alias ls='ls --color=auto'
 alias ll='ls -lh'
 alias la='ls -A'
-alias l="ls -lF --color=auto"
 alias lsUUID='sudo blkid'
 alias dir='ls --format=vertical'
 alias vdir='ls --format=long'

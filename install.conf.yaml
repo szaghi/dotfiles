@@ -4,8 +4,13 @@
   - [mkdir -p ~/.icons, Creating icons config directory]
   - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
+  - [touch ~/.python_history, Creating python interpreter history]
 
 - link:
+    ~/.bashmarks:
+      path: bash/scripts/bashmarks/bashmarks.sh
+      relink: true
+      force: true
     ~/.bash_aliases:
       path: bash/bash_aliases
       relink: true
@@ -42,6 +47,14 @@
       path: bash/bash_welcome
       relink: true
       force: true
+    ~/.commacd:
+      path: bash/scripts/commacd/commacd.bash
+      relink: true
+      force: true
+    ~/.grip-chromium:
+      path: bash/scripts/grip-chromium/grip-chromium.sh
+      relink: true
+      force: true
 
     ~/.pypirc:
       path: encrypt/pypirc
@@ -75,6 +88,16 @@
 
     ~/.yaourtrc:
       path: miscellanea/yaourtrc
+      relink: true
+      force: true
+
+    ~/.pythonrc:
+      path: python/pythonrc
+      relink: true
+      force: true
+
+    ~/.pylintrc:
+      path: python/pylintrc
       relink: true
       force: true
 

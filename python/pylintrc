@@ -1,0 +1,101 @@
+[MESSAGES CONTROL]
+# Brain-dead errors regarding standard language features
+#   W0142 = *args and **kwargs support
+#   W0403 = Relative imports
+
+# Pointless whinging
+#   R0201 = Method could be a function
+#   W0212 = Accessing protected attribute of client class
+#   W0613 = Unused argument
+#   W0232 = Class has no __init__ method
+#   R0903 = Too few public methods
+#   C0301 = Line too long
+#   R0913 = Too many arguments
+#   C0103 = Invalid name
+#   R0914 = Too many local variables
+
+# PyLint's module importation is unreliable
+#   F0401 = Unable to import module
+#   W0402 = Uses of a deprecated module
+
+# Already an error when wildcard imports are used
+#   W0614 = Unused import from wildcard
+
+# Sometimes disabled depending on how bad a module is
+#   C0111 = Missing docstring
+
+# Disable the message(s) with the given id(s).
+disable=W0142,W0403,R0201,W0212,W0613,W0232,R0903,W0614,C0111,C0301,R0913,C0103,F0401,W0402,R0914
+
+[REPORTS]
+# Set the output format. Available formats are text, parseable, colorized, msvs
+# (visual studio) and html
+output-format=text
+
+# Include message's id in output
+include-ids=no
+
+# Put messages in a separate file for each module / package specified on the
+# command line instead of printing them on stdout. Reports (if any) will be
+# written in a file name "pylint_global.[txt|html]".
+files-output=no
+
+# Tells whether to display a full report or only the messages
+reports=no
+
+[MASTER]
+# Use multiple processes to speed up Pylint.
+jobs=4
+
+[BASIC]
+# Good variable names which should always be accepted, separated by a comma
+good-names=i,j,k,ex,Run,_
+
+# Bad variable names which should always be refused, separated by a comma
+bad-names=foo,bar,baz,toto,tutu,tata
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=500
+
+# Maximum number of lines in a module
+max-module-lines=5000
+
+# String used as indentation unit. This is usually " " (4 spaces) or "\t" (1
+# tab).
+indent-string='  '
+
+# Number of spaces of indent required inside a hanging or continued line.
+indent-after-paren=2
+
+[IMPORTS]
+# Deprecated modules which should not be used, separated by a comma
+deprecated-modules=regsub,TERMIOS,Bastion,rexec
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of locals for function / method body
+max-locals=15
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of branch for function / method body
+max-branches=12
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+# Maximum number of parents for a class (see R0901).
+max-parents=7
+
+# Maximum number of attributes for a class (see R0902).
+max-attributes=7
+
+# Minimum number of public methods for a class (see R0903).
+min-public-methods=1
+
+# Maximum number of public methods for a class (see R0904).
+max-public-methods=20

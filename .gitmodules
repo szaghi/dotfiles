@@ -1,3 +1,9 @@
 [submodule "dotbot"]
 	path = dotbot
 	url = https://github.com/anishathalye/dotbot
+[submodule "bash/scripts/bashmarks"]
+	path = bash/scripts/bashmarks
+	url = https://github.com/huyng/bashmarks
+[submodule "bash/scripts/commacd"]
+	path = bash/scripts/commacd
+	url = https://github.com/shyiko/commacd

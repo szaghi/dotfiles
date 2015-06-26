@@ -26,8 +26,9 @@ Plug 'deris/vim-rengbang'
 Plug 'Konfekt/FastFold'
 Plug 'pelodelfuego/vim-swoop'
 Plug 'gcmt/wildfire.vim'
+Plug 'ferranpm/vim-isolate'
 " spell check and languages
-Plug 'scrooloose/syntastic', { 'for':  ['python', 'tex', 'latex'] }
+Plug 'scrooloose/syntastic', { 'for':  ['fortran', 'python', 'tex', 'latex'] }
 Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 Plug 'vim-scripts/LanguageTool'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
@@ -77,6 +78,7 @@ Plug 'niboan/plugconf'
 " programming languages
 Plug 'lervag/vim-latex', { 'for': 'tex' }
 Plug 'tpope/vim-markdown', { 'for': 'markdown' }
+Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
 " unknown
 call plug#end()
 call plugconf#load()
