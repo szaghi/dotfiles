@@ -1,0 +1,6 @@
+#!/bin/bash
+canvas=$1
+for file in $( ls ); do
+  echo Sovrappongo il file $canvas con il file  $file
+  composite -geometry $2$3 $file $canvas overlap-$file
+done

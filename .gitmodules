@@ -7,3 +7,6 @@
 [submodule "bash/scripts/commacd"]
 	path = bash/scripts/commacd
 	url = https://github.com/shyiko/commacd
+[submodule "python/scholar"]
+	path = python/scholar
+	url = https://github.com/ckreibich/scholar.py

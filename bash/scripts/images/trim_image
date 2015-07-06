@@ -1,0 +1,9 @@
+#!/bin/bash
+if [ $# -eq 0 ] ; then
+  for file in $( ls *png *jpg ); do
+    echo Applico trim  al file $file
+    convert -trim $file $file
+  done
+else
+  convert -trim $1 $1
+fi

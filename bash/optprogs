@@ -1,5 +1,5 @@
-# ~/.bash_optprogs
-source ~/.bash_functions
+# ~/.bash/optprogs
+source ~/.bash/functions
 
 # paraview
 pathmunge /opt/arch/paraview/4.3.1/bin after

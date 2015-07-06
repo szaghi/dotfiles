@@ -1,4 +1,4 @@
-# ~/.bash_welcome
+# ~/.bash/welcome
 
 cb="\e[38;5;110m"
 co="\e[38;5;208m"

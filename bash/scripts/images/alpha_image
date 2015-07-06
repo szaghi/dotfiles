@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ $# -eq 0 ] ; then
+  for file in $( ls *png *jpg ); do
+    echo Applico la trasparenza al file $file
+    convert $file -matte -channel RGBA -fill none -opaque white alpha-$file
+  done
+else
+  convert $1 -matte -channel RGBA -fill none -opaque white alpha-$1
+fi

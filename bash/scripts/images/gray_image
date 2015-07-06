@@ -1,0 +1,7 @@
+#!/bin/bash
+set -o nounset
+
+for f in $( ls *.$1); do
+    convert $f -background white -flatten +matte -colorspace Gray grey-$f
+done
+

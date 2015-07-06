@@ -1,93 +1,109 @@
 - clean: ['~']
 
 - shell:
+  - [mkdir -p ~/.bash, Creating bash sources directory]
   - [mkdir -p ~/.icons, Creating icons config directory]
+  - [mkdir -p ~/.scripts, Creating scripts directory]
   - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
   - [touch ~/.python_history, Creating python interpreter history]
 
 - link:
-    ~/.bashmarks:
-      path: bash/scripts/bashmarks/bashmarks.sh
-      relink: true
-      force: true
-    ~/.bash_aliases:
-      path: bash/bash_aliases
-      relink: true
-      force: true
-    ~/.bash_compilers:
-      path: bash/bash_compilers
-      relink: true
-      force: true
-    ~/.bash_exports:
-      path: bash/bash_exports
-      relink: true
-      force: true
-    ~/.bash_functions:
-      path: bash/bash_functions
-      relink: true
-      force: true
-    ~/.bash_optprogs:
-      path: bash/bash_optprogs
-      relink: true
-      force: true
-    ~/.bash_paths:
-      path: bash/bash_paths
-      relink: true
-      force: true
-    ~/.bash_prompt:
-      path: bash/bash_prompt
-      relink: true
-      force: true
+    # bashrc
     ~/.bashrc:
       path: bash/bashrc
       relink: true
       force: true
-    ~/.bash_welcome:
-      path: bash/bash_welcome
+    # bash_profile
+    ~/.bash_profile:
+      path: bash/bash_profile
       relink: true
       force: true
-    ~/.commacd:
+    # bash
+    ~/.bash/aliases:
+      path: bash/aliases
+      relink: true
+      force: true
+    ~/.bash/bashmarks:
+      path: bash/scripts/bashmarks/bashmarks.sh
+      relink: true
+      force: true
+    ~/.bash/commacd:
       path: bash/scripts/commacd/commacd.bash
       relink: true
       force: true
-    ~/.grip-chromium:
+    ~/.bash/compilers:
+      path: bash/compilers
+      relink: true
+      force: true
+    ~/.bash/exports:
+      path: bash/exports
+      relink: true
+      force: true
+    ~/.bash/functions:
+      path: bash/functions
+      relink: true
+      force: true
+    ~/.bash/grip-chromium:
       path: bash/scripts/grip-chromium/grip-chromium.sh
       relink: true
       force: true
-
-    ~/.pypirc:
-      path: encrypt/pypirc
+    ~/.bash/optprogs:
+      path: bash/optprogs
+      relink: true
+      force: true
+    ~/.bash/paths:
+      path: bash/paths
+      relink: true
+      force: true
+    ~/.bash/prompt:
+      path: bash/prompt
+      relink: true
+      force: true
+    ~/.bash/welcome:
+      path: bash/welcome
       relink: true
       force: true
 
+    # git
     ~/.gitconfig:
       path: git/gitconfig
       relink: true
       force: true
 
+    # i3
     ~/.i3:
       path: i3
       relink: true
       force: true
 
+    # icons
     ~/.icons/bridge:
       path: icons/bridge
       relink: true
       force: true
 
+    # latex
     ~/.latexmkrc:
       path: miscellanea/latexmkrc
       relink: true
       force: true
 
+    # X
     ~/.Xresources:
       path: miscellanea/Xresources
       relink: true
       force: true
 
+    # yaourt
     ~/.yaourtrc:
       path: miscellanea/yaourtrc
+      relink: true
+      force: true
+
+    # python
+    ~/.pypirc:
+      path: encrypt/pypirc
       relink: true
       force: true
 
@@ -101,6 +117,45 @@
       relink: true
       force: true
 
+    # scripts
+    ~/.scripts/alpha_image:
+      path: bash/scripts/images/alpha_image
+      relink: true
+      force: true
+    ~/.scripts/convert_image:
+      path: bash/scripts/images/convert_image
+      relink: true
+      force: true
+    ~/.scripts/crop_image:
+      path: bash/scripts/images/crop_image
+      relink: true
+      force: true
+    ~/.scripts/gray_image:
+      path: bash/scripts/images/gray_image
+      relink: true
+      force: true
+    ~/.scripts/overlap_image:
+      path: bash/scripts/images/overlap_image
+      relink: true
+      force: true
+    ~/.scripts/scale_image:
+      path: bash/scripts/images/scale_image
+      relink: true
+      force: true
+    ~/.scripts/trim_image:
+      path: bash/scripts/images/trim_image
+      relink: true
+      force: true
+    ~/.scripts/pps:
+      path: bash/scripts/miscellanea/pps
+      relink: true
+      force: true
+    ~/.scripts/scholar.py:
+      path: python/scholar/scholar.py
+      relink: true
+      force: true
+
+    # shell
     ~/.dircolors.256dark:
       path: terminal/dircolors.256dark
       relink: true
@@ -111,6 +166,7 @@
       relink: true
       force: true
 
+    # vim
     ~/.vim:
       path: vim/
       relink: true
@@ -126,6 +182,7 @@
       relink: true
       force: true
 
+    # weechat
     ~/.weechat/weechat.conf:
       path: weechat/weechat.conf
       relink: true

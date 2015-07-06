@@ -1,0 +1,5 @@
+#!/bin/bash
+for file in $( ls ); do
+  echo Ritaglio il file $file
+  convert $file -crop $1x$2+$3+$4 cropped-$file
+done

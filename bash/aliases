@@ -1,4 +1,4 @@
-# ~/.bash_aliases
+# ~/.bash/aliases
 
 alias ls='ls --color=auto'
 alias ll='ls -lh'

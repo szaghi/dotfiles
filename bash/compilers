@@ -1,5 +1,5 @@
-# ~/.bash_compilers
-source ~/.bash_functions
+# ~/.bash/compilers
+source ~/.bash/functions
 
 # intel parallel studio
 source /opt/arch/intel/advisor_xe/advixe-vars.sh quiet

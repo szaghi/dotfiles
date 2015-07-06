@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ $# -eq 2 ] ; then
+  for file in $( ls *$1 ); do
+    echo Converting $file
+    bfile=`basename $file .$1`
+    convert $file $bfile.$2
+  done
+else
+  convert $file $bfile.$2
+fi

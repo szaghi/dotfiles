@@ -1,0 +1,76 @@
+#!/bin/sh
+
+#===============================================================================
+
+list_proc () {
+   if [ -n "$S2" ] ; then
+      ps $PSOPZ | grep -v -e grep -e $CM -e "ps $PSOPZ" | grep -E $S1
+   else
+      ps $PSOPZ | less
+   fi
+}
+
+create_tmpfile () {
+   if [ -z "$S2" -a -f *.pid ] ; then
+      read S2 < `ls -t *.pid | head -1`
+   fi
+   for i in $S2 ; do
+      ps -e -o pid,command\
+         | grep -v -e grep -e $CM | grep $i | sort -n -r -k 1 > $TF
+   done
+   return
+}
+
+send_signal () {
+   while read IP NP
+   do
+      echo "sending $SIGNALID signal to $NP *** process ID : $IP"
+      kill -$SIGNALID $IP
+   done < $TF
+   return
+}
+
+print_error () {
+   echo
+   echo "Usage: $CM [ -a | -e | -l | -h | -k | -s | -c ] [ prog ]"
+   echo "Options:"
+   echo "           -l (nice)"
+   echo "           -h (-HUP)"
+   echo "           -k (-KILL)"
+   echo "           -s (-STOP)"
+   echo "           -c (-CONT)"
+   echo
+}
+
+#===============================================================================
+
+if [ $# -lt 1 ] ; then
+   print_error
+   exit 1
+fi
+
+CM=`basename $0`                        # command name
+SW=$1                                   # switch
+shift                                   #
+S1=`echo "USER $*" | sed 's/ /\\|/g'`   # search string #1
+S2=$*                                   # search string #2
+TF=/tmp/pps.$USER
+
+case $SW in
+'-a')
+   PSOPZ="aux"                          ; list_proc ;;
+'-e')
+   PSOPZ="-e -o user,pid,state,command" ; list_proc ;;
+'-l')
+   PSOPZ="-e -o user,pid,nice,command"  ; list_proc ;;
+'-h')
+   create_tmpfile ; SIGNALID=HUP  ; send_signal ;;
+'-k')
+   create_tmpfile ; SIGNALID=KILL ; send_signal ;;
+'-s')
+   create_tmpfile ; SIGNALID=STOP ; send_signal ;;
+'-c')
+   create_tmpfile ; SIGNALID=CONT ; send_signal ;;
+*)
+   print_error ;;
+esac

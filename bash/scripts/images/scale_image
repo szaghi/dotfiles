@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ $# -eq 1 ] ; then
+  for file in $( ls ); do
+    echo Ridimensiono il file $file
+    convert $file -scale $1 scaled-$file
+  done
+else
+  convert $1 -scale $2 scaled-$1
+fi

@@ -1,14 +1,14 @@
-# ~/.bash_paths
-source ~/.bash_functions
+# ~/.bash/paths
+source ~/.bash/functions
 
 # local path
 pathmunge . after
 
 # bin
-pathmunge ~/bin after
+pathmunge ~/.bin after
 
 # scripts
-pathmunge ~/scripts after
+pathmunge ~/.scripts after
 
 # ruby scripts
 pathmunge ~/.gem/ruby/2.2.0/bin
