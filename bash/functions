@@ -98,6 +98,11 @@ function find-duplicates () {
   fi;
 }
 
+# Find zero size files
+function find-zero-size () {
+  find $1 -type f -size 0
+}
+
 # Update npm packages
 function npm-update () {
   for package in $(npm -g outdated --parseable --depth=0 | cut -d: -f2)

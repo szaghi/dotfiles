@@ -118,6 +118,10 @@
       force: true
 
     # scripts
+    ~/.scripts/read_ini.sh:
+      path: bash/scripts/bash_ini_parser/read_ini.sh 
+      relink: true
+      force: true
     ~/.scripts/alpha_image:
       path: bash/scripts/images/alpha_image
       relink: true
@@ -146,8 +150,36 @@
       path: bash/scripts/images/trim_image
       relink: true
       force: true
+    ~/.scripts/jpg_rename:
+      path: bash/scripts/images/jpg_rename
+      relink: true
+      force: true
+    ~/.scripts/nef_rename:
+      path: bash/scripts/images/nef_rename
+      relink: true
+      force: true
+    ~/.scripts/mountiso:
+      path: bash/scripts/iso/mountiso
+      relink: true
+      force: true
+    ~/.scripts/umountiso:
+      path: bash/scripts/iso/umountiso
+      relink: true
+      force: true
     ~/.scripts/pps:
       path: bash/scripts/miscellanea/pps
+      relink: true
+      force: true
+    ~/.scripts/markdown_toclify.py:
+      path: python/markdown-toclify/markdown_toclify/markdown_toclify.py
+      relink: true
+      force: true
+    ~/.scripts/pdf2grey:
+      path: bash/scripts/pdf/pdf2grey
+      relink: true
+      force: true
+    ~/.scripts/pdfcompress:
+      path: bash/scripts/pdf/pdfcompress
       relink: true
       force: true
     ~/.scripts/scholar.py:

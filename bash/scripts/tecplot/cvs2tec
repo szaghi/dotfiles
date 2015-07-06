@@ -1,0 +1,41 @@
+#!/bin/bash
+#===============================================================================
+#
+#          FILE:  cvs2tec
+# 
+#         USAGE:  ./cvs2tec sorting_variable file.cvs file.dat
+# 
+#   DESCRIPTION:  
+# 
+#       OPTIONS:  ---
+#  REQUIREMENTS:  ---
+#          BUGS:  ---
+#         NOTES:  ---
+#        AUTHOR:   (), 
+#       COMPANY:  
+#       VERSION:  1.0
+#       CREATED:  01/18/2010 06:30:27 PM CET
+#      REVISION:  ---
+#===============================================================================
+
+sortvar=$1
+cvsfile=$2
+tecfile=$3
+
+let sortvar_m1=$sortvar-1
+
+# creazione di un nome file temporaneo unico
+str_base=$(mcookie)           # magic cookie di 32-caratteri.
+pos=11                        # Posizione arbitraria nella stringa magic cookie.
+lun=5                         # ottiene $lun caratteri consecutivi.
+prefisso=temp                 # Prefisso del nome del file. 
+suffisso=${STR_BASE:POS:LUN}  # Suffisso pseudo-casuale unico.
+tempfile=$prefisso.$suffisso  # nome del file temporaneo
+
+#rm -f $tecfile 
+awk -F , 'BEGIN {printf "%-25s", "VARIABLES=" } { for (i=1; i<=NF-1; i++) printf "%-25s", $i} { printf "%-25s\n", $NF } ' $cvsfile >> $tempfile 
+head -n 1 $tempfile > $tecfile
+tail -n +2 $tempfile | sort -g +$sortvar_m1 -$sortvar >> $tecfile
+rm -f $tempfile 
+
+

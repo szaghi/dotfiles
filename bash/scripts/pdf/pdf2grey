@@ -1,0 +1,54 @@
+#!/bin/bash -
+#===============================================================================
+#
+#          FILE: pdf2grey
+#
+#         USAGE: ./pdf2grey file.pdf [-o output_file_name.pdf]
+#
+#   DESCRIPTION: convert coloured pdf file into grey scale one.
+#
+#       OPTIONS: -o output_file_name.pdf
+#  REQUIREMENTS: gs
+#         NOTES: if no output file name is provided file-grey.pdf is used
+#        AUTHOR: Stefano Zaghi
+#  ORGANIZATION:
+#       CREATED: 03/30/2012 08:36:55 AM CEST
+#      REVISION:  0.0.1
+#===============================================================================
+
+#default inputs values
+inpdf=`basename $1 .pdf`
+outpdf="$inpdf-grey.pdf"
+
+function print_usage {
+  echo
+  echo "`basename $0`"
+  echo "Convert coloured pdf file into grey scale one"
+  echo "Usage: `basename $0` file.pdf [-o output_file_name.pdf]"
+  echo
+  echo "Defaults of optional arguments:"
+  echo "  -o file-grey.pdf"
+  echo
+  echo "Examples:"
+  echo "  `basename $0` colour.pdf -o grey.pdf"
+  echo
+}
+if [ $# -eq 0 ] ; then
+  print_usage
+  exit
+fi
+#parsing command line
+while [ $# -gt 0 ]; do
+  shift
+  case "$1" in
+    "-o")
+      shift; outpdf=$1
+      ;;
+    *)
+      echo; echo "Unknown switch $1"; print_usage; exit 1
+      ;;
+  esac
+  shift
+done
+#converting pdf file
+gs -sOutputFile=$outpdf -sDEVICE=pdfwrite -sColorConversionStrategy=Gray -dProcessColorModel=/DeviceGray -dCompatibilityLevel=1.4 -dNOPAUSE -dBATCH $inpdf.pdf

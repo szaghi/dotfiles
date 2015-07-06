@@ -1,0 +1,25 @@
+#!/bin/bash
+function print_usage {
+  echo "Usage: `basename $0` input_boxes_file output_tecplot_file"
+  echo "Examples:"
+  echo "  `basename $0` myboxes.dat boxes.tec"
+}
+if [ $# -eq 0 ] ; then
+  print_usage
+  exit
+fi
+fin=$1
+fou=$2
+echo 'VARIABLES="x" "y" "z"' > $fou
+n=0
+while read line ; do
+  if  echo "$line" | grep -qvi "scatole" ; then
+    if  echo "$line" | grep -qi "tipo" ; then
+      n=$(($n + 1))
+      np=`printf "%4.4d" $n`
+      echo 'ZONE T="box_'$np'" I=2, J=2, K=2' >> $fou
+    elif [ "$line" != "" ] ; then
+      echo $line >> $fou
+    fi
+  fi
+done < "$fin"

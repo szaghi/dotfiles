@@ -1,0 +1,798 @@
+#!/bin/bash
+#-----------------------------------------------------------------------------------------------------------------------------------
+#  PROGRAM NAME:  rewind
+#          FILE:  rwd
+# 
+#         USAGE:  ./rwd [options [args]]  
+# 
+#   DESCRIPTION:  Small script for easy distributed version control of text files
+# 
+#  REQUIREMENTS:  standard bash env: diff and patch are necessary; kdialog is optional and it is necessary only for the GUI
+#                 version of some function
+#        AUTHOR:  Steafno Zaghi 
+#       CREATED:  04/06/2011 11:05:32 AM CEST
+#       LICENSE:  This program is free software; you can redistribute it and/or modify it under the terms of version 3 of the 
+#                 GNU General Public License published by the Free Software Foundation (http://www.gnu.org/licenses/gpl.html)
+#-----------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------
+# checking requirements
+#
+# do be done...
+#
+#-----------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------
+# some useful variables
+VERSION=0.1
+TDY=`date`
+AUT=`whoami`
+RWD=".rwd/"
+WKS=$RWD"workspace/"
+DLT="/delta/"
+MFT=$RWD"manifest"
+#-----------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------
+# functions definition
+function print_usage {
+  echo "rewind $VERSION: a small script for easy distributed version control of text files"
+  echo
+  echo "Usage: `basename $0` [options [args]]"
+  echo
+  echo "Options:"
+  echo "  help or -h"
+  echo "    Print this help message"
+  echo
+  echo "  init or -i"
+  echo "    Initialize a new rewind project into the current workspace"
+  echo
+  echo "  add 'file' or -a 'file'"
+  echo "    Add 'file' to versioned files list"
+  echo "  gadd or -ga "
+  echo "    Add (GUI version) a file to versioned files list"
+  echo
+  echo "  addr 'dir' or -ar 'dir'"
+  echo "    Add all files (recursive add) cointained into the directory 'dir' to versioned files list"
+  echo "  gaddr or -gar"
+  echo "    Add (GUI version) all files (recursive add) cointained into a directory to versioned files list"
+  echo
+  echo "  drop 'file' or -d 'file'"
+  echo "    Drop 'file' from versioned files list"
+  echo "  gdrop or -gd "
+  echo "    Drop (GUI version) a file from versioned files list"
+  echo
+  echo "  revision or -r"
+  echo "    Print the revision number, author and date of creation of the current revision of the rewind project"
+  echo "  grevision or -gr"
+  echo "    Print (GUI version) the revision number, author and date of creation of the current revision of the rewind project"
+  echo
+  echo "  status or -s"
+  echo "    Print the status of the current revision of the rewind project"
+  echo "  gstatus or -gs"
+  echo "    Print (GUI version) the status of the current revision of the rewind project"
+  echo
+  echo "  patched or -p"
+  echo "    Print the differences of the patched files of the rewind project"
+  echo
+  echo "  log or -l"
+  echo "    Print a pretty 'log' status of all revisions of the rewind project"
+  echo
+  echo "  commit [-m 'comments'] or -c [-m 'comments']"
+  echo "    Commit a new revision; if -m 'comments' is passed the 'comments' string is associated to the revision committed"
+  echo "  gcommit or -gc"
+  echo "    Commit (GUI version) a new revision"
+  echo
+  echo "  branch 'dir' [-r 'revision_number'] or -b 'dir' [-r 'revision_number']"
+  echo "    Create a new branch of the rewind project into the directory 'dir'; if -r 'revision_number' is passed the new branch"
+  echo "    is made from the revision 'revision_number' otherwise the last revision is branched"
+  echo "    Note that when a new branch is made the symlinked files eventually versioned are deferenced"
+  echo "  gbranch or -gb"
+  echo "    Create a new branch (GUI version) of the rewind project into a new directory"
+  echo "    Note that when a new branch is made the symlinked files eventually versioned are deferenced"
+}
+function get_rvs_record () {
+  local nl=0
+  local lnrvs=0
+  local lnrvsm1=0
+  local l=0
+  local RNInd=0
+  local recRN=''
+  local recAT=''
+  local recDY=''
+  local recCM=''
+  local recFL=''
+  local recAC=''
+  if [ $# -eq 0 ] ; then
+    # finding the last revision record data
+    nl=`wc -l $MFT | awk '{print $1}'`
+    let "lnrvs = nl - 5"
+  else
+    # finding the revision record data corresponding to the revision number passed
+    l=0
+    while read line ; do   
+      let "l = l + 1"
+      RNInd=`echo  $line | awk '{print index("'"$line"'","'"<rvs>$1<"'")}'`
+      if [ $RNInd -ne 0 ] ; then
+        lnrvs=$l
+      fi
+    done < $MFT
+  fi
+  let "lnrvsm1 = lnrvs - 1"
+  tail -n "+"$lnrvs $MFT> $MFT".crvs"
+  # finding the revision number
+  recRN=`tail -n +1 $MFT".crvs" | head -n 1 | sed 's/<rvs>//' | sed 's/<\/rvs>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # finding the revision autor 
+  recAT=`tail -n +2 $MFT".crvs" | head -n 1 | sed 's/<aut>//' | sed 's/<\/aut>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # finding the revision date 
+  recDY=`tail -n +3 $MFT".crvs" | head -n 1 | sed 's/<tdy>//' | sed 's/<\/tdy>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # finding the revision comment
+  recCM=`tail -n +4 $MFT".crvs" | head -n 1 | sed 's/<com>//' | sed 's/<\/com>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # finding the files list
+  recFL=`tail -n +5 $MFT".crvs" | head -n 1 | sed 's/<fls>//' | sed 's/<\/fls>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # finding the actions list
+  recAC=`tail -n +6 $MFT".crvs" | head -n 1 | sed 's/<act>//' | sed 's/<\/act>//' | sed 's/^ *//' | sed 's/ *$//'`
+  # removing temporary file
+  rm -f $MFT".crvs"
+  # returning the record data
+  echo "$lnrvsm1,$recRN,$recAT,$recDY,$recCM,$recFL,$recAC"
+}
+function delta_status_update () {
+  local RVSREC=''
+  local RN=''
+  local FL=''
+  local PRN=''
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  let "PRN = RN - 1"
+  # appling diff to the current revision
+  for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+    if [ $RN -le 1 ] ; then
+      diff -u $WKS$f $f > $WKS`dirname $f`$DLT'rvs.'$RN-`basename $f`
+    else
+      cp $WKS$f $WKS$f.back
+      for i in $( seq 1 $PRN ) ; do
+        if [ -s $WKS`dirname $f`$DLT'rvs.'$i-`basename $f` ] ; then
+          patch -s $WKS$f $WKS`dirname $f`$DLT'rvs.'$i-`basename $f`
+        fi
+      done
+      diff -u $WKS$f $f > $WKS`dirname $f`$DLT'rvs.'$RN-`basename $f`
+      mv -f $WKS$f.back $WKS$f
+    fi
+  done
+  return 0
+}
+function init () {
+  echo "Initializing a new rewind project into the current workspace"
+  mkdir -p $WKS 
+  echo "Created on $TDY" > $MFT
+  SHA=`sha1sum $MFT | awk '{print $1}'`
+  echo "author=$AUT" >> $MFT
+  echo "rwddID=$SHA" >> $MFT
+  echo >> $MFT
+  echo "<rvs>0</rvs>" >> $MFT
+  echo "  <aut>$AUT</aut>" >> $MFT
+  echo "  <tdy>$TDY</tdy>" >> $MFT
+  echo "  <com>Initialization</com>" >> $MFT
+  echo "  <fls></fls>" >> $MFT
+  echo "  <act></act>" >> $MFT
+  echo >> $MFT
+  echo "<rvs>1</rvs>" >> $MFT
+  echo "  <aut>$AUT</aut>" >> $MFT
+  echo "  <tdy>$TDY</tdy>" >> $MFT
+  echo "  <com></com>" >> $MFT
+  echo "  <fls></fls>" >> $MFT
+  echo "  <act></act>" >> $MFT
+}
+function add_file () {
+  File=$1 
+  local RVSREC=''
+  local lnrvsm1=0
+  local RN=''
+  local AT=''
+  local DY=''
+  local CM=''
+  local FL=''
+  local AC=''
+  local FLInd=0
+  local NFL=''
+  local NAC=''
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  lnrvsm1=`echo "$RVSREC" | awk -F"," '{print $1}'`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  AT=`echo "$RVSREC" | awk -F"," '{print $3}'`
+  DY=`echo "$RVSREC" | awk -F"," '{print $4}'`
+  CM=`echo "$RVSREC" | awk -F"," '{print $5}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  AC=`echo "$RVSREC" | awk -F"," '{print $7}'`
+  # checking if the file is new or already versioned
+  FLInd=`echo  $FL | awk '{print index("'"$FL"'","'"$File"'")}'`
+  if [ $FLInd -eq 0 ] ; then
+    # updating files list
+    if [ "$FL" == "" ] ; then
+      NFL=$File
+    else
+      NFL=$FL" "$File
+    fi
+    # updating actions list
+    if [ "$AC" == "" ] ; then
+      NAC="'Added:$File'"
+    else
+      NAC="$AC 'Added:$File'"
+    fi
+    # updating the manifest file
+    head -n $lnrvsm1 $MFT > $MFT".tmp"
+    echo "<rvs>$RN</rvs>" >> $MFT".tmp"
+    echo "  <aut>$AT</aut>" >> $MFT".tmp"
+    echo "  <tdy>$DY</tdy>" >> $MFT".tmp"
+    echo "  <com>$CM</com>" >> $MFT".tmp"
+    echo "  <fls>$NFL</fls>" >> $MFT".tmp"
+    echo "  <act>$NAC</act>" >> $MFT".tmp"
+    mv -f $MFT".tmp" $MFT
+    # coping the file added to the corresponding workspace directory
+    mkdir -p $WKS`dirname $File`$DLT
+    cp $File $WKS`dirname $File`
+    # saving the new (empty) delta file
+    diff -u $WKS$File $File > $WKS`dirname $File`$DLT'rvs.'$RN-`basename $File`
+    return 0
+  else
+    return 1
+  fi
+}
+function drop_file () {
+  File=$1 
+  local RVSREC=''
+  local lnrvsm1=0
+  local RN=''
+  local AT=''
+  local DY=''
+  local CM=''
+  local FL=''
+  local AC=''
+  local FLInd=0
+  local NFL=''
+  local NAC=''
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  lnrvsm1=`echo "$RVSREC" | awk -F"," '{print $1}'`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  AT=`echo "$RVSREC" | awk -F"," '{print $3}'`
+  DY=`echo "$RVSREC" | awk -F"," '{print $4}'`
+  CM=`echo "$RVSREC" | awk -F"," '{print $5}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  AC=`echo "$RVSREC" | awk -F"," '{print $7}'`
+  # checking if the file is versioned
+  FLInd=`echo  $FL | awk '{print index("'"$FL"'","'"$File"'")}'`
+  if [ $FLInd -ne 0 ] ; then
+    # updating files list
+    FL=`echo  $FL | sed "s/\//:/g"`
+    File=`echo  $File | sed "s/\//:/g"`
+    NFL=`echo  $FL | sed "s/$File//"`
+    NFL=`echo  $NFL | sed "s/:/\//g"`
+    File=`echo  $File | sed "s/:/\//g"`
+    # updating actions list
+    if [ "$AC" == "" ] ; then
+      NAC="'Dropped:$File'"
+    else
+      NAC="$AC 'Dropped:$File'"
+    fi
+    # updating the manifest file
+    head -n $lnrvsm1 $MFT > $MFT".tmp"
+    echo "<rvs>$RN</rvs>" >> $MFT".tmp"
+    echo "  <aut>$AT</aut>" >> $MFT".tmp"
+    echo "  <tdy>$DY</tdy>" >> $MFT".tmp"
+    echo "  <com>$CM</com>" >> $MFT".tmp"
+    echo "  <fls>$NFL</fls>" >> $MFT".tmp"
+    echo "  <act>$NAC</act>" >> $MFT".tmp"
+    mv -f $MFT".tmp" $MFT
+    # droping the diff patch file from the .rwd workspace directory
+    rm -f $WKS`dirname $File`$DLT'rvs.'$RN-`basename $File`
+    return 0
+  else
+    return 1
+  fi
+}
+function commit () {
+  CM="$1" 
+  local RVSREC=''
+  local lnrvsm1=0
+  local RN=''
+  local FL=''
+  local AC=''
+  # updating the delta files status
+  delta_status_update
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  lnrvsm1=`echo "$RVSREC" | awk -F"," '{print $1}'`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  AC=`echo "$RVSREC" | awk -F"," '{print $7}'`
+  head -n $lnrvsm1 $MFT > $MFT".tmp"
+  echo "<rvs>$RN</rvs>" >> $MFT".tmp"
+  echo "  <aut>$AUT</aut>" >> $MFT".tmp"
+  echo "  <tdy>$TDY</tdy>" >> $MFT".tmp"
+  echo "  <com>$CM</com>" >> $MFT".tmp"
+  echo "  <fls>$FL</fls>" >> $MFT".tmp"
+  echo "  <act>$AC</act>" >> $MFT".tmp"
+  mv -f $MFT".tmp" $MFT
+  let "NRN = RN + 1"
+  echo >> $MFT
+  echo "<rvs>$NRN</rvs>" >> $MFT
+  echo "  <aut>$AUT</aut>" >> $MFT
+  echo "  <tdy>$TDY</tdy>" >> $MFT
+  echo "  <com></com>" >> $MFT
+  echo "  <fls>$FL</fls>" >> $MFT
+  echo "  <act></act>" >> $MFT
+  echo "Revision number $RN commited"
+}
+function branch () {
+  RN=$1
+  BDIR=$2
+  local RVSREC=''
+  local lnrvsm1=0
+  local CM=''
+  local FL=''
+  local AC=''
+  # gettinf the last revision record data
+  if [ "$RN" -lt "0" ] ; then
+    RVSREC=`get_rvs_record`
+  else
+    RVSREC=`get_rvs_record $RN`
+  fi
+  lnrvsm1=`echo "$RVSREC" | awk -F"," '{print $1}'`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  CM=`echo "$RVSREC" | awk -F"," '{print $5}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  AC="'New:Branch:Creation'"
+  # coping files into the new branch directory
+  for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+    mkdir -p $BDIR$WKS`dirname $f`$DLT
+    mkdir -p $BDIR`dirname $f`
+    cp $WKS$f $WKS$f.back
+    for i in $( seq 1 $RN ) ; do
+      if [ -s $WKS`dirname $f`$DLT'rvs.'$i-`basename $f` ] ; then
+        patch -s $WKS$f $WKS`dirname $f`$DLT'rvs.'$i-`basename $f`
+      fi
+    done
+    cp $WKS$f $BDIR$WKS`dirname $f`
+    cp $WKS$f $BDIR`dirname $f`
+    mv -f $WKS$f.back $WKS$f
+  done
+  echo "Created on $TDY" > $BDIR$MFT
+  SHA=`sha1sum $BDIR$MFT | awk '{print $1}'`
+  echo "author=$AUT" >> $BDIR$MFT
+  echo "rwddID=$SHA" >> $BDIR$MFT
+  echo >> $BDIR$MFT
+  echo "<rvs>1</rvs>" >> $BDIR$MFT
+  echo "  <aut>$AUT</aut>" >> $BDIR$MFT
+  echo "  <tdy>$TDY</tdy>" >> $BDIR$MFT
+  echo "  <com>$CM</com>" >> $BDIR$MFT
+  echo "  <fls>$FL</fls>" >> $BDIR$MFT
+  echo "  <act>$AC</act>" >> $BDIR$MFT
+  echo >> $BDIR$MFT
+  echo "<rvs>2</rvs>" >> $BDIR$MFT
+  echo "  <aut>$AUT</aut>" >> $BDIR$MFT
+  echo "  <tdy>$TDY</tdy>" >> $BDIR$MFT
+  echo "  <com></com>" >> $BDIR$MFT
+  echo "  <fls>$FL</fls>" >> $BDIR$MFT
+  echo "  <act></act>" >> $BDIR$MFT
+}
+function print_revision_info () {
+  SWTC=$1
+  local RVSREC=''
+  local RN=''
+  local AT=''
+  local DY=''
+  local isGUI=''
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  AT=`echo "$RVSREC" | awk -F"," '{print $3}'`
+  DY=`echo "$RVSREC" | awk -F"," '{print $4}'`
+  # saving the revision info on temporary file $RWD'info_current_rev' 
+  touch $RWD'info_current_rev'
+  echo "Current revision number: $RN" >> $RWD'info_current_rev'
+  echo " Revision author:        $AT" >> $RWD'info_current_rev'
+  echo " Revision date:          $DY" >> $RWD'info_current_rev'
+  # checking if is GUI printing or not
+  isGUI=`echo ${SWTC:0:2}`
+  if [ "$isGUI" == "-g" -o "$isGUI" == "gr" ] ; then
+    kdialog --title "Revision INFO of rewind Project: $PWD" --textbox $RWD'info_current_rev' 600 100 2>>/dev/null
+  else
+    cat $RWD'info_current_rev'
+  fi
+  rm -f $RWD'info_current_rev'
+}
+function print_status_info () {
+  SWTC=$1
+  local RVSREC=''
+  local RN=''
+  local FL=''
+  local AC=''
+  # updating the delta files status
+  delta_status_update
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  AC=`echo "$RVSREC" | awk -F"," '{print $7}'`
+  # saving the revision status on temporary file $RWD'status_current_rev' 
+  touch $RWD'status_current_rev'
+  npf=0
+  for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+    if [ -s $WKS`dirname $f`$DLT"rvs."$RN-`basename $f` ] ; then
+      let "npf = npf + 1"
+      echo " Patched $f" >> $RWD'status_current_rev'
+    fi
+  done
+  if [ $npf -eq 0 ] ; then
+    echo " There is no patched file" >> $RWD'status_current_rev'
+  fi
+  if [ "$AC" != "" ] ; then
+    echo $AC | awk '{for (i=1; i<=NF; i++) {print  $i} }' | sed "s/^'/ /" | sed "s/'$//" | sed "s/:/ /" >> $RWD'status_current_rev'
+  fi
+  # checking if is GUI printing or not
+  isGUI=`echo ${SWTC:0:2}`
+  if [ "$isGUI" == "-g" -o "$isGUI" == "gs" ] ; then
+    kdialog --title "Revision status of rewind Project: $PWD" --textbox $RWD'status_current_rev' 600 300 2>>/dev/null
+  else
+    cat $RWD'status_current_rev'
+  fi
+  rm -f $RWD'status_current_rev'
+}
+function print_patched_differences () {
+  local RVSREC=''
+  local RN=''
+  local FL=''
+  local npf=0
+  # updating the delta files status
+  delta_status_update
+  # gettinf the last revision record data
+  RVSREC=`get_rvs_record`
+  RN=`echo "$RVSREC" | awk -F"," '{print $2}'`
+  FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+  # printing the list of patched file with the differences
+  npf=0
+  for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+    if [ -s $WKS`dirname $f`$DLT"rvs."$RN-`basename $f` ] ; then
+      let "npf = npf + 1"
+      echo " Patched $f"
+      cat $WKS`dirname $f`$DLT"rvs."$RN-`basename $f` | awk '{print "   "$0}'
+    fi
+  done
+  if [ $npf -eq 0 ] ; then
+    echo " There is no patched file"
+  fi
+}
+function print_log () {
+  local rnInd=0
+  local atInd=0
+  local dyInd=0
+  local cmInd=0
+  local flInd=0
+  local acInd=0
+  local RN=''
+  local AT=''
+  local DY=''
+  local CM=''
+  local FL=''
+  local AC=''
+  local npf=0
+  # updating the delta files status
+  delta_status_update
+  echo "Rewind project log"
+  echo
+  head -n 4 $MFT
+  tail -n +5 $MFT > $MFT.log 
+  while read line ; do   
+    rnInd=`echo  $line | awk '{print index("'"$line"'","'"<rvs>"'")}'`
+    atInd=`echo  $line | awk '{print index("'"$line"'","'"<aut>"'")}'`
+    dyInd=`echo  $line | awk '{print index("'"$line"'","'"<tdy>"'")}'`
+    cmInd=`echo  $line | awk '{print index("'"$line"'","'"<com>"'")}'`
+    flInd=`echo  $line | awk '{print index("'"$line"'","'"<fls>"'")}'`
+    acInd=`echo  $line | awk '{print index("'"$line"'","'"<act>"'")}'`
+    if [ $rnInd -ne 0 ] ; then
+      RN=`echo $line | sed 's/<rvs>//' | sed 's/<\/rvs>//' | sed 's/^ *//' | sed 's/ *$//'`
+      echo
+      echo "Revision number $RN"
+    fi
+    if [ $atInd -ne 0 ] ; then
+      AT=`echo $line | sed 's/<aut>//' | sed 's/<\/aut>//' | sed 's/^ *//' | sed 's/ *$//'`
+      echo "  Author of the revision $AT"
+    fi
+    if [ $dyInd -ne 0 ] ; then
+      DY=`echo $line | sed 's/<tdy>//' | sed 's/<\/tdy>//' | sed 's/^ *//' | sed 's/ *$//'`
+      echo "  Creation date of the revision $DY"
+    fi
+    if [ $cmInd -ne 0 ] ; then
+      CM=`echo $line | sed 's/<com>//' | sed 's/<\/com>//' | sed 's/^ *//' | sed 's/ *$//'`
+      if [ "$CM" != "" ] ; then
+        echo "  Revision comments: $CM"
+      fi
+    fi
+    if [ $flInd -ne 0 ] ; then
+      FL=`echo $line | sed 's/<fls>//' | sed 's/<\/fls>//' | sed 's/^ *//' | sed 's/ *$//'`
+      if [ "$FL" != "" ] ; then
+        echo "  Files versioned:"
+        for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+          echo "    $f"
+        done
+      else
+        echo "  No file versioned"
+      fi
+    fi
+    if [ $acInd -ne 0 ] ; then
+      AC=`echo $line | sed 's/<act>//' | sed 's/<\/act>//' | sed 's/^ *//' | sed 's/ *$//'`
+      # verifing if there are patched files
+      npf=0
+      for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+        if [ -s $WKS`dirname $f`$DLT"rvs."$RN-`basename $f` ] ; then
+          let "npf = npf + 1"
+        fi
+      done
+      if [ $npf -gt 0 -o "$AC" != "" ] ; then
+        echo "  Changelog:"
+      else
+        echo "  No change with respect the previous revision"
+      fi
+      if [ $npf -gt 0 ] ; then
+        for f in $( echo $FL | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+          if [ -s $WKS`dirname $f`$DLT"rvs."$RN-`basename $f` ] ; then
+            echo "    Patched $f"
+          fi
+        done
+      fi
+      if [ "$AC" != "" ] ; then
+        for a in $( echo $AC | awk '{for (i=1; i<=NF; i++) {print  $i} }' ); do
+          echo "    $a" | sed "s/'//g" | sed "s/:/ /g"
+        done
+      fi
+    fi
+  done < $MFT.log
+  rm -f $MFT.log
+}
+#-----------------------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------------------
+# parsing command line
+if [ $# -eq 0 ] ; then
+  print_usage
+fi
+while [ "$1" != "" ]; do
+  case $1 in
+    init|-i) 
+      if [ -d $RWD ] ; then
+        echo "There is already a rewind project into the current workspace"
+      else
+        init
+      fi
+      shift 
+      ;;
+    add|-a|gadd|-ga) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        # checking if is GUI add or not
+        isGUI=`echo ${SWTC:0:2}`
+        if [ "$isGUI" == "-g" -o "$isGUI" == "ga" ] ; then
+          File=`kdialog --title "Add file to rewind Project: $PWD" --getopenfilename ./ 2>>/dev/null`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+        else
+          shift 
+          File=$1 
+        fi
+        if [ -f $File ] ; then
+          add_file $File
+          added=$?
+          if [ $added -eq 0 ] ; then
+            echo "File $File added"
+          fi
+          if [ $added -eq 1 ] ; then
+            echo "File $File already versioned"
+          fi
+        else
+          echo "Attention: the file $File doens't exists"
+        fi
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    addr|-ar|gaddr|-gar) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        # checking if is GUI add or not
+        isGUI=`echo ${SWTC:0:2}`
+        if [ "$isGUI" == "-g" -o "$isGUI" == "ga" ] ; then
+          DIR=`kdialog --title "Add files to rewind Project: $PWD" --getexistingdirectory ./ 2>>/dev/null`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+        else
+          shift
+          DIR=$1
+        fi
+        DIR=`echo $DIR | sed 's/\/$//'`
+        if [ -d $DIR ] ; then
+          for f in $( ls $DIR ); do
+            # addinf only file
+            if [ -f $DIR'/'"$f" ] ; then
+              add_file $DIR'/'$f
+              added=$?
+              if [ $added -eq 0 ] ; then
+                echo "File $f added"
+              fi
+              if [ $added -eq 1 ] ; then
+                echo "File $f already versioned"
+              fi
+            else
+              echo "The non-file $f is not added"
+            fi
+          done
+        else
+          echo "Attention: the directory $DIR doens't exists"
+        fi
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    drop|-d|gdrop|-gd) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        # checking if is GUI drop or not
+        isGUI=`echo ${SWTC:0:2}`
+        if [ "$isGUI" == "-g" -o "$isGUI" == "gd" ] ; then
+          RVSREC=`get_rvs_record`
+          FL=`echo "$RVSREC" | awk -F"," '{print $6}'`
+          File=`kdialog --title "Drop file from rewind Project: $PWD" --combobox "Select file to drop:" $FL 2>>/dev/null`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+        else
+          shift 
+          File=$1 
+        fi
+        drop_file $File 
+        dropped=$?
+        if [ $dropped -eq 0 ] ; then
+          echo "File $File dropped"
+        fi
+        if [ $dropped -eq 1 ] ; then
+          echo "File $File is not versioned: nothing to drop"
+        fi
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    revision|-r|grevision|-gr) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        print_revision_info $SWTC
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    status|-s|gstatus|-gs) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        print_status_info $SWTC
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    patched|-p) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        print_patched_differences 
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    log|-l) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        print_log
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+      fi
+      shift 
+      ;;
+    commit|-c|gcommit|-gc) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        # checking if is GUI commit or not
+        isGUI=`echo ${SWTC:0:2}`
+        if [ "$isGUI" == "-g" -o "$isGUI" == "gc" ] ; then
+          CM=`kdialog --title "Commit new Revision of rewind Project: $PWD" --inputbox "Changelog of the new revision" "New Revision" ./ 2>>/dev/null`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+        else
+          # checking if a comment is associated to the commit
+          shift 
+          if [ "$1" == "-m" ] ; then
+            shift 
+            CM=$1
+          else
+            CM=""
+          fi
+        fi
+        commit "$CM"
+        shift 
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+        shift 
+      fi
+      ;;
+    branch|-b|gbranch|-gb) 
+      SWTC=$1
+      if [ -d $RWD ] ; then
+        # updating the delta files status
+        delta_status_update
+        # default values is to branch current revision 
+        RN=-1
+        # checking if is GUI commit or not
+        isGUI=`echo ${SWTC:0:2}`
+        if [ "$isGUI" == "-g" -o "$isGUI" == "gc" ] ; then
+          BDIR=`kdialog --title "Branch the rewind Project: $PWD" --getexistingdirectory ./ 2>>/dev/null`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+          # verifing if a revision number other than the current is passed
+          RN=`kdialog --title "Branch the rewind Project: $PWD" --inputbox "Select the revision number (-1 current revision)" " -1" ./ 2>>/dev/null`
+          RN=`echo $RN | sed 's/ //g'`
+          if [ $? != 0 ]; then
+            exit $?
+          fi
+        else
+          shift 
+          BDIR=$1
+          # verifing if a revision number other than the current is passed
+          shift 
+          if [ "$1" == "-r" ] ; then
+            shift 
+            RN=$1
+          fi
+        fi
+        BDIR=`echo $BDIR | sed "s/\/*$//" | sed "s/$/\//"`
+        echo "Creation of new branch in $BDIR"
+        branch $RN $BDIR
+        shift 
+      else
+        echo "Attention: there is not a rewind project into the current workspace"
+        exit 1
+        shift 
+      fi
+      ;;
+    help|-h)
+      SWTC=$1
+      print_usage
+      exit 1
+      ;;
+    *)
+      echo "Attention: switch $1 unknow"
+      echo
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+exit 0
+#-----------------------------------------------------------------------------------------------------------------------------------

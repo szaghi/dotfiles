@@ -1,0 +1,3 @@
+#!/bin/bash
+echo monto il file iso $1 sulla cartella $2
+sudo mount $1 $2 -t iso9660 -o loop

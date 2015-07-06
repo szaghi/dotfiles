@@ -1,0 +1,76 @@
+#!/bin/bash -
+#===============================================================================
+#
+#          FILE: pdfcompress
+#
+#         USAGE: ./pdfcompress large.pdf [-o small.pdf -t screen/ebook/printer/prepress/default]
+#
+#   DESCRIPTION: Compress large size PDF file into smaller one
+#
+#       OPTIONS: -o output_file_name
+#                -c compression_type (one in screen/ebook/printer/prepress/default)
+#  REQUIREMENTS: ghostscript
+#        AUTHOR: Stefano Zaghi
+#       CREATED: 05/08/2012 02:42:31 PM CEST
+#===============================================================================
+
+in=$1
+out=`basename $1 .pdf`"-small.pdf"
+cmt='/default'
+
+function print_usage {
+  echo "Compress large size PDF file into smaller one"
+  echo "Usage: `basename $0` large.pdf [-o small.pdf -t screen/ebook/printer/prepress/default]"
+  echo "Options:"
+  echo "   -o output_file_name (default input_file_name-small.pdf)"
+  echo "   -c compression_type (one in screen/ebook/printer/prepress/default from smallest to largest)"
+  echo
+  echo " Examples: "
+  echo "  pdfcompress large.pdf (produce large-small.pdf with 'default' compression level)"
+  echo "  pdfcompress large.pdf -c screen (produce large-small.pdf with 'screen' compression level)"
+  echo "  pdfcompress large.pdf -c ebook -o small.pdf (produce small.pdf with 'ebook' compression level)"
+}
+if [ $# -eq 0 ] ; then
+  print_usage
+  exit 1
+elif [ $# -gt 1 ] ; then
+  shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      "-o")
+        shift; out=$1
+        ;;
+      "-c")
+        shift
+        case "$1" in
+          "screen")
+            cmt="/"$1
+            ;;
+          "ebook")
+            cmt="/"$1
+            ;;
+          "printer")
+            cmt="/"$1
+            ;;
+          "prepress")
+            cmt="/"$1
+            ;;
+          "default")
+            cmt="/"$1
+            ;;
+          \?)
+            echo "Compression type unknown. Must be one in screen/ebook/printer/prepress/default from smallest to largest"
+            exit 1
+            ;;
+        esac
+        ;;
+      \?)
+        print_usage
+        exit 1
+        ;;
+    esac
+    shift
+  done
+fi
+
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=$cmt -dNOPAUSE -dQUIET -dBATCH -sOutputFile=$out $in

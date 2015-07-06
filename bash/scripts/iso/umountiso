@@ -1,0 +1,3 @@
+#!/bin/bash
+echo smonto la cartella $1
+sudo umount $1

@@ -10,3 +10,9 @@
 [submodule "python/scholar"]
 	path = python/scholar
 	url = https://github.com/ckreibich/scholar.py
+[submodule "python/markdown-toclify"]
+	path = python/markdown-toclify
+	url = https://github.com/rasbt/markdown-toclify
+[submodule "bash/scripts/bash_ini_parser"]
+	path = bash/scripts/bash_ini_parser
+	url = https://github.com/rudimeier/bash_ini_parser

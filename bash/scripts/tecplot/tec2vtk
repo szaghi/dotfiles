@@ -1,0 +1,250 @@
+#!/usr/bin/env python
+# File tec2vtk.py
+
+import sys
+import os
+
+try:
+    from pyvtk import *
+except:
+    print "VTK library not found"
+    sys.exit(1)
+    
+try:
+    from scipy import *
+except:
+    print "SciPy library not found"
+    sys.exit(1)
+    
+def loadtecfile(filename):
+    headerline = 0
+    tecfile = file(filename, "r")    
+    title ='tec2vtk_converted_file'
+    zonetype = {'I':0,'J':0,'K':0}
+    Nn = {}
+    varname = []
+    isvarname = 0
+    for line in tecfile:
+        if line.find("TITLE")>-1 or line.find("title")>-1:
+            headerline = headerline + 1
+            titleline = line.replace(" ","")
+            titleline = titleline.replace("title","TITLE")
+            titleline = titleline.replace("TITLE=","")
+            titleline = titleline.replace('"',"")
+            title = titleline.replace('\n',"")
+        elif line.find("VARIABLES") > -1 or line.find("variables") > -1:
+            headerline = headerline + 1
+            isvarname = 1
+            varline = line.replace(" ","")
+            varline = varline.replace("variables","VARIABLES")
+            varline = varline.replace("VARIABLES=","")
+            varline = varline.replace(",","")
+            varline = varline.replace('""','"')
+            varline = varline.replace('\n',"")
+            varname = varline[1:-1].split('"')
+        elif line.find("ZONE")>-1 or line.find("zone")>-1 :
+            headerline = headerline + 1
+            zoneline = line.replace(" ","")
+            zoneline = zoneline.replace("zone","ZONE")
+            zoneline = zoneline.replace("ZONE","")
+            zoneline = zoneline.replace("t=","T=")
+            zoneline = zoneline.replace("i=","I=")
+            zoneline = zoneline.replace("j=","J=")
+            zoneline = zoneline.replace("k=","K=")
+            zoneline = zoneline.replace("I=",",I=")
+            zoneline = zoneline.replace("J=",",J=")
+            zoneline = zoneline.replace("K=",",K=")
+            zoneline = zoneline.replace("F=",",F=")
+            zoneline = zoneline.split(",")
+            zonetype = {'I':0,'J':0,'K':0}
+            Nn = {}
+            for n,token in enumerate(zoneline):
+                token = token.replace(" ","")
+                if token[:2]=="T=": zonetitle=token[3:-1]
+                if token[:2]=="I=": 
+                    zonetype['I'] = 1
+                    Nn['Nx'] = int(token[2:])
+                if token[:2]=="J=": 
+                    zonetype['J'] = 1
+                    Nn['Ny'] = int(token[2:])
+                if token[:2]=="K=": 
+                    zonetype['K'] = 1
+                    Nn['Nz'] = int(token[2:])
+                zoneline[n] = token
+        else:
+            break
+    variables = io.read_array(filename,columns=(0,-1),lines=(headerline,-1))
+    if isvarname==0:
+        for n in range(variables.shape[1]):
+            varname.append('v'+str(n)) 
+    return title,varname,zonetype,variables,Nn
+
+outputformat = "ascii"
+startfilelist = 1
+vect2D = {}
+vect3D = {}
+for arg in sys.argv[1:]:
+    if arg=="-b":
+        startfilelist = startfilelist +1
+        outputformat = "binary"
+    elif arg[:8]=="-vect2D=":
+        startfilelist = startfilelist +1
+        arg = arg.replace("-vect2D=","")
+        arg = arg.split(",")
+        arg[0] = int(arg[0])-1
+        arg[1] = int(arg[1])-1
+        vect2D[arg[2]]=arg[:2]
+    elif arg[:8]=="-vect3D=":
+        startfilelist = startfilelist +1
+        arg = arg.replace("-vect3D=","")
+        arg = arg.split(",")
+        arg[0] = int(arg[0])-1
+        arg[1] = int(arg[1])-1
+        arg[2] = int(arg[2])-1
+        vect3D[arg[3]]=arg[:3]
+        
+for filename in sys.argv[startfilelist:]:
+    print ""
+    print "+"+"-"*60+"+"
+    print " "*10,"Converting file ",filename
+    print ""
+    title,varname,zonetype,variables,Nn = loadtecfile(filename)
+        
+    if zonetype['I']*zonetype['J']*zonetype['K']>0:
+        print " ",'Input data is "IJK ordered" with:'
+        print " ",'I=',Nn['Nx'],'J=',Nn['Ny'],'K=',Nn['Nz']
+        print " ",'A 3D VTK structured_grid file will be created'
+        print " ",'The actual zone has the following variables:'
+        print " ",varname
+        xyz = []
+        for n in range(variables.shape[0]):
+            xyz.append((variables[n,0],variables[n,1],variables[n,2]))
+        xyx = tuple(xyz)
+        grid = StructuredGrid([Nn['Nx'],Nn['Ny'],Nn['Nz']],xyz)
+        point_data = PointData()
+        if len(vect3D.keys())>0:
+            for n,name in enumerate(varname[3:]):
+                for vector in vect3D:
+                    if (n+3) not in  (vect3D[vector]):
+                        point_data.append(Scalars(variables[:,n+3],varname[n+3],lookup_table='default'))
+            for vector in vect3D:
+                vector_components = []
+                for n in range(variables.shape[0]):
+                    vector_components.append((variables[n,vect3D[vector][0]],variables[n,vect3D[vector][1]],variables[n,vect3D[vector][2]]))
+                vector_components = tuple(vector_components)
+                point_data.append(Vectors(vector_components,vector))
+        else:
+            for n,name in enumerate(varname[3:]):
+                point_data.append(Scalars(variables[:,n+3],varname[n+3],lookup_table='default'))
+        vtk = VtkData(grid,title,point_data)
+        vtk.tofile(filename+'.vtk', format =outputformat)
+        print " ",'Converting finished'
+        print "+"+"-"*60+"+"
+        print ""
+    elif zonetype['I']*zonetype['J']>0:
+        print " ",'Input data is "IJ ordered" with:'
+        print " ",'I=',Nn['Nx'],'J=',Nn['Ny']
+        print " ",'A 2D VTK structured_grid file will be created'
+        print " ",'The actual zone has the following variables:'
+        print " ",varname
+        xyz = []
+        for n in range(variables.shape[0]):
+            xyz.append((variables[n,0],variables[n,1],0.0))
+        xyx = tuple(xyz)
+        grid = StructuredGrid([Nn['Nx'],Nn['Ny'],1],xyz)
+        point_data = PointData()
+        if len(vect2D.keys())>0:
+            for n,name in enumerate(varname[2:]):
+                for vector in vect2D:
+                    if (n+2) not in  (vect2D[vector]):
+                        point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+            for vector in vect2D:
+                vector_components = []
+                for n in range(variables.shape[0]):
+                    vector_components.append((variables[n,vect2D[vector][0]],variables[n,vect2D[vector][1]],0.0))
+                vector_components = tuple(vector_components)
+                point_data.append(Vectors(vector_components,vector))
+        else:
+            for n,name in enumerate(varname[2:]):
+                point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+        vtk = VtkData(grid,title,point_data)
+        vtk.tofile(filename+'.vtk', format =outputformat)
+        print " ",'Converting finished'
+        print "+"+"-"*60+"+"
+        print ""
+    elif zonetype['I']*zonetype['K']>0:
+        print " ",'Input data is "IK ordered" with:'
+        print " ",'I=',Nn['Nx'],'K=',Nn['Nz']
+        print " ",'A 2D VTK structured_grid file will be created'
+        print " ",'The actual zone has the following variables:'
+        print " ",varname
+        xyz = []
+        for n in range(variables.shape[0]):
+            xyz.append((variables[n,0],0.0,variables[n,1]))
+        xyx = tuple(xyz)
+        grid = StructuredGrid([Nn['Nx'],1,Nn['Nz']],xyz)
+        point_data = PointData()
+        if len(vect2D.keys())>0:
+            for n,name in enumerate(varname[2:]):
+                for vector in vect2D:
+                    if (n+2) not in  (vect2D[vector]):
+                        point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+            for vector in vect2D:
+                vector_components = []
+                for n in range(variables.shape[0]):
+                    vector_components.append((variables[n,vect2D[vector][0]],0.0,variables[n,vect2D[vector][1]]))
+                vector_components = tuple(vector_components)
+                point_data.append(Vectors(vector_components,vector))
+        else:
+            for n,name in enumerate(varname[2:]):
+                point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+        vtk = VtkData(grid,title,point_data)
+        vtk.tofile(filename+'.vtk', format =outputformat)
+        print " ",'Converting finished'
+        print "+"+"-"*60+"+"
+        print ""
+    elif zonetype['J']*zonetype['K']>0:
+        print " ",'Input data is "JK ordered" with:'
+        print " ",'J=',Nn['Ny'],'K=',Nn['Nz']
+        print " ",'A 2D VTK structured_grid file will be created'
+        print " ",'The actual zone has the following variables:'
+        print " ",varname
+        xyz = []
+        for n in range(variables.shape[0]):
+            xyz.append((0.0,variables[n,0],variables[n,1]))
+        xyx = tuple(xyz)
+        grid = StructuredGrid([1,Nn['Ny'],Nn['Nz']],xyz)
+        point_data = PointData()
+        if len(vect2D.keys())>0:
+            for n,name in enumerate(varname[2:]):
+                for vector in vect2D:
+                    if (n+2) not in  (vect2D[vector]):
+                        point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+            for vector in vect2D:
+                vector_components = []
+                for n in range(variables.shape[0]):
+                    vector_components.append((0.0,variables[n,vect2D[vector][0]],variables[n,vect2D[vector][1]]))
+                vector_components = tuple(vector_components)
+                point_data.append(Vectors(vector_components,vector))
+        else:
+            for n,name in enumerate(varname[2:]):
+                point_data.append(Scalars(variables[:,n+2],varname[n+2],lookup_table='default'))
+        vtk = VtkData(grid,title,point_data)
+        vtk.tofile(filename+'.vtk', format =outputformat)
+        print " ",'Converting finished'
+        print "+"+"-"*60+"+"
+        print ""
+    else:
+        print " ",'Input data is "I(J or K)-ordered" or "non-ordered"'
+        print " ",'A 1D VTK rectilinear_grid file will be created'
+        print " ",'The actual zone has the following variables:'
+        print " ",varname
+        grid = RectilinearGrid(x=range(variables.shape[0]),y=(0.0),z=(0.0))
+        point_data = PointData()
+        for n,name in enumerate(varname):
+            point_data.append(Scalars(variables[:,n],varname[n],lookup_table='default'))
+        vtk = VtkData(grid,title,point_data)
+        vtk.tofile(filename+'.vtk', format =outputformat)
+        print " ",'Converting finished'
+        print "+"+"-"*60+"+"
+        print ""
