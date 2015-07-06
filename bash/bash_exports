@@ -30,7 +30,7 @@ eval "$(dircolors ~/.dircolors.256dark)"
 export VMAIL_HTML_PART_READER='elinks -dump'
 
 # python interpreter supercharged
-export PYTHONSTARTUP="~/.pythonrc"
+export PYTHONSTARTUP="/home/stefano/.pythonrc"
 
 # icemcfd11 license
 export LM_LICENSE_FILE=/opt/arch/icemcfd-11/shared_files/licensing/license.dat

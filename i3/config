@@ -189,7 +189,8 @@ exec --no-startup-id feh --bg-scale ~/pictures/Wallpapers/The_Incredulity_of_Sai
 exec --no-startup-id devmon
 exec --no-startup-id blueman-applet
 exec --no-startup-id bitlbee -F
-exec --no-startup-id ~/scripts/icemcfd11-lmgrd.sh
+exec --no-startup-id ~/scripts/icemcfd11-lmgrd
+exec --no-startup-id gitter
 
 # Shortcuts
 bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'

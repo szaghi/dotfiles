@@ -69,7 +69,7 @@ Plug 'Shougo/unite.vim'
 Plug 'idanarye/vim-vebugger'
 Plug 'farseer90718/unite-workflow'
 Plug 'mhinz/vim-startify'
-Plug 'wakatime/vim-wakatime'
+" Plug 'wakatime/vim-wakatime'
 Plug 'kopischke/vim-fetch'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }

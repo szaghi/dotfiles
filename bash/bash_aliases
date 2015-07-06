@@ -25,6 +25,17 @@ alias apt-search='sudo apt-cache search'
 alias pacman-clean='sudo pacman -Rns $(pacman -Qqtd)'
 alias yaourt-update='yaourt -Syu ; yaourt -Su --aur'
 
+# pip
+alias pip-upgrade="sudo pip install --upgrade pip"
+alias pip-update="pip freeze --local | grep -v '^\-e' | cut -d = -f 1  | sudo xargs pip install -U"
+
+# gem
+alias gem-upgrade="gem update --system"
+alias gem-update="gem update"
+
+# packages
+alias packs-update='yaourt-update ; pip-update ; gem-update ; npm-update'
+
 # make
 alias make='make -j 10'
 

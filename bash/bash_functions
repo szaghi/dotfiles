@@ -34,7 +34,7 @@ function fs() {
 		local arg=-sbh;
 	else
 		local arg=-sh;
-	fi
+	fi;
 	if [[ -n "$@" ]]; then
 		du $arg -- "$@";
 	else
@@ -64,4 +64,44 @@ extract () {
  else
    echo "'$1' is not a valid file to extract"
  fi
+}
+
+# Find hard/symbolic-links of a linked-file
+function find-links () {
+  inum=`ls -Ldi $1 | awk '{print $1}'`;
+  if [ $# -eq 0 ] ; then
+    echo "find-links, find hard/symbolic-links of a linked-file";
+    echo "Usage:";
+    echo "  find-links linked-file_name [path]";
+  elif [ $# -eq 2 ] ; then
+    find $2 -follow -inum $inum;
+  else
+    find . -follow -inum $inum;
+  fi;
+}
+
+# Find broken symbolic-links into a path (is not specified . is used)
+function find-broken-links () {
+  if [ $# -eq 0 ] ; then
+    find . -type l -! -exec test -e {} \; -print;
+  elif [ $# -eq 1 ] ; then
+    find $1 -type l -! -exec test -e {} \; -print;
+  fi;
+}
+
+# Find duplicate files into a path (is not specified . is used)
+function find-duplicates () {
+  if [ $# -eq 0 ] ; then
+    find . -not -empty -type f -printf "%s\n" | sort -rn | uniq -d | xargs -I{} -n1 find -type f -size {}c -print0 | xargs -0 md5sum | sort | uniq -w32 --all-repeated=separate;
+  elif [ $# -eq 1 ] ; then
+    find $1 -not -empty -type f -printf "%s\n" | sort -rn | uniq -d | xargs -I{} -n1 find -type f -size {}c -print0 | xargs -0 md5sum | sort | uniq -w32 --all-repeated=separate;
+  fi;
+}
+
+# Update npm packages
+function npm-update () {
+  for package in $(npm -g outdated --parseable --depth=0 | cut -d: -f2)
+  do
+    sudo npm -g install "$package"
+  done
 }
