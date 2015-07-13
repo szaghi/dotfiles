@@ -158,9 +158,6 @@ bindsym $mod+Pause mode "$mode_system"
 bar {
   position top
   status_command i3status -c ~/.i3/i3status.conf | ~/.i3/i3status-wrapper.py
-  # status_command i3status -c ~/.i3/i3status.conf
-  # status_command py3status -c ~/.i3/i3status.conf
-  # status_command ~/.i3/conky.sh
   workspace_buttons yes
   colors {
     background #073642

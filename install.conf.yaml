@@ -2,7 +2,7 @@
 
 - shell:
   - [mkdir -p ~/.bash, Creating bash sources directory]
-  - [mkdir -p ~/.icons, Creating icons config directory]
+  - [mkdir -p ~/.local/share, Creating local/share directory]
   - [mkdir -p ~/.scripts, Creating scripts directory]
   - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
@@ -77,9 +77,15 @@
       relink: true
       force: true
 
+    # fonts
+    ~/.local/share/fonts:
+      path: fonts
+      relink: true
+      force: true
+
     # icons
-    ~/.icons/bridge:
-      path: icons/bridge
+    ~/.local/share/icons:
+      path: icons
       relink: true
       force: true
 
@@ -90,8 +96,13 @@
       force: true
 
     # X
+    ~/.xinitrc:
+      path: X/xinitrc
+      relink: true
+      force: true
+
     ~/.Xresources:
-      path: miscellanea/Xresources
+      path: X/Xresources
       relink: true
       force: true
 
@@ -168,6 +179,10 @@
       force: true
     ~/.scripts/pps:
       path: bash/scripts/miscellanea/pps
+      relink: true
+      force: true
+    ~/.scripts/spark:
+      path: bash/scripts/spark/spark
       relink: true
       force: true
     ~/.scripts/markdown_toclify.py:

@@ -16,3 +16,6 @@
 [submodule "bash/scripts/bash_ini_parser"]
 	path = bash/scripts/bash_ini_parser
 	url = https://github.com/rudimeier/bash_ini_parser
+[submodule "bash/scripts/spark"]
+	path = bash/scripts/spark
+	url = https://github.com/holman/spark
