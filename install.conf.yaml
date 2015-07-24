@@ -40,6 +40,10 @@
       path: bash/exports
       relink: true
       force: true
+    ~/.bash/git-flow-completition:
+      path: bash/git-flow-completion/git-flow-completion.bash
+      relink: true
+      force: true
     ~/.bash/functions:
       path: bash/functions
       relink: true
@@ -131,6 +135,10 @@
     # scripts
     ~/.scripts/read_ini.sh:
       path: bash/scripts/bash_ini_parser/read_ini.sh 
+      relink: true
+      force: true
+    ~/.scripts/remind:
+      path: bash/scripts/i3-reminder/remind
       relink: true
       force: true
     ~/.scripts/alpha_image:

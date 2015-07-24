@@ -19,3 +19,9 @@
 [submodule "bash/scripts/spark"]
 	path = bash/scripts/spark
 	url = https://github.com/holman/spark
+[submodule "bash/scripts/i3-reminder"]
+	path = bash/scripts/i3-reminder
+	url = https://github.com/Sitwon/i3-reminder
+[submodule "bash/git-flow-completion"]
+	path = bash/git-flow-completion
+	url = https://github.com/bobthecow/git-flow-completion

@@ -14,6 +14,7 @@ Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
 " main screen utilities
 Plug 'majutsushi/tagbar'
 Plug 'bling/vim-airline'
+Plug 'ntpeters/vim-airline-colornum'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
@@ -69,14 +70,14 @@ Plug 'Shougo/unite.vim'
 Plug 'idanarye/vim-vebugger'
 Plug 'farseer90718/unite-workflow'
 Plug 'mhinz/vim-startify'
-" Plug 'wakatime/vim-wakatime'
 Plug 'kopischke/vim-fetch'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'chrisbra/vim-diff-enhanced'
 Plug 'niboan/plugconf'
 " programming languages
-Plug 'lervag/vim-latex', { 'for': 'tex' }
+" Plug 'lervag/vim-latex', { 'for': 'tex' }
+Plug 'lervag/vimtex', { 'for': 'tex' }
 Plug 'tpope/vim-markdown', { 'for': 'markdown' }
 Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
 " unknown
@@ -94,6 +95,7 @@ colorscheme solarized
 
 " Editing behaviour {{{
 let mapleader = ","                                                      " leader symbol
+set cursorline                                                           " enable cursorline
 set nowrap                                                               " don't wrap lines
 set tabstop=2                                                            " a tab is 2 spaces
 set softtabstop=2                                                        " when hitting <BS>, pretend like a tab is removed, even if spaces
