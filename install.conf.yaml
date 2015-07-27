@@ -189,6 +189,10 @@
       path: bash/scripts/iso/umountiso
       relink: true
       force: true
+    ~/.scripts/makeself:
+      path: bash/scripts/makeself/makeself.sh
+      relink: true
+      force: true
     ~/.scripts/pps:
       path: bash/scripts/miscellanea/pps
       relink: true
