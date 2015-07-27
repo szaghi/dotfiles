@@ -25,3 +25,6 @@
 [submodule "bash/git-flow-completion"]
 	path = bash/git-flow-completion
 	url = https://github.com/bobthecow/git-flow-completion
+[submodule "bash/scripts/gws"]
+	path = bash/scripts/gws
+	url = https://github.com/StreakyCobra/gws

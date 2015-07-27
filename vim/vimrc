@@ -78,7 +78,8 @@ Plug 'niboan/plugconf'
 " programming languages
 " Plug 'lervag/vim-latex', { 'for': 'tex' }
 Plug 'lervag/vimtex', { 'for': 'tex' }
-Plug 'tpope/vim-markdown', { 'for': 'markdown' }
+" Plug 'tpope/vim-markdown', { 'for': 'markdown' }
+Plug 'plasticboy/vim-markdown', { 'for': 'markdown' }
 Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
 " unknown
 call plug#end()
@@ -163,6 +164,9 @@ if has("autocmd")
 
   " positiong the cursor to the last position before closing the file
   autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+
+  " set .md as markdown
+  autocmd BufNewFile,BufRead *.md set filetype=markdown
 
   " Don't screw up folds when inserting text that might affect them, until
   " leaving insert mode. Foldmethod is local to the window.
