@@ -31,3 +31,6 @@
 [submodule "bash/scripts/makeself"]
 	path = bash/scripts/makeself
 	url = https://github.com/megastep/makeself
+[submodule "bash/scripts/sshrc"]
+	path = bash/scripts/sshrc
+	url = https://github.com/Russell91/sshrc

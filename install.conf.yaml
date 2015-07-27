@@ -201,6 +201,10 @@
       path: bash/scripts/spark/spark
       relink: true
       force: true
+    ~/.scripts/sshrc:
+      path: bash/scripts/sshrc/sshrc
+      relink: true
+      force: true
     ~/.scripts/markdown_toclify.py:
       path: python/markdown-toclify/markdown_toclify/markdown_toclify.py
       relink: true
