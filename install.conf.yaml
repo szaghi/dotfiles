@@ -64,6 +64,10 @@
       path: bash/prompt
       relink: true
       force: true
+    ~/.bash/shml:
+      path: bash/scripts/shml/shml.sh
+      relink: true
+      force: true
     ~/.bash/welcome:
       path: bash/welcome
       relink: true

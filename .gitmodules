@@ -34,3 +34,6 @@
 [submodule "bash/scripts/sshrc"]
 	path = bash/scripts/sshrc
 	url = https://github.com/Russell91/sshrc
+[submodule "bash/scripts/shml"]
+	path = bash/scripts/shml
+	url = https://github.com/MaxCDN/shml
