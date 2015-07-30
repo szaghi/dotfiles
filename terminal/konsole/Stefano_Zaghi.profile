@@ -8,8 +8,12 @@ CustomCursorColor=170,170,255
 UseCustomCursorColor=true
 
 [General]
+LocalTabTitleFormat=%D : %n
 Name=Stefano Zaghi
 Parent=FALLBACK/
+
+[Interaction Options]
+TrimTrailingSpacesInSelectedText=true
 
 [Scrolling]
 ScrollBarPosition=2
