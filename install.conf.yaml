@@ -2,7 +2,9 @@
 
 - shell:
   - [mkdir -p ~/.bash, Creating bash sources directory]
+  - [mkdir -p ~/.git, Creating git sources directory]
   - [mkdir -p ~/.local/share, Creating local/share directory]
+  - [mkdir -p ~/.local/share/konsole/, Creating local/share directory]
   - [mkdir -p ~/.scripts, Creating scripts directory]
   - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
@@ -40,10 +42,6 @@
       path: bash/exports
       relink: true
       force: true
-    ~/.bash/git-flow-completition:
-      path: bash/git-flow-completion/git-flow-completion.bash
-      relink: true
-      force: true
     ~/.bash/functions:
       path: bash/functions
       relink: true
@@ -64,6 +62,10 @@
       path: bash/prompt
       relink: true
       force: true
+    ~/.bash/shml:
+      path: bash/scripts/shml/shml.sh
+      relink: true
+      force: true
     ~/.bash/welcome:
       path: bash/welcome
       relink: true
@@ -72,6 +74,18 @@
     # git
     ~/.gitconfig:
       path: git/gitconfig
+      relink: true
+      force: true
+    ~/.git/ghi_token:
+      path: encrypt/ghi_token
+      relink: true
+      force: true
+    ~/.git/git-flow-completition:
+      path: git/git-flow-completion/git-flow-completion.bash
+      relink: true
+      force: true
+    ~/.git/git-hub:
+      path: git/git-hub
       relink: true
       force: true
 
@@ -137,6 +151,10 @@
       path: bash/scripts/bash_ini_parser/read_ini.sh 
       relink: true
       force: true
+    ~/.scripts/gws:
+      path: bash/scripts/gws/src/gws 
+      relink: true
+      force: true
     ~/.scripts/remind:
       path: bash/scripts/i3-reminder/remind
       relink: true
@@ -185,12 +203,20 @@
       path: bash/scripts/iso/umountiso
       relink: true
       force: true
+    ~/.scripts/makeself:
+      path: bash/scripts/makeself/makeself.sh
+      relink: true
+      force: true
     ~/.scripts/pps:
       path: bash/scripts/miscellanea/pps
       relink: true
       force: true
     ~/.scripts/spark:
       path: bash/scripts/spark/spark
+      relink: true
+      force: true
+    ~/.scripts/sshrc:
+      path: bash/scripts/sshrc/sshrc
       relink: true
       force: true
     ~/.scripts/markdown_toclify.py:
@@ -218,6 +244,11 @@
 
     ~/.inputrc:
       path: terminal/inputrc
+      relink: true
+      force: true
+
+    ~/.local/share/konsole/Stefano_Zaghi.profile:
+      path: terminal/konsole/Stefano_Zaghi.profile
       relink: true
       force: true
 

@@ -4,7 +4,13 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.bash/{aliases,bashmarks,compilers,commacd,exports,functions,git-flow-completition,grip-chromium,optprogs,paths,prompt}; do
+for file in ~/.bash/{aliases,bashmarks,compilers,commacd,exports,functions,grip-chromium,optprogs,paths,prompt,shml}; do
+	[ -r "$file" ] && [ -f "$file" ] && source "$file";
+done;
+unset file;
+
+# load the git dotfiles
+for file in ~/.git/{git-flow-completition,git-hub/init}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;

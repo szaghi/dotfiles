@@ -23,5 +23,20 @@
 	path = bash/scripts/i3-reminder
 	url = https://github.com/Sitwon/i3-reminder
 [submodule "bash/git-flow-completion"]
-	path = bash/git-flow-completion
+	path = git/git-flow-completion
 	url = https://github.com/bobthecow/git-flow-completion
+[submodule "bash/scripts/gws"]
+	path = bash/scripts/gws
+	url = https://github.com/StreakyCobra/gws
+[submodule "bash/scripts/makeself"]
+	path = bash/scripts/makeself
+	url = https://github.com/megastep/makeself
+[submodule "bash/scripts/sshrc"]
+	path = bash/scripts/sshrc
+	url = https://github.com/Russell91/sshrc
+[submodule "bash/scripts/shml"]
+	path = bash/scripts/shml
+	url = https://github.com/MaxCDN/shml
+[submodule "git/git-hub"]
+	path = git/git-hub
+	url = https://github.com/ingydotnet/git-hub

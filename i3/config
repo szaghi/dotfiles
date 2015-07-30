@@ -124,7 +124,7 @@ mode "resize" {
 bindsym $mod+r mode "resize"
 
 # Start a terminal
-bindsym $mod+Return exec terminology -d `xcwd`
+bindsym $mod+Return exec konsole --workdir `xcwd`
 
 # Start dmenu (a program launcher)
 bindsym $mod+d exec j4-dmenu-desktop
