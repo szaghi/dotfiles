@@ -2,7 +2,9 @@
 
 - shell:
   - [mkdir -p ~/.bash, Creating bash sources directory]
+  - [mkdir -p ~/.git, Creating git sources directory]
   - [mkdir -p ~/.local/share, Creating local/share directory]
+  - [mkdir -p ~/.local/share/konsole/, Creating local/share directory]
   - [mkdir -p ~/.scripts, Creating scripts directory]
   - [mkdir -p ~/.vmail, Creating vmail config directory]
   - [mkdir -p ~/.weechat, Creating weechat config directory]
@@ -40,10 +42,6 @@
       path: bash/exports
       relink: true
       force: true
-    ~/.bash/git-flow-completition:
-      path: bash/git-flow-completion/git-flow-completion.bash
-      relink: true
-      force: true
     ~/.bash/functions:
       path: bash/functions
       relink: true
@@ -76,6 +74,18 @@
     # git
     ~/.gitconfig:
       path: git/gitconfig
+      relink: true
+      force: true
+    ~/.git/ghi_token:
+      path: encrypt/ghi_token
+      relink: true
+      force: true
+    ~/.git/git-flow-completition:
+      path: git/git-flow-completion/git-flow-completion.bash
+      relink: true
+      force: true
+    ~/.git/git-hub:
+      path: git/git-hub
       relink: true
       force: true
 
@@ -234,6 +244,11 @@
 
     ~/.inputrc:
       path: terminal/inputrc
+      relink: true
+      force: true
+
+    ~/.local/share/konsole/Stefano_Zaghi.profile:
+      path: terminal/konsole/Stefano_Zaghi.profile
       relink: true
       force: true
 
