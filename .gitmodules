@@ -40,3 +40,6 @@
 [submodule "git/git-hub"]
 	path = git/git-hub
 	url = https://github.com/ingydotnet/git-hub
+[submodule "bash/scripts/emojify"]
+	path = bash/scripts/emojify
+	url = https://github.com/mrowa44/emojify

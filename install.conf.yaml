@@ -151,6 +151,10 @@
       path: bash/scripts/bash_ini_parser/read_ini.sh 
       relink: true
       force: true
+    ~/.scripts/emojify:
+      path: bash/scripts/emojify/emojify
+      relink: true
+      force: true
     ~/.scripts/gws:
       path: bash/scripts/gws/src/gws 
       relink: true
