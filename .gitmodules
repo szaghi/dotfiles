@@ -43,3 +43,15 @@
 [submodule "bash/scripts/emojify"]
 	path = bash/scripts/emojify
 	url = https://github.com/mrowa44/emojify
+[submodule "python/git-remote-dropbox"]
+	path = python/git-remote-dropbox
+	url = https://github.com/anishathalye/git-remote-dropbox
+[submodule "python/gdb-dashboard"]
+	path = python/gdb-dashboard
+	url = https://github.com/cyrus-and/gdb-dashboard
+[submodule "git/git-fire"]
+	path = git/git-fire
+	url = https://github.com/qw3rtman/git-fire
+[submodule "bash/scripts/bashsaurus"]
+	path = bash/scripts/bashsaurus
+	url = https://github.com/danprince/bashsaurus

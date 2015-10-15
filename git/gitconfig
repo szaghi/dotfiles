@@ -20,6 +20,8 @@
 	history-view-vpane-position = 639
 	main-window-view = HistoryView
 	file-view-vpane-position = 469
+[commit]
+  template = ~/.git/git_commit_message_template
 [diff]
 	tool = vimdiff
 [difftool]

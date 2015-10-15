@@ -8,6 +8,9 @@ pathmunge /opt/arch/paraview/4.3.1/bin after
 pathmunge /opt/arch/Adobe/Reader9/bin after
 export GTK_PATH=/usr/lib/gtk-2.0
 
+# nq
+pathmunge /opt/arch/nq/bin after
+
 # tecplot
 pathmunge /opt/arch/tecplot/2008/bin after
 TECPHYFILE=~/.Trash/tecplot.phy

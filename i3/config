@@ -196,3 +196,6 @@ bindsym $mod+g exec chromium --app=https://mail.google.com/mail/u/0/#inbox
 bindsym $mod+i exec ~/scripts/icemcfd11-launch.sh
 bindsym $mod+p exec /opt/arch/paraview/4.3.1/bin/paraview
 bindsym $mod+t exec /opt/arch/tecplot/2008/bin/tec360
+# pulseaudio
+bindsym $mod+Shift+p exec /usr/bin/pulseaudio-ctl up 1
+bindsym $mod+Shift+o exec /usr/bin/pulseaudio-ctl down 1
