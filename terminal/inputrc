@@ -25,7 +25,8 @@ set convert-meta off
 # Flip through autocompletion matches with Shift-Tab.
 "\e[Z": menu-complete
 # Filtered history search
-"\C-p":history-search-backward
+"\C-p": history-search-backward
+"\C-l": history-search-forward
 # Flip through words
-"\C-b":backward-word
-"\C-f":forward-word
+"\e[1;5C": forward-word
+"\e[1;5D": backward-word

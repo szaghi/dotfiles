@@ -76,6 +76,10 @@
       path: git/gitconfig
       relink: true
       force: true
+    ~/.git/git_commit_message_template:
+      path: git/git_commit_message_template
+      relink: true
+      force: true
     ~/.git/ghi_token:
       path: encrypt/ghi_token
       relink: true
@@ -131,6 +135,11 @@
       force: true
 
     # python
+    ~/.gdbinit:
+      path: python/gdb-dashboard/.gdbinit
+      relink: true
+      force: true
+
     ~/.pypirc:
       path: encrypt/pypirc
       relink: true
@@ -149,6 +158,10 @@
     # scripts
     ~/.scripts/read_ini.sh:
       path: bash/scripts/bash_ini_parser/read_ini.sh 
+      relink: true
+      force: true
+    ~/.scripts/bashsaurus:
+      path: bash/scripts/bashsaurus/bashsaurus
       relink: true
       force: true
     ~/.scripts/emojify:
@@ -223,6 +236,10 @@
       path: bash/scripts/sshrc/sshrc
       relink: true
       force: true
+    ~/.scripts/git-remote-dropbox:
+      path: python/git-remote-dropbox/git-remote-dropbox
+      relink: true
+      force: true
     ~/.scripts/markdown_toclify.py:
       path: python/markdown-toclify/markdown_toclify/markdown_toclify.py
       relink: true
@@ -233,6 +250,10 @@
       force: true
     ~/.scripts/pdfcompress:
       path: bash/scripts/pdf/pdfcompress
+      relink: true
+      force: true
+    ~/.scripts/git-fire:
+      path: git/git-fire/git-fire 
       relink: true
       force: true
     ~/.scripts/scholar.py:
