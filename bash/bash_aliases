@@ -2,29 +2,24 @@
 
 alias ls='ls --color=auto'
 alias ll='ls -lh'
+alias lt='ls -rtlh'
+alias lS='ls -rtlhS'
 alias la='ls -A'
 alias l="ls -lF --color=auto"
 alias lsUUID='sudo blkid'
 alias dir='ls --format=vertical'
 alias vdir='ls --format=long'
-alias cp='cp -i'
-alias rm='rm -i'
-alias mv='mv -i'
+alias cp='cp -iv'
+alias rm='rm -iv'
+alias mv='mv -iv'
 alias cd..='cd ..'
 alias ..='cd ..'
 alias grep="grep --color=auto"
 
-# apt
-alias apt-update='sudo apt-get update'
-alias apt-upgrade='sudo apt-get upgrade'
-alias apt-install='sudo apt-get install'
-alias apt-remove='sudo apt-get remove'
-alias apt-purge='sudo apt-get purge'
-alias apt-search='sudo apt-cache search'
-
 # pacman/yaourt
 alias pacman-clean='sudo pacman -Rns $(pacman -Qqtd)'
 alias yaourt-update='yaourt -Syu ; yaourt -Su --aur'
+alias yaourt-all='yaourt -Syu --aur'
 
 # make
 alias make='make -j 10'
@@ -68,3 +63,20 @@ vman() {
 
 # yapf
 alias yapf='python -m yapf --style=/home/stefano/python/yapf-style.ini'
+
+#Aliases for CRESCO connections
+alias n.por='ssh nunzio@cresco1-f1.portici.enea.it'
+alias n.por3='ssh nunzio@cresco3x001.portici.enea.it'
+alias n.por4='ssh nunzio@cresco4x001.portici.enea.it'
+alias n.cas='ssh nunzio@crescoc1.casaccia.enea.it'
+alias r.por='ssh picchia@cresco1-f1.portici.enea.it'
+alias r.por3='ssh picchia@cresco3x001.portici.enea.it'
+alias r.por4='ssh picchia@cresco4x001.portici.enea.it'
+alias r.cas='ssh picchia@crescoc1.casaccia.enea.it'
+alias e.por='ssh eugenio@cresco1-f1.portici.enea.it'
+alias e.por3='ssh eugenio@cresco3x001.portici.enea.it'
+alias e.por4='ssh eugenio@cresco4x001.portici.enea.it'
+alias e.cas='ssh eugenio@crescoc1.casaccia.enea.it'
+
+#Miscellanea
+alias hist='history -a && hist.py'

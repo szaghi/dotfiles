@@ -1,23 +1,11 @@
 # ~/.bash_paths
-source ~/.bash_functions
+#source ~/scripts/pathmunge.sh
 
 # local path
-pathmunge . after
+#pathmunge . after
 
 # bin
-pathmunge ~/bin after
+#pathmunge ~/bin after
 
 # scripts
-pathmunge ~/scripts after
-
-# ruby scripts
-pathmunge ~/.gem/ruby/2.2.0/bin
-
-# brew
-pathmunge ~/.linuxbrew/bin
-export MANPATH="~/.linuxbrew/share/man:$MANPATH"
-export INFOPATH="~/.linuxbrew/share/info:$INFOPATH"
-
-# go
-pathmunge ~/go/bin after
-export GOPATH=~/go
+#pathmunge ~/scripts after

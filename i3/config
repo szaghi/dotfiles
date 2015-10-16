@@ -157,8 +157,8 @@ bindsym $mod+Pause mode "$mode_system"
 # status bar
 bar {
   position top
-  status_command i3status -c ~/.i3/i3status.conf | ~/.i3/i3status-wrapper.py
-  # status_command i3status -c ~/.i3/i3status.conf
+  # status_command i3status -c ~/.i3/i3status.conf | ~/.i3/i3status-wrapper.py
+  status_command i3status -c ~/.i3/i3status.conf
   # status_command py3status -c ~/.i3/i3status.conf
   # status_command ~/.i3/conky.sh
   workspace_buttons yes
@@ -185,16 +185,16 @@ exec --no-startup-id clipit
 exec --no-startup-id setxkbmap it
 exec --no-startup-id unclutter -idle 2
 exec --no-startup-id dunst -config ~/.i3/dunstrc
-exec --no-startup-id feh --bg-scale ~/pictures/Wallpapers/The_Incredulity_of_Saint_Thomas_by_Caravaggio.jpg
+exec --no-startup-id feh --bg-fill /media/dati/NY.jpg
 exec --no-startup-id devmon
-exec --no-startup-id blueman-applet
-exec --no-startup-id bitlbee -F
-exec --no-startup-id ~/scripts/icemcfd11-lmgrd.sh
+exec --no-startup-id dropbox
+exec --no-startup-id nm-applet
 
 # Shortcuts
-bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'
+bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f /media/dati/Documenti/Immagini/'
+bindsym $mod+g exec google-chrome-stable
 bindsym $mod+c exec chromium
-bindsym $mod+g exec chromium --app=https://mail.google.com/mail/u/0/#inbox
-bindsym $mod+i exec ~/scripts/icemcfd11-launch.sh
-bindsym $mod+p exec /opt/arch/paraview/4.3.1/bin/paraview
-bindsym $mod+t exec /opt/arch/tecplot/2008/bin/tec360
+bindsym $mod+x exec firefox
+bindsym $mod+p exec paraview
+bindsym $mod+q exec java -jar /opt/JDownloader/JDownloader.jar
+bindsym $mod+t exec /opt/tec360/bin/tec360 -mesa

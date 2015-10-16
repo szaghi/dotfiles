@@ -1,20 +1,23 @@
-# ~/.bash_compilers
-source ~/.bash_functions
+source /usr/local/Modules/3.2.10/init/bash
 
 # intel parallel studio
-source /opt/arch/intel/advisor_xe/advixe-vars.sh quiet
-source /opt/arch/intel/composerxe/bin/compilervars.sh intel64
-source /opt/arch/intel/inspector_xe/inspxe-vars.sh quiet
-source /opt/arch/intel/vtune_amplifier_xe/amplxe-vars.sh quiet
+source /opt/intel/vtune_amplifier_xe_2016/amplxe-vars.sh > /dev/null 2>&1
+source /opt/intel/inspector_xe_2016/inspxe-vars.sh > /dev/null 2>&1
+source /opt/intel/advisor_xe_2016/advixe-vars.sh > /dev/null 2>&1
+source /opt/intel/bin/compilervars.sh intel64
 
-# g95
-pathmunge /opt/arch/g95-x86-64-0.94/bin after
+#Open64
+export PATH=$PATH:/opt/open64-5.0/bin
+
+#Ekopath
+export PATH=$PATH:/opt/ekopath-5.0.1/bin
 
 # OpenMP
 OMP_NUM_THREADS=6
 export OMP_NUM_THREADS
 
 # mpi
-module load openmpi-1.6.5-intel
+LD_LIBRARY_PATH=/usr/lib/openmpi/lib:$LD_LIBRARY_PATH
+LD_RUN_PATH=/usr/lib/openmpi/lib:$LD_RUN_PATH
 
 export MANPATH LD_LIBRARY_PATH LD_RUN_PATH

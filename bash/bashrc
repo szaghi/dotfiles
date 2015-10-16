@@ -4,7 +4,7 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.{bash_aliases,bash_compilers,bash_exports,bash_functions,bash_optprogs,bash_paths,bash_prompt}; do
+for file in ~/.{bash_welcome,bash_aliases,bash_compilers,bash_exports,bash_functions,bash_optprogs,bash_paths,bash_prompt}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;
@@ -45,5 +45,5 @@ fi;
 # add tab completion for SSH hostnames based on ~/.ssh/config, ignoring wildcards
 [ -e "$HOME/.ssh/config" ] && complete -o "default" -o "nospace" -W "$(grep "^Host" ~/.ssh/config | grep -v "[?*]" | cut -d " " -f2- | tr ' ' '\n')" scp sftp ssh;
 
-# added by travis gem
-[ -f /home/stefano/.travis/travis.sh ] && source /home/stefano/.travis/travis.sh
+#set vim mode
+set -o vi

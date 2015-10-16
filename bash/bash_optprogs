@@ -9,10 +9,6 @@ pathmunge /opt/arch/Adobe/Reader9/bin after
 export GTK_PATH=/usr/lib/gtk-2.0
 
 # tecplot
-pathmunge /opt/arch/tecplot/2008/bin after
+pathmunge /opt/Tec360/bin after
 TECPHYFILE=~/.Trash/tecplot.phy
 export TECPHYFILE
-
-# gridgen
-pathmunge /opt/arch/pointwise/PointwiseV16.02R4/ after
-alias gridgen='/opt/arch/pointwise/PointwiseV16.02R4/pointwise'

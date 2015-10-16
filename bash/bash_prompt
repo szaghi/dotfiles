@@ -72,16 +72,5 @@ if [[ "${SSH_TTY}" ]]; then
 else
 	hostStyle="${yellow}";
 fi;
-PS1="\[\033]0;\w\007\]";
-PS1+="\[${bold}\]\n";
-PS1+="\[${userStyle}\]\u";
-PS1+="\[${smerald}\]@";
-PS1+="\[${hostStyle}\]\h";
-PS1+="\[${smerald}\](\@ \d)"
-PS1+="\$(prompt_git \"${white} on ${yellow}\")"; # Git repository details
-PS1+="\n";
-PS1+="\[${smerald}\]\w ";
-PS1+="\[${smerald}\$(/bin/ls -1 | /usr/bin/wc -l | /bin/sed 's: ::g') files, \$(/bin/ls -lah | /bin/grep -m 1 total | /bin/sed 's/total //')b";
-PS1+="\n";
-PS1+="\[${yellow}\]→ \[${reset}\]";
-export PS1;
+PS1="\n\[\e[30;1m\]\[\016\]l\[\017\](\[\e[38;5;220m\]\u@\h\[\e[30;1m\])-(\[\e[38;5;220m\]\j\[\e[30;1m\])-(\[\e[38;5;220m\]\t \d\[\e[30;1m\])->\[\e[30;1m\]\n\[\016\]m\[\017\]-(\[\[\e[38;5;208m\]\w\[\e[30;1m\])-(\[\e[38;5;110m\]\$(/bin/ls -1 | /usr/bin/wc -l | /bin/sed 's: ::g') files, \$(/bin/ls -lah | /bin/grep -m 1 total | /bin/sed 's/total //')b\[\e[30;1m\])--> \[\e[0m\]"
+PROMPT_COMMAND='echo -ne "\033]0;${HOSTNAME}\007"'
