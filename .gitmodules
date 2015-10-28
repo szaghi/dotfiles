@@ -22,7 +22,7 @@
 [submodule "bash/scripts/i3-reminder"]
 	path = bash/scripts/i3-reminder
 	url = https://github.com/Sitwon/i3-reminder
-[submodule "bash/git-flow-completion"]
+[submodule "git/git-flow-completion"]
 	path = git/git-flow-completion
 	url = https://github.com/bobthecow/git-flow-completion
 [submodule "bash/scripts/gws"]
@@ -55,3 +55,6 @@
 [submodule "bash/scripts/bashsaurus"]
 	path = bash/scripts/bashsaurus
 	url = https://github.com/danprince/bashsaurus
+[submodule "bash/scripts/desk"]
+	path = bash/scripts/desk
+	url = https://github.com/jamesob/desk

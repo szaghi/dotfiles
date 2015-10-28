@@ -164,6 +164,10 @@
       path: bash/scripts/bashsaurus/bashsaurus
       relink: true
       force: true
+    ~/.scripts/desk:
+      path: bash/scripts/desk/desk 
+      relink: true
+      force: true
     ~/.scripts/emojify:
       path: bash/scripts/emojify/emojify
       relink: true
