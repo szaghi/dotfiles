@@ -53,3 +53,5 @@ fi;
 
 # added by travis gem
 [ -f /home/stefano/.travis/travis.sh ] && source /home/stefano/.travis/travis.sh
+# Hook for desk activation
+[ ! -z "$DESK_ENV" ] && source "$DESK_ENV"

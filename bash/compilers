@@ -15,6 +15,6 @@ OMP_NUM_THREADS=6
 export OMP_NUM_THREADS
 
 # mpi
-module load openmpi-1.6.5-intel
+# module load openmpi-1.6.5-intel
 
 export MANPATH LD_LIBRARY_PATH LD_RUN_PATH
