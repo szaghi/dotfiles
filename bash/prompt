@@ -48,6 +48,17 @@ prompt_git() {
 		return;
 	fi;
 }
+prompt_desk() {
+	local s='';
+  local deskfile=$(desk | head -n 1);
+
+	# Check if the shell has loaded a deskfile
+	if [ "$deskfile" == 'No desk activated.' ]; then
+		return;
+	else
+		echo -e "${1}{"$deskfile"}";
+	fi;
+}
 tput sgr0;
 bold=$(tput bold);
 reset=$(tput sgr0);
@@ -79,6 +90,7 @@ PS1+="\[${reset}\]@";
 PS1+="\[${hostStyle}\]\h";
 PS1+="\[${reset}\](\@ \d)"
 PS1+="\$(prompt_git \"${white} on ${yellow}\")"; # Git repository details
+PS1+="\$(prompt_desk \"${white} desk ${orange}\")"; # Git repository details
 PS1+="\n";
 PS1+="\[${reset}\]\w ";
 PS1+="\[${reset}\$(/bin/ls -1 | /usr/bin/wc -l | /bin/sed 's: ::g') files, \$(/bin/ls -lah | /bin/grep -m 1 total | /bin/sed 's/total //')b";

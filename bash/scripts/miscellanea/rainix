@@ -1,0 +1,308 @@
+#!/bin/bash
+#-------------------------------------------------------------------------------------------------------------------
+#  RaiNix: Rai live, replay e radiorai player for *Nix systems.
+#	   All you ned to do (if you want) is change the Player and RadioPlayer vars.
+#          Can also record the Replay flow and most of the live streaming, depending of your
+#          ffmpeg level and the originating stream type. 
+#          Usually live channels starting from RAI 4 and above are ok.
+#          About recording: start and play your preferred stream. Once that the player has started
+#          click back on RaiNix window to make again that window active an hit: ctrl + \ (backslash)
+#          The player will be closed and the ffmpeg recorder started.
+#
+#          K.
+#	  changelog: v 1.1 Changed anchor for live stream detection  13/2/2015	
+#
+#-------------------------------------------------------------------------------------------------------------------
+Version='1.1'
+#AnchorLive="http://www.rai.tv/dl/RaiTV/dirette/PublishingBlock-1dc5af18-ecc2-497f-be49-8e2989cbcc2a.html"
+AnchorLive="http://www.rai.tv/dl/RaiTV/dirette_tv.html"
+AnchorReplay="http://www.rai.tv/dl/portale/html/palinsesti/replaytv/static/"
+AnchorRadio="http://rai.it/dl/portaleRadio/popup/ContentSet-003728e4-db46-4df8-83ff-606426c0b3f5-json.html?jsonp=call"
+#-------------------------------------------------------------------------------------------------------------------
+Player="ffplay -infbuf -vf scale=720:404"
+RadioPlayer="smplayer"
+Savedir="/tmp/Rai"
+Iconic="-iconic"
+#-------------------------------------------------------------------------------------------------------------------
+#UserAgent="Mozilla/5.0 (X11; Linux i686; rv:23.0) Gecko/20100101 Firefox/23.0"
+UserAgent="Mozilla/5.0 (iPad; CPU OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5355d Safari/8536.25"
+Curl="curl -s -L -A '"$UserAgent"' $socks"
+#socks="--socks localhost:9050"
+socks=""
+ShowInfoDelay=3
+Me=`basename $0`
+mkdir -p "$Savedir" 2>/dev/null
+MyPid="$$"
+#------------------------------------------------------------------------------------------
+function Record () {
+    Cleanup
+    Tag=$(date +%Y%m%d_%H%M)
+    xterm -hold -e ffmpeg -y -i "$ThisLink" -vcodec copy -acodec copy -absf aac_adtstoasc $Savedir/${ChName}_${Tag}.avi &
+    Reply="99"
+    Prog="99"
+    return
+}
+#------------------------------------------------------------------------------------------
+#trap Record SIGQUIT#
+trap Record INT 
+#------------------------------------------------------------------------------------------
+function ctrl_c () {
+    clear
+#    kill $! 2>/dev/null
+#    wait $! 2>/dev/null
+    kill -9 $MyPid
+    exit
+}
+#------------------------------------------------------------------------------------------
+#trap ctrl_c INT
+trap ctrl_c SIGQUIT
+#------------------------------------------------------------------------------------------
+function Cleanup () {
+    kill $! 2>/dev/null
+    wait $! 2>/dev/null
+    return
+}
+#------------------------------------------------------------------------------------------
+TestSys () {
+for command in curl sed grep awk dialog xterm ffplay paste $RadioPlayer; do
+    if [ -z "`which $command 2>/dev/null`" ]; then
+	NOTFOUND="`echo "$NOTFOUND $command"`"
+    fi
+done
+if [ -n "$NOTFOUND" ]; then
+    echo "Comandi non trovati:"
+    echo $NOTFOUND
+    exit 1
+fi
+}
+#-------------------------------------------------------------------------------------------
+ShowInfo () {
+    dialog --title "$BoxTitle" --infobox "$BoxMsg" 5 41
+    sleep $ShowInfoDelay
+    return
+}
+#-------------------------------------------------------------------------------------------------------------------
+Live () {
+  ChName="Live"
+  cat /dev/null > /tmp/.Rai.dsc
+#  PageLive=$($Curl "$AnchorLive" | grep mediapolis | grep 'dem=' | grep -v -i euronews)
+  PageLive=$($Curl "$AnchorLive" | grep dirette | grep strong | grep src= | grep -v -i euronews)
+  LiveLinks=$(echo "$PageLive"   | grep mediapolis | grep 'dem=' | cut -d ' ' -f2 | tr -d ',')
+#  LiveNames=$(echo "$PageLive"   | grep mediapolis | grep 'dem=' | awk -F'//' '{print $3}')
+  LiveNames=$(echo "$PageLive"   | grep -o "title=.*"  | cut -d '"' -f2 | tr -d ' ')
+  LiveLinks=$(echo "$PageLive"   | grep -o "href=.*"   | cut -d '"' -f2 | sed -e 's| |%20|g')
+#-------------------------------------------------------------------------------------------------------------------
+  Index=0
+  echo "$LiveNames" | while read Chan; do
+      let Index++
+      Desc=`echo "$Chan" | sed -e 's/^/"/g;s/$/"/g'| sed -e "s/^/$Index /g"  >> /tmp/.Rai.dsc`
+  done
+  Index=$(wc -l /tmp/.Rai.dsc | cut -d ' ' -f1)
+  let Index++
+  Desc=`echo "Radio Rai" | sed -e 's/^/"/g;s/$/"/g'| sed -e "s/^/$Index /g"  >> /tmp/.Rai.dsc`
+  let Index++
+  Desc=`echo "Rai Replay" | sed -e 's/^/"/g;s/$/"/g'| sed -e "s/^/$Index /g"  >> /tmp/.Rai.dsc`
+  let Index++
+  Desc=`echo "Set Video Quality" | sed -e 's/^/"/g;s/$/"/g'| sed -e "s/^/$Index /g"  >> /tmp/.Rai.dsc`
+}
+#-------------------------------------------------------------------------------------------------------------------
+GetChan () {
+  while [ 1 ]; do
+      Chan=$(dialog --title "Rai Replay Channels" --default-item "$ChNum" --stdout --menu "Select a channel" 16 50 25 "1 RaiUno" "" "2 RaiDue" "" "3 RaiTre" "" "4 RaiCinque" "" "6 RaiPremium" "" "7 RaiGulp" "" "8 RaiYoyo" "")
+      if [ "$Chan" == "" ]; then
+	 return
+      fi
+      ChNum=$(echo $Chan | cut -d ' ' -f1)
+      ChName=$(echo $Chan | cut -d ' ' -f2)
+      GetDate
+  done
+}
+#-------------------------------------------------------------------------------------------------------------------
+GetDate () {
+  Week=`for i in {1..7}; do date -d "$i day ago" +%Y-%m-%d" "%A; done`
+  while [ 1 ]; do
+      Day=$(dialog --title "$ChName" --default-item "$DayNum" --stdout --menu "Select a date" 16 50 25 $Week)
+      if [ "$Day" == "" ]; then
+	 return
+      fi
+      DayNum=$(echo $Day  | cut -d ' ' -f1 | tr '-' '_')
+      DayName=$(echo $Day | cut -d ' ' -f2)
+      Replay 
+  done
+}
+#-------------------------------------------------------------------------------------------------------------------
+Replay () {
+  cat /dev/null > /tmp/Menu.txt
+  Pos="0"
+  ReplayPage="$AnchorReplay/${ChName}_$DayNum.html"
+  PageReplay=$($Curl "$ReplayPage" | grep -E '"..:..": {|"t":|"h264":' | tr -d '\t{,')
+  ThisDayLink=$(echo "$PageReplay" | grep    '"h264":')
+  Name=$(echo "$PageReplay" | grep -v '..:...:' | grep -v 'h264'  | sed -e 's|"t":||g'  | tr -d '\t')
+  Time=$(echo "$PageReplay" | grep '..:...:'    | sed -e 's|":|"|g' | tr -d '\t" ')
+# paste <(echo "$Time") <(echo "$Name") | tr '\t' ' ' | tr -s ' ' > ./Menu.txt  # Warning! Sprict Bash only syntax!
+  for Token in $Time; do
+      let Pos++
+      echo "$Token" `echo "$Name" | sed -n ${Pos}p` >> /tmp/Menu.txt
+  done
+  while [ 1 ]; do
+      Prog=$(dialog --title "RaiNix: $ChName $DayName" --default-item "$Prog" --stdout --menu "Mind NOT ALL streaming are availables." 25 60 40 --file /tmp/Menu.txt)
+      if [ "$Prog" = "99" ]; then
+	  continue
+      fi
+      if [ "$Prog" == "" ]; then
+	  return
+      fi
+      LinkNum=$(grep -n "$Prog" /tmp/Menu.txt | cut -d ':' -f1)
+      ThisLink=$(echo "$ThisDayLink" | sed -n "${LinkNum}p" | cut -d ' ' -f2 | tr -d '"')
+      if [ "$ThisLink" == "" ]; then
+         BoxTitle="Link failure"
+         BoxMsg="Sorry, this broadcast is not available"
+         ShowInfo
+         continue
+      fi
+      Cleanup
+      echo "$ChName $Player $ThisLink" >> `pwd`/$Me.log
+      xterm $Iconic -e $Player "$ThisLink" &
+      Running="$!"
+      sleep 3
+      TestPlay
+  done
+}
+#-------------------------------------------------------------------------------------------------------------------
+SetVbr () {
+    while [ 1 ]; do
+	VqReply=$(dialog --default-item "$VQual" --stdout --menu "Select a video quality rate" 15 50 5 1 Highest 2 High 3 Medium 4 Low 5 lowest)
+	if [ "$VqReply" == "" ]; then
+	   return
+	fi
+        if ((VqReply >= 1 && VqReply <= 5)); then
+           VQual="$VqReply"
+           return
+        fi
+    done
+}
+#-------------------------------------------------------------------------------------------------------------------
+RadioRai () {
+    RadioPage=$($Curl "$AnchorRadio" | grep -o '{"nome":.*' | sed -e 's|},{|}\n{|g' | grep -v 'Altri')
+    RadioNames=""
+    RadioLinks=""
+    while read RadioChan; do
+         let Index++
+         RadioName=$(echo "$RadioChan" | grep -o '"nome":.*' | cut -d '"' -f4 | tr -d ' ')
+         RadioLink=$(echo "$RadioChan" | grep -o '"liveDesktop":.*' | cut -d '"' -f4)
+         RadioNames="$RadioNames $RadioName"
+         RadioLinks="$RadioLinks $RadioLink"   
+    done <<< "$RadioPage"
+    RadioMenu=$(for radio in $RadioNames; do let radionum++; echo $radionum $radio; done;let radionum++; echo $radionum RadioPlayer)
+    RadioLinks=$(echo "$RadioLinks" | sed -e 's/^ //;s/ $//g') 
+    while [ 1 ]; do    
+	RadioChan=$(dialog --default-item "$RadioChan" --stdout --menu "Select a radio station" 18 50 15 $RadioMenu)
+	if [ "$RadioChan" == "" ]; then
+	   return
+	fi
+        if ((RadioChan >= 1 && RadioChan <= 10)); then
+           ThisLink=$(echo "$RadioLinks" | cut -d ' ' -f $RadioChan)
+#           ThisLink=$($Curl -I --head "$Relinker" | grep 'Location:' | cut -d ' ' -f2)
+           Cleanup
+	   echo "RadioRai $RadioPlayer $ThisLink" >> `pwd`/$Me.log
+           xterm $Iconic -e "$RadioPlayer" "$ThisLink" &
+#          $RadioPlayer "$ThisLink" &
+           continue
+        fi
+        if [ "$RadioChan" = "11" ]; then
+           NewPlayer=$(dialog --stdout --inputbox "Please enter a new radio player" 0 0 $RadioPlayer) 
+           if [ "$NewPlayer" != "" ]; then
+              RadioPlayer="$NewPlayer"
+           fi
+        fi 
+    done
+}
+#-------------------------------------------------------------------------------------------
+TestPlay () {
+    if [ "$Running" != "" ]; then
+       Active=$(ps -A | grep $Running)
+    fi
+    if [ "$Active" = "" ]; then
+       Running=""
+       Alerted="1"
+       BoxTitle="Streaming error"
+       BoxMsg="Sorry. Stream not found or not playable. Retry changing Video Quality or check Xterm window for details"
+       ShowInfo
+       read null
+       Cleanup
+    fi
+}
+#-------------------------------------------------------------------------------------------------------------------
+ShowMedia () {
+  VQual=1
+  while [ 1 ]; do
+    Items=`wc -l /tmp/.Rai.dsc | cut -d ' ' -f 1`
+    LiveItems=$((Items-3))
+    Reply=$(dialog --title "RaiNix: Rai Tv Live channels: $LiveItems" --default-item "$DefItem" --stdout --menu "Selezionare il canale" 24 70 17 --file /tmp/.Rai.dsc)
+    RepRc="$?"
+    ReplayItem=$((Items-1))
+    RadioRai=$((Items-2))
+    if [ "$Reply" == "" ]; then
+	exit
+    fi
+    if [ "$Reply" = "$Items" ]; then
+	SetVbr
+        continue
+    fi
+    if [ "$Reply" = "$ReplayItem" ]; then
+	GetChan
+        continue
+    fi
+    if [ "$Reply" = "$RadioRai" ]; then
+	RadioRai
+        continue
+    fi
+    if [ "$Reply" = "99" ]; then
+        continue
+    fi
+    DefItem=`echo $Reply | awk '{print $1}'`
+    LinkItem="$Reply"
+    PageLink=$(echo "$LiveLinks" | sed -n "${LinkItem}p")
+    ThisLink=$($Curl -H "viaurl: www.rai.tv" --url "$PageLink" | grep -i 'videourl_m3u8' | head -1 | grep relinker | cut -d '"' -f2)
+    ThisLink="http:${ThisLink}"
+    LiveLink=$(curl -I -L -A "$UserAgent" -H "viaurl: www.rai.tv" --url "$ThisLink" 2>/dev/null | grep -i 'location:' | cut -d ' ' -f2 | tr -d '$\r')
+    Playlist=$(echo "$LiveLink" | grep 'playlist.m3u8')
+    Manifest=$(echo "$LiveLink" | grep -i 'manifest')
+    Master=$(echo "$LiveLink" | grep -i 'master')
+    if [ "$Playlist" != "" ]; then
+       LinkQual=$($Curl "$LiveLink" | grep -v '#' | cut -d '_' -f2 | cut -d '.' -f 1 | tr -d 'b' | sort -nr | head -$VQual | tail -1)
+       LinkQual=$($Curl "$LiveLink" | grep -v '#' | grep "$LinkQual")
+       LinkHdr=$(echo "$LiveLink" | awk -F 'playlist.m3u8' '{print $1}')
+       LiveLink="${LinkHdr}${LinkQual}"
+    fi
+    if [ "$Manifest" != "" ]; then
+       LinkHdr=$(echo "$LiveLink" | awk -F '/QualityLevels' '{print $1}')
+       LinkTrail="manifest(format=m3u8-aapl).m3u8"
+       ManLink="$LinkHdr/$LinkTrail"
+       LinkQual=$($Curl "$ManLink" | grep -v '#' | cut -d '(' -f 2 | cut -d ')' -f1 | sort -nr | head -$VQual | tail -1 )
+       LiveLink="$LinkHdr/QualityLevels($LinkQual)/$LinkTrail"
+    fi
+    if [ "$Master" != "" ]; then
+       MasterLink="$LiveLink"
+       LinkQual=$($Curl "$MasterLink" | grep -v '#' | cut -d '_' -f3   | sort -unr | head -$VQual | tail -1)
+       LiveLink=$($Curl "$MasterLink" | grep -v '#' | grep "$LinkQual" | head -1)
+    fi
+    if [ "$Playlist" = "" ] && [ "$Manifest" = "" ] && [ "$Master" = "" ]; then
+       LinkQual=$($Curl "$LiveLink" | grep -v '#' | cut -d '(' -f 2 | cut -d ')' -f1 | sort -nr | head -$VQual | tail -1 )
+       LiveLink=$($Curl "$LiveLink" | grep -v '#' | grep "$LinkQual") 
+    fi
+    Cleanup
+    ThisLink="$LiveLink"
+    echo "Vbr=$VQual $Player $LiveLink" >> `pwd`/$Me.log
+    xterm $Iconic -e $Player "$LiveLink" &
+    Running="$!"
+    sleep 3
+    TestPlay
+  done
+}
+#------------------------------------------------------------------------------------------------------------------
+TestSys
+Live
+ShowMedia
+exit
+#------------------------------------------------------------------------------------------------------------------
