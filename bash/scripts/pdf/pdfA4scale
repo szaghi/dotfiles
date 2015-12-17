@@ -1,0 +1,54 @@
+#!/bin/bash -
+#===============================================================================
+#
+#          FILE: pdf-A4scale
+#
+#         USAGE: ./-A4scalerey file.pdf [-o output_file_name.pdf]
+#
+#   DESCRIPTION: scale all pages of pdf file to fit in A4 format.
+#
+#       OPTIONS: -o output_file_name.pdf
+#  REQUIREMENTS: gs
+#         NOTES: if no output file name is provided file-A4.pdf is used
+#        AUTHOR: Stefano Zaghi
+#  ORGANIZATION:
+#       CREATED: 12/17/2015 08:36:55 AM CEST
+#      REVISION:  0.0.1
+#===============================================================================
+
+#default inputs values
+inpdf=`basename $1 .pdf`
+outpdf="$inpdf-A4.pdf"
+
+function print_usage {
+  echo
+  echo "`basename $0`"
+  echo "Scale pdf file to fit in A4 format"
+  echo "Usage: `basename $0` file.pdf [-o output_file_name.pdf]"
+  echo
+  echo "Defaults of optional arguments:"
+  echo "  -o file-A4.pdf"
+  echo
+  echo "Examples:"
+  echo "  `basename $0` a3.pdf -o a4.pdf"
+  echo
+}
+if [ $# -eq 0 ] ; then
+  print_usage
+  exit
+fi
+#parsing command line
+while [ $# -gt 0 ]; do
+  shift
+  case "$1" in
+    "-o")
+      shift; outpdf=$1
+      ;;
+    *)
+      echo; echo "Unknown switch $1"; print_usage; exit 1
+      ;;
+  esac
+  shift
+done
+# scale pdf file
+gs -sOutputFile=$outpdf -sDEVICE=pdfwrite -g5950x8420 -dPDFFitPage -f $inpdf.pdf

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+export LM_LICENSE_FILE=/opt/arch/icemcfd-11/shared_files/licensing/license.dat
+
+# se non è già stato lanciato, fa partire il gestore di licenze
+PID=`pidof lmgrd`
+if [ -z "${PID}" ] ; then
+   LMGRD=/opt/arch/icemcfd-11/shared_files/licensing/linem64t/lmgrd
+   LMLOG=~/.Trash/icemcfd11.log
+   $LMGRD -l $LMLOG -c $LM_LICENSE_FILE
+fi
+
+HOME=.
+while [ $# -gt 0 ] ; do
+   if [ $1 = "-dir" ] ; then
+      if [ $# -gt 1 ] ; then
+         HOME=$2
+         shift
+      fi
+   fi
+   shift
+done
+export HOME
+cd $HOME
+
+LOG=/dev/shm
+[ -d $LOG ] || LOG=/tmp
+
+exec /opt/arch/icemcfd-11/v110/icemcfd/linux64_amd/bin/icemcfd 1>${LOG}/icemcfd.$USER 2>&1 &
+
+exit 0

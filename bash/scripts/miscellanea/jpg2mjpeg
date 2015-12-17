@@ -1,0 +1,31 @@
+#!/bin/bash
+#===============================================================================
+#
+#          FILE:  jpg2mjpeg
+# 
+#         USAGE:  ./jpg2mjpeg [options] "output.avi"
+# 
+#   DESCRIPTION:  convert all jpg images of the current directory 
+#                 in mjpg avi file 
+# 
+#       OPTIONS:  ---
+#  REQUIREMENTS:  mencoder
+#       VERSION:  1.0
+#       CREATED:  12/18/2009 02:26:08 PM CET
+#===============================================================================
+if [ $# -eq 0 ] ; then
+  echo "Usage"
+  echo "      ./jpg2mjpeg [options] 'output_file_name.avi'"
+  echo "options:"
+  echo "      -fps number_of_frames_per_second "
+  exit
+fi
+
+if [ $# -eq 1 ] ; then
+  fps=25
+  avifile=$1
+else
+  fps=$2
+  avifile=$3
+fi
+mencoder "mf://*.jpg" -mf fps=$fps -o $avifile -ovc lavc -lavcopts vcodec=mjpeg

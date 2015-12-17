@@ -1,0 +1,13 @@
+#!/bin/bash
+giorno=$(date +%d)
+mese=$(date +%m)
+anno=$(date +%Y)
+ora=$(date +%H)
+minuti=$(date +%M)
+secondi=$(date +%S)
+estensione='-'$anno'_'$mese'_'$giorno'-'$ora'_'$minuti'_'$secondi
+rm -f ICEM/*.domain.*
+cp -ar ICEM/ ICEM$estensione
+tar -czvf ICEM$estensione.tgz ICEM$estensione
+rm -rf ICEM$estensione
+mv ICEM$estensione.tgz backup/
