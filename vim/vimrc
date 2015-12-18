@@ -20,15 +20,15 @@ Plug 'moll/vim-bbye'
 Plug 'myusuf3/numbers.vim'
 Plug 'jeetsukumaran/vim-filebeagle'
 Plug 'terryma/vim-multiple-cursors'
-" Plug 'unblevable/quick-scope'
+Plug 'unblevable/quick-scope'
 " selection
-" Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
-" Plug 'chrisbra/NrrwRgn'
-" Plug 'Konfekt/FastFold'
-" Plug 'ferranpm/vim-isolate'
+Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
+Plug 'chrisbra/NrrwRgn'
+Plug 'Konfekt/FastFold'
+Plug 'ferranpm/vim-isolate'
 " spell check and languages
 Plug 'scrooloose/syntastic', { 'for':  ['python'] }
-" Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
+Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 Plug 'vim-scripts/LanguageTool'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
@@ -45,7 +45,7 @@ Plug 'EinfachToll/DidYouMean'
 Plug 'Z1MM32M4N/vim-superman'
 Plug 'csexton/trailertrash.vim'
 Plug 'kshenoy/vim-signature'
-" Plug 'jeetsukumaran/vim-indentwise'
+Plug 'jeetsukumaran/vim-indentwise'
 Plug 'mattn/vim-maketable'
 Plug 'danprince/vimsaurus'
 Plug 'vim-utils/vim-troll-stopper'
@@ -57,7 +57,6 @@ Plug 'mattn/webapi-vim'
 Plug 'mattn/gist-vim'
 Plug 'gregsexton/gitv'
 Plug 'rhysd/github-complete.vim'
-Plug 'jreybert/vimagit'
 Plug 'shuber/vim-promiscuous'
 Plug 'lambdalisue/vim-gita'
 " utilities
@@ -78,6 +77,7 @@ Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'chrisbra/vim-diff-enhanced'
 Plug 'niboan/plugconf'
+Plug 'wellle/visual-split.vim'
 " programming languages
 " Plug 'lervag/vimtex', { 'for': 'tex' }
 Plug 'plasticboy/vim-markdown', { 'for': 'markdown' }
