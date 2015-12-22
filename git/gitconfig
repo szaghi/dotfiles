@@ -31,6 +31,7 @@
 [alias]
 	d = difftool
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+	submodule-update = submodule foreach git pull origin master
 [core]
 	editor = vim
 	whitespace = space-before-tab,-indent-with-non-tab,trailing-space
