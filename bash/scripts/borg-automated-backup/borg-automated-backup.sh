@@ -14,3 +14,5 @@ run_borg /mnt/nas-zaghi/stefano/zaghi-backup/backup/ /backup/stefano/
 
 # backup on nas-muscari
 run_borg /mnt/nas-muscari/zaghi-backup/home/ /home/stefano
+
+exit 0

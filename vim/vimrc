@@ -70,6 +70,7 @@ Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
 Plug 'Shougo/vimshell.vim'
 Plug 'Shougo/unite.vim'
 Plug 'idanarye/vim-vebugger'
+Plug 'gilligan/vim-lldb'
 Plug 'farseer90718/unite-workflow'
 Plug 'mhinz/vim-startify'
 Plug 'kopischke/vim-fetch'
@@ -78,6 +79,7 @@ Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'chrisbra/vim-diff-enhanced'
 Plug 'niboan/plugconf'
 Plug 'wellle/visual-split.vim'
+Plug 'wgurecky/vimSum'
 " programming languages
 " Plug 'lervag/vimtex', { 'for': 'tex' }
 Plug 'plasticboy/vim-markdown', { 'for': 'markdown' }

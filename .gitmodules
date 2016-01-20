@@ -58,3 +58,6 @@
 [submodule "bash/scripts/desk"]
 	path = bash/scripts/desk
 	url = https://github.com/jamesob/desk
+[submodule "bash/scripts/kommit"]
+	path = bash/scripts/kommit
+	url = https://github.com/bilgi-webteam/kommit

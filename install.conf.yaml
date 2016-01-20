@@ -11,17 +11,15 @@
   - [touch ~/.python_history, Creating python interpreter history]
 
 - link:
-    # bashrc
+    # bash
     ~/.bashrc:
       path: bash/bashrc
       relink: true
       force: true
-    # bash_profile
     ~/.bash_profile:
       path: bash/bash_profile
       relink: true
       force: true
-    # bash
     ~/.bash/aliases:
       path: bash/aliases
       relink: true
@@ -48,6 +46,10 @@
       force: true
     ~/.bash/grip-chromium:
       path: bash/scripts/grip-chromium/grip-chromium.sh
+      relink: true
+      force: true
+    ~/.bash/kommit:
+      path: bash/scripts/kommit/bin/kommit
       relink: true
       force: true
     ~/.bash/optprogs:
@@ -80,16 +82,16 @@
       path: git/git_commit_message_template
       relink: true
       force: true
-    ~/.git/ghi_token:
-      path: encrypt/ghi_token
-      relink: true
-      force: true
     ~/.git/git-flow-completition:
       path: git/git-flow-completion/git-flow-completion.bash
       relink: true
       force: true
     ~/.git/git-hub:
       path: git/git-hub
+      relink: true
+      force: true
+    ~/.git/ghi_token:
+      path: encrypt/ghi_token
       relink: true
       force: true
 
@@ -139,25 +141,22 @@
       path: python/gdb-dashboard/.gdbinit
       relink: true
       force: true
-
     ~/.pypirc:
       path: encrypt/pypirc
       relink: true
       force: true
-
     ~/.pythonrc:
       path: python/pythonrc
       relink: true
       force: true
-
     ~/.pylintrc:
       path: python/pylintrc
       relink: true
       force: true
 
     # scripts
-    ~/.scripts/read_ini.sh:
-      path: bash/scripts/bash_ini_parser/read_ini.sh 
+    ~/.scripts/alpha_image:
+      path: bash/scripts/images/alpha_image
       relink: true
       force: true
     ~/.scripts/bashsaurus:
@@ -166,6 +165,14 @@
       force: true
     ~/.scripts/borg-automated-backup.sh:
       path: bash/scripts/borg-automated-backup/borg-automated-backup.sh
+      relink: true
+      force: true
+    ~/.scripts/convert_image:
+      path: bash/scripts/images/convert_image
+      relink: true
+      force: true
+    ~/.scripts/crop_image:
+      path: bash/scripts/images/crop_image
       relink: true
       force: true
     ~/.scripts/desk:
@@ -184,44 +191,24 @@
       path: bash/scripts/miscellanea/Ds+.sh 
       relink: true
       force: true
-    ~/.scripts/png2xvid.sh:
-      path: bash/scripts/miscellanea/png2xvid.sh
-      relink: true
-      force: true
-    ~/.scripts/proof_sheet.sh:
-      path: bash/scripts/miscellanea/proof_sheet.sh
-      relink: true
-      force: true
-    ~/.scripts/rainix:
-      path: bash/scripts/miscellanea/rainix
-      relink: true
-      force: true
     ~/.scripts/emojify:
       path: bash/scripts/emojify/emojify
       relink: true
       force: true
-    ~/.scripts/gws:
-      path: bash/scripts/gws/src/gws 
+    ~/.scripts/git-fire:
+      path: git/git-fire/git-fire 
       relink: true
       force: true
-    ~/.scripts/remind:
-      path: bash/scripts/i3-reminder/remind
-      relink: true
-      force: true
-    ~/.scripts/alpha_image:
-      path: bash/scripts/images/alpha_image
-      relink: true
-      force: true
-    ~/.scripts/convert_image:
-      path: bash/scripts/images/convert_image
-      relink: true
-      force: true
-    ~/.scripts/crop_image:
-      path: bash/scripts/images/crop_image
+    ~/.scripts/git-remote-dropbox:
+      path: python/git-remote-dropbox/git-remote-dropbox
       relink: true
       force: true
     ~/.scripts/gray_image:
       path: bash/scripts/images/gray_image
+      relink: true
+      force: true
+    ~/.scripts/gws:
+      path: bash/scripts/gws/src/gws 
       relink: true
       force: true
     ~/.scripts/icembackup:
@@ -244,44 +231,28 @@
       path: bash/scripts/miscellanea/jpg2mjpeg
       relink: true
       force: true
-    ~/.scripts/overlap_image:
-      path: bash/scripts/images/overlap_image
-      relink: true
-      force: true
-    ~/.scripts/scale_image:
-      path: bash/scripts/images/scale_image
-      relink: true
-      force: true
-    ~/.scripts/trim_image:
-      path: bash/scripts/images/trim_image
-      relink: true
-      force: true
     ~/.scripts/jpg_rename:
       path: bash/scripts/images/jpg_rename
       relink: true
       force: true
-    ~/.scripts/nef_rename:
-      path: bash/scripts/images/nef_rename
+    ~/.scripts/markdown_toclify.py:
+      path: python/markdown-toclify/markdown_toclify/markdown_toclify.py
       relink: true
       force: true
     ~/.scripts/mountiso:
       path: bash/scripts/iso/mountiso
       relink: true
       force: true
-    ~/.scripts/umountiso:
-      path: bash/scripts/iso/umountiso
-      relink: true
-      force: true
     ~/.scripts/makeself:
       path: bash/scripts/makeself/makeself.sh
       relink: true
       force: true
-    ~/.scripts/pps:
-      path: bash/scripts/miscellanea/pps
+    ~/.scripts/nef_rename:
+      path: bash/scripts/images/nef_rename
       relink: true
       force: true
-    ~/.scripts/texcount.pl:
-      path: bash/scripts/miscellanea/texcount.pl
+    ~/.scripts/overlap_image:
+      path: bash/scripts/images/overlap_image
       relink: true
       force: true
     ~/.scripts/pacman-install-pkgs.sh:
@@ -296,20 +267,16 @@
       path: bash/scripts/pdf/pdfA4scale
       relink: true
       force: true
-    ~/.scripts/spark:
-      path: bash/scripts/spark/spark
+    ~/.scripts/png2xvid.sh:
+      path: bash/scripts/miscellanea/png2xvid.sh
       relink: true
       force: true
-    ~/.scripts/sshrc:
-      path: bash/scripts/sshrc/sshrc
+    ~/.scripts/pps:
+      path: bash/scripts/miscellanea/pps
       relink: true
       force: true
-    ~/.scripts/git-remote-dropbox:
-      path: python/git-remote-dropbox/git-remote-dropbox
-      relink: true
-      force: true
-    ~/.scripts/markdown_toclify.py:
-      path: python/markdown-toclify/markdown_toclify/markdown_toclify.py
+    ~/.scripts/proof_sheet.sh:
+      path: bash/scripts/miscellanea/proof_sheet.sh
       relink: true
       force: true
     ~/.scripts/pdfA4scale:
@@ -324,12 +291,44 @@
       path: bash/scripts/pdf/pdfcompress
       relink: true
       force: true
-    ~/.scripts/git-fire:
-      path: git/git-fire/git-fire 
+    ~/.scripts/rainix:
+      path: bash/scripts/miscellanea/rainix
+      relink: true
+      force: true
+    ~/.scripts/read_ini.sh:
+      path: bash/scripts/bash_ini_parser/read_ini.sh 
+      relink: true
+      force: true
+    ~/.scripts/remind:
+      path: bash/scripts/i3-reminder/remind
+      relink: true
+      force: true
+    ~/.scripts/scale_image:
+      path: bash/scripts/images/scale_image
       relink: true
       force: true
     ~/.scripts/scholar.py:
       path: python/scholar/scholar.py
+      relink: true
+      force: true
+    ~/.scripts/spark:
+      path: bash/scripts/spark/spark
+      relink: true
+      force: true
+    ~/.scripts/sshrc:
+      path: bash/scripts/sshrc/sshrc
+      relink: true
+      force: true
+    ~/.scripts/texcount.pl:
+      path: bash/scripts/miscellanea/texcount.pl
+      relink: true
+      force: true
+    ~/.scripts/trim_image:
+      path: bash/scripts/images/trim_image
+      relink: true
+      force: true
+    ~/.scripts/umountiso:
+      path: bash/scripts/iso/umountiso
       relink: true
       force: true
 
@@ -338,14 +337,12 @@
       path: terminal/dircolors.256dark
       relink: true
       force: true
-
-    ~/.inputrc:
-      path: terminal/inputrc
-      relink: true
-      force: true
-
     ~/.local/share/konsole/Stefano_Zaghi.profile:
       path: terminal/konsole/Stefano_Zaghi.profile
+      relink: true
+      force: true
+    ~/.inputrc:
+      path: terminal/inputrc
       relink: true
       force: true
 
@@ -354,12 +351,10 @@
       path: vim/
       relink: true
       force: true
-
     ~/.vimrc:
       path: vim/vimrc
       relink: true
       force: true
-
     ~/.vmailrc:
       path: encrypt/vmailrc
       relink: true
