@@ -152,43 +152,43 @@
 
     # scripts
     ~/.scripts/alpha_image:
-      path: bash/scripts/images/alpha_image
+      path: scripts/images/alpha_image
       relink: true
       force: true
     ~/.scripts/bashsaurus:
-      path: bash/scripts/bashsaurus/bashsaurus
+      path: scripts/bashsaurus/bashsaurus
       relink: true
       force: true
     ~/.scripts/borg-automated-backup.sh:
-      path: bash/scripts/borg-automated-backup/borg-automated-backup.sh
+      path: scripts/borg-automated-backup/borg-automated-backup.sh
       relink: true
       force: true
     ~/.scripts/convert_image:
-      path: bash/scripts/images/convert_image
+      path: scripts/images/convert_image
       relink: true
       force: true
     ~/.scripts/crop_image:
-      path: bash/scripts/images/crop_image
+      path: scripts/images/crop_image
       relink: true
       force: true
     ~/.scripts/desk:
-      path: bash/scripts/desk/desk 
+      path: scripts/desk/desk 
       relink: true
       force: true
     ~/.scripts/dpkg-install-pkgs.sh:
-      path: bash/scripts/dpkg/dpkg-install-pkgs.sh
+      path: scripts/dpkg/dpkg-install-pkgs.sh
       relink: true
       force: true
     ~/.scripts/dpkg-list-pkgs.sh:
-      path: bash/scripts/dpkg/dpkg-list-pkgs.sh
+      path: scripts/dpkg/dpkg-list-pkgs.sh
       relink: true
       force: true
     ~/.scripts/Ds+.sh:
-      path: bash/scripts/miscellanea/Ds+.sh 
+      path: scripts/miscellanea/Ds+.sh 
       relink: true
       force: true
     ~/.scripts/emojify:
-      path: bash/scripts/emojify/emojify
+      path: scripts/emojify/emojify
       relink: true
       force: true
     ~/.scripts/git-fire:
@@ -200,39 +200,39 @@
       relink: true
       force: true
     ~/.scripts/gray_image:
-      path: bash/scripts/images/gray_image
+      path: scripts/images/gray_image
       relink: true
       force: true
     ~/.scripts/gws:
-      path: bash/scripts/gws/src/gws 
+      path: scripts/gws/src/gws 
       relink: true
       force: true
     ~/.scripts/icembackup:
-      path: bash/scripts/icemcfd/icembackup
+      path: scripts/icemcfd/icembackup
       relink: true
       force: true
     ~/.scripts/icemcfd11:
-      path: bash/scripts/icemcfd/icemcfd11
+      path: scripts/icemcfd/icemcfd11
       relink: true
       force: true
     ~/.scripts/icemcfd11-launch.sh:
-      path: bash/scripts/icemcfd/icemcfd11-launch.sh
+      path: scripts/icemcfd/icemcfd11-launch.sh
       relink: true
       force: true
     ~/.scripts/icemcfd11-lmgrd:
-      path:  bash/scripts/icemcfd/icemcfd11-lmgrd
+      path:  scripts/icemcfd/icemcfd11-lmgrd
       relink: true
       force: true
     ~/.scripts/jpg2mjpeg:
-      path: bash/scripts/miscellanea/jpg2mjpeg
+      path: scripts/miscellanea/jpg2mjpeg
       relink: true
       force: true
     ~/.scripts/jpg_rename:
-      path: bash/scripts/images/jpg_rename
+      path: scripts/images/jpg_rename
       relink: true
       force: true
     ~/.scripts/kommit:
-      path: bash/scripts/kommit/bin/kommit
+      path: scripts/kommit/bin/kommit
       relink: true
       force: true
     ~/.scripts/markdown_toclify.py:
@@ -240,71 +240,71 @@
       relink: true
       force: true
     ~/.scripts/mountiso:
-      path: bash/scripts/iso/mountiso
+      path: scripts/iso/mountiso
       relink: true
       force: true
     ~/.scripts/makeself:
-      path: bash/scripts/makeself/makeself.sh
+      path: scripts/makeself/makeself.sh
       relink: true
       force: true
     ~/.scripts/nef_rename:
-      path: bash/scripts/images/nef_rename
+      path: scripts/images/nef_rename
       relink: true
       force: true
     ~/.scripts/overlap_image:
-      path: bash/scripts/images/overlap_image
+      path: scripts/images/overlap_image
       relink: true
       force: true
     ~/.scripts/pacman-install-pkgs.sh:
-      path: bash/scripts/pacman/pacman-install-pkgs.sh
+      path: scripts/pacman/pacman-install-pkgs.sh
       relink: true
       force: true
     ~/.scripts/pacman-list-pkgs.sh:
-      path: bash/scripts/pacman/pacman-list-pkgs.sh
+      path: scripts/pacman/pacman-list-pkgs.sh
       relink: true
       force: true
     ~/.scripts/pdfA4scale:
-      path: bash/scripts/pdf/pdfA4scale
+      path: scripts/pdf/pdfA4scale
       relink: true
       force: true
     ~/.scripts/png2xvid.sh:
-      path: bash/scripts/miscellanea/png2xvid.sh
+      path: scripts/miscellanea/png2xvid.sh
       relink: true
       force: true
     ~/.scripts/pps:
-      path: bash/scripts/miscellanea/pps
+      path: scripts/miscellanea/pps
       relink: true
       force: true
     ~/.scripts/proof_sheet.sh:
-      path: bash/scripts/miscellanea/proof_sheet.sh
+      path: scripts/miscellanea/proof_sheet.sh
       relink: true
       force: true
     ~/.scripts/pdfA4scale:
-      path: bash/scripts/pdf/pdfA4scale
+      path: scripts/pdf/pdfA4scale
       relink: true
       force: true
     ~/.scripts/pdf2grey:
-      path: bash/scripts/pdf/pdf2grey
+      path: scripts/pdf/pdf2grey
       relink: true
       force: true
     ~/.scripts/pdfcompress:
-      path: bash/scripts/pdf/pdfcompress
+      path: scripts/pdf/pdfcompress
       relink: true
       force: true
     ~/.scripts/rainix:
-      path: bash/scripts/miscellanea/rainix
+      path: scripts/miscellanea/rainix
       relink: true
       force: true
     ~/.scripts/read_ini.sh:
-      path: bash/scripts/bash_ini_parser/read_ini.sh 
+      path: scripts/bash_ini_parser/read_ini.sh 
       relink: true
       force: true
     ~/.scripts/remind:
-      path: bash/scripts/i3-reminder/remind
+      path: scripts/i3-reminder/remind
       relink: true
       force: true
     ~/.scripts/scale_image:
-      path: bash/scripts/images/scale_image
+      path: scripts/images/scale_image
       relink: true
       force: true
     ~/.scripts/scholar.py:
@@ -312,23 +312,23 @@
       relink: true
       force: true
     ~/.scripts/spark:
-      path: bash/scripts/spark/spark
+      path: scripts/spark/spark
       relink: true
       force: true
     ~/.scripts/sshrc:
-      path: bash/scripts/sshrc/sshrc
+      path: scripts/sshrc/sshrc
       relink: true
       force: true
     ~/.scripts/texcount.pl:
-      path: bash/scripts/miscellanea/texcount.pl
+      path: scripts/miscellanea/texcount.pl
       relink: true
       force: true
     ~/.scripts/trim_image:
-      path: bash/scripts/images/trim_image
+      path: scripts/images/trim_image
       relink: true
       force: true
     ~/.scripts/umountiso:
-      path: bash/scripts/iso/umountiso
+      path: scripts/iso/umountiso
       relink: true
       force: true
 

@@ -1,48 +1,18 @@
 [submodule "dotbot"]
 	path = dotbot
 	url = https://github.com/anishathalye/dotbot
-[submodule "bash/scripts/bashmarks"]
-	path = bash/scripts/bashmarks
-	url = https://github.com/huyng/bashmarks
-[submodule "bash/scripts/commacd"]
-	path = bash/scripts/commacd
-	url = https://github.com/shyiko/commacd
 [submodule "python/scholar"]
 	path = python/scholar
 	url = https://github.com/ckreibich/scholar.py
 [submodule "python/markdown-toclify"]
 	path = python/markdown-toclify
 	url = https://github.com/rasbt/markdown-toclify
-[submodule "bash/scripts/bash_ini_parser"]
-	path = bash/scripts/bash_ini_parser
-	url = https://github.com/rudimeier/bash_ini_parser
-[submodule "bash/scripts/spark"]
-	path = bash/scripts/spark
-	url = https://github.com/holman/spark
-[submodule "bash/scripts/i3-reminder"]
-	path = bash/scripts/i3-reminder
-	url = https://github.com/Sitwon/i3-reminder
 [submodule "git/git-flow-completion"]
 	path = git/git-flow-completion
 	url = https://github.com/bobthecow/git-flow-completion
-[submodule "bash/scripts/gws"]
-	path = bash/scripts/gws
-	url = https://github.com/StreakyCobra/gws
-[submodule "bash/scripts/makeself"]
-	path = bash/scripts/makeself
-	url = https://github.com/megastep/makeself
-[submodule "bash/scripts/sshrc"]
-	path = bash/scripts/sshrc
-	url = https://github.com/Russell91/sshrc
-[submodule "bash/scripts/shml"]
-	path = bash/scripts/shml
-	url = https://github.com/MaxCDN/shml
 [submodule "git/git-hub"]
 	path = git/git-hub
 	url = https://github.com/ingydotnet/git-hub
-[submodule "bash/scripts/emojify"]
-	path = bash/scripts/emojify
-	url = https://github.com/mrowa44/emojify
 [submodule "python/git-remote-dropbox"]
 	path = python/git-remote-dropbox
 	url = https://github.com/anishathalye/git-remote-dropbox
@@ -52,12 +22,39 @@
 [submodule "git/git-fire"]
 	path = git/git-fire
 	url = https://github.com/qw3rtman/git-fire
-[submodule "bash/scripts/bashsaurus"]
-	path = bash/scripts/bashsaurus
+[submodule "scripts/bashsaurus"]
+	path = scripts/bashsaurus
 	url = https://github.com/danprince/bashsaurus
-[submodule "bash/scripts/desk"]
-	path = bash/scripts/desk
+[submodule "scripts/desk"]
+	path = scripts/desk
 	url = https://github.com/jamesob/desk
-[submodule "bash/scripts/kommit"]
-	path = bash/scripts/kommit
+[submodule "scripts/emojify"]
+	path = scripts/emojify
+	url = https://github.com/mrowa44/emojify
+[submodule "scripts/gws"]
+	path = scripts/gws
+	url = https://github.com/StreakyCobra/gws
+[submodule "scripts/i3-reminder"]
+	path = scripts/i3-reminder
+	url = https://github.com/Sitwon/i3-reminder
+[submodule "scripts/kommit"]
+	path = scripts/kommit
 	url = https://github.com/bilgi-webteam/kommit
+[submodule "scripts/makeself"]
+	path = scripts/makeself
+	url = https://github.com/megastep/makeself
+[submodule "scripts/spark"]
+	path = scripts/spark
+	url = https://github.com/holman/spark
+[submodule "scripts/sshrc"]
+	path = scripts/sshrc
+	url = https://github.com/Russell91/sshrc
+[submodule "bash/scripts/bashmarks"]
+	path = bash/scripts/bashmarks
+	url = https://github.com/huyng/bashmarks
+[submodule "bash/scripts/commacd"]
+	path = bash/scripts/commacd
+	url = https://github.com/shyiko/commacd
+[submodule "bash/scripts/shml"]
+	path = bash/scripts/shml
+	url = https://github.com/MaxCDN/shml
