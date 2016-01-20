@@ -48,10 +48,6 @@
       path: bash/scripts/grip-chromium/grip-chromium.sh
       relink: true
       force: true
-    ~/.bash/kommit:
-      path: bash/scripts/kommit/bin/kommit
-      relink: true
-      force: true
     ~/.bash/optprogs:
       path: bash/optprogs
       relink: true
@@ -233,6 +229,10 @@
       force: true
     ~/.scripts/jpg_rename:
       path: bash/scripts/images/jpg_rename
+      relink: true
+      force: true
+    ~/.scripts/kommit:
+      path: bash/scripts/kommit/bin/kommit
       relink: true
       force: true
     ~/.scripts/markdown_toclify.py:
