@@ -11,7 +11,7 @@ pathmunge ~/.bin after
 pathmunge ~/.scripts after
 
 # ruby scripts
-pathmunge ~/.gem/ruby/2.2.0/bin
+pathmunge ~/.gem/ruby/2.3.0/bin
 
 # brew
 pathmunge ~/.linuxbrew/bin
