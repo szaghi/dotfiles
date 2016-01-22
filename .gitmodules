@@ -61,3 +61,6 @@
 [submodule "bash/scripts/bash-concurrent"]
 	path = bash/scripts/bash-concurrent
 	url = https://github.com/themattrix/bash-concurrent
+[submodule "bash/scripts/bash_ini_parser"]
+	path = bash/scripts/bash_ini_parser
+	url = https://github.com/rudimeier/bash_ini_parser
