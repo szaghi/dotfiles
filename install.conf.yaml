@@ -36,6 +36,10 @@
       path: bash/compilers
       relink: true
       force: true
+    ~/.bash/concurrent:
+      path: bash/scripts/bash-concurrent/concurrent.lib.sh
+      relink: true
+      force: true
     ~/.bash/exports:
       path: bash/exports
       relink: true

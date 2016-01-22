@@ -58,3 +58,6 @@
 [submodule "bash/scripts/shml"]
 	path = bash/scripts/shml
 	url = https://github.com/MaxCDN/shml
+[submodule "bash/scripts/bash-concurrent"]
+	path = bash/scripts/bash-concurrent
+	url = https://github.com/themattrix/bash-concurrent
