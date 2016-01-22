@@ -58,3 +58,6 @@
 [submodule "bash/scripts/shml"]
 	path = bash/scripts/shml
 	url = https://github.com/MaxCDN/shml
+[submodule "bash/scripts/bash_ini_parser"]
+	path = bash/scripts/bash_ini_parser
+	url = https://github.com/rudimeier/bash_ini_parser
