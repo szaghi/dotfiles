@@ -49,10 +49,10 @@ prompt_git() {
 		ahead_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^<')
     behind_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^>')
     if [[ "$ahead_count" > 0 ]]; then
-      s+='(↑'$ahead_count')';
+      s+=' ↑'$ahead_count;
     fi
     if [[ "$behind_count" > 0 ]]; then
-			s+='(↓'$behind_count')';
+			s+=' ↓'$behind_count;
     fi
 
 		[ -n "${s}" ] && s=" [${s}]";
