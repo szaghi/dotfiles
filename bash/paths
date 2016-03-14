@@ -21,3 +21,10 @@ export INFOPATH="~/.linuxbrew/share/info:$INFOPATH"
 # go
 pathmunge ~/go/bin after
 export GOPATH=~/go
+
+# directories for fast access to, separated by colon
+CDPATH=".:~:~/insean/projects:~/fortran"
+
+# variable containing a path and you will be able to cd into it regardless of the directory you're in
+shopt -s cdable_vars
+export projects="~/insean/projects"

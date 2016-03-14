@@ -12,7 +12,7 @@ export GTK_PATH=/usr/lib/gtk-2.0
 pathmunge /opt/arch/nq/bin after
 
 # tecplot
-pathmunge /opt/arch/tecplot/2008/bin after
+pathmunge /opt/arch/tecplot/2016/bin after
 TECPHYFILE=~/.Trash/tecplot.phy
 export TECPHYFILE
 

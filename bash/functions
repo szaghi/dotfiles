@@ -1,6 +1,6 @@
 #!/bin/bash
-# Add paths to PATH
 pathmunge () {
+  # Add paths to PATH
   if test -d $1 && ! echo $PATH | /bin/egrep -q "(^|:)$1($|:)" ; then
     if [ "$2" = "after" ] ; then
       PATH=$PATH:$1
@@ -10,8 +10,8 @@ pathmunge () {
   fi
 }
 
-# Simple calculator
 function calc() {
+  # Simple calculator
 	local result="";
 	result="$(printf "scale=10;$*\n" | bc --mathlib | tr -d '\\\n')";
 	#                       └─ default (when `--mathlib` is used) is 20
@@ -28,8 +28,13 @@ function calc() {
 	printf "\n";
 }
 
-# Determine size of a file or total size of a directory
+function cp_p () {
+  # Copy with progress
+  rsync -WavP --human-readable --progress $1 $2
+}
+
 function fs() {
+  # Determine size of a file or total size of a directory
 	if du -b /dev/null > /dev/null 2>&1; then
 		local arg=-sbh;
 	else
@@ -42,8 +47,8 @@ function fs() {
 	fi;
 }
 
-# Extra many types of compressed packages
-extract () {
+function extract () {
+  # Extra many types of compressed packages
   if [ -f $1 ]; then
     case $1 in
       *.tar.bz2) tar -jxvf $1 ;;
@@ -61,13 +66,13 @@ extract () {
       *.Z) uncompress $1 ;;
       *) echo "'$1' cannot be extracted/mounted via extract()";;
    esac
- else
-   echo "'$1' is not a valid file to extract"
- fi
+  else
+    echo "'$1' is not a valid file to extract"
+  fi
 }
 
-# Find hard/symbolic-links of a linked-file
 function find-links () {
+  # Find hard/symbolic-links of a linked-file
   inum=`ls -Ldi $1 | awk '{print $1}'`;
   if [ $# -eq 0 ] ; then
     echo "find-links, find hard/symbolic-links of a linked-file";
@@ -80,8 +85,8 @@ function find-links () {
   fi;
 }
 
-# Find broken symbolic-links into a path (is not specified . is used)
 function find-broken-links () {
+  # Find broken symbolic-links into a path (is not specified . is used)
   if [ $# -eq 0 ] ; then
     find . -type l -! -exec test -e {} \; -print;
   elif [ $# -eq 1 ] ; then
@@ -89,8 +94,8 @@ function find-broken-links () {
   fi;
 }
 
-# Find duplicate files into a path (is not specified . is used)
 function find-duplicates () {
+ # Find duplicate files into a path (is not specified . is used)
   if [ $# -eq 0 ] ; then
     find . -not -empty -type f -printf "%s\n" | sort -rn | uniq -d | xargs -I{} -n1 find -type f -size {}c -print0 | xargs -0 md5sum | sort | uniq -w32 --all-repeated=separate;
   elif [ $# -eq 1 ] ; then
@@ -98,13 +103,29 @@ function find-duplicates () {
   fi;
 }
 
-# Find zero size files
 function find-zero-size () {
+  # Find zero size files
   find $1 -type f -size 0
 }
 
-# Update npm packages
+function gifify() {
+  # Create animated gifs from any video
+  # from alex sexton   gist.github.com/SlexAxton/4989674
+  if [[ -n "$1" ]]; then
+	if [[ $2 == '--good' ]]; then
+	  ffmpeg -i $1 -r 10 -vcodec png out-static-%05d.png
+	  time convert -verbose +dither -layers Optimize -resize 900x900\> out-static*.png  GIF:- | gifsicle --colors 128 --delay=5 --loop --optimize=3 --multifile - > $1.gif
+	  rm out-static*.png
+	else
+	  ffmpeg -i $1 -s 600x400 -pix_fmt rgb24 -r 10 -f gif - | gifsicle --optimize=3 --delay=3 > $1.gif
+	fi
+  else
+	echo "proper usage: gifify <input_movie.mov>. You DO need to include extension."
+  fi
+}
+
 function npm-update () {
+  # Update npm packages
   for package in $(npm -g outdated --parseable --depth=0 | cut -d: -f2)
   do
     sudo npm -g install "$package"

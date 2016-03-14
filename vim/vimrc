@@ -10,45 +10,51 @@ call plug#begin('~/.vim/plugged')
 " apparence
 Plug 'altercation/vim-colors-solarized'
 Plug 'luochen1990/rainbow'
-Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
-" main screen utilities
-Plug 'majutsushi/tagbar'
-Plug 'bling/vim-airline'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
 Plug 'ntpeters/vim-airline-colornum'
+Plug 'myusuf3/numbers.vim'
+Plug 'junegunn/limelight.vim'
+
+" buffers and files
+Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
-Plug 'myusuf3/numbers.vim'
 Plug 'jeetsukumaran/vim-filebeagle'
-Plug 'terryma/vim-multiple-cursors'
-Plug 'unblevable/quick-scope'
+
 " selection
+Plug 'terryma/vim-multiple-cursors'
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 Plug 'chrisbra/NrrwRgn'
 Plug 'Konfekt/FastFold'
 Plug 'ferranpm/vim-isolate'
+Plug 'unblevable/quick-scope'
+
 " spell check and languages
 Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
+Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
 Plug 'vim-scripts/LanguageTool'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
+Plug 'danprince/vimsaurus'
+" Plug 'lervag/vimtex', { 'for': 'tex' }
+" Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
+Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
+
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
 Plug 'yaroot/vissort'
+Plug 'tpope/vim-commentary'
+Plug 'csexton/trailertrash.vim'
 Plug 'godlygeek/tabular'
 Plug 'junegunn/vim-easy-align'
-Plug 'jiangmiao/auto-pairs'
-Plug 'gorkunov/smartpairs.vim'
-Plug 'tpope/vim-commentary'
-Plug 'EinfachToll/DidYouMean'
-Plug 'Z1MM32M4N/vim-superman'
-Plug 'csexton/trailertrash.vim'
-Plug 'kshenoy/vim-signature'
-Plug 'jeetsukumaran/vim-indentwise'
 Plug 'mattn/vim-maketable'
-Plug 'danprince/vimsaurus'
-Plug 'vim-utils/vim-troll-stopper'
+Plug 'Raimondi/delimitMate'
+Plug 'machakann/vim-swap'
+Plug 'ajh17/VimCompletesMe'
+
 " git
 Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-fugitive'
@@ -57,9 +63,13 @@ Plug 'mattn/webapi-vim'
 Plug 'mattn/gist-vim'
 Plug 'gregsexton/gitv'
 Plug 'rhysd/github-complete.vim'
-Plug 'shuber/vim-promiscuous'
-Plug 'lambdalisue/vim-gita'
+
 " utilities
+Plug 'mhinz/vim-startify'
+Plug 'EinfachToll/DidYouMean'
+Plug 'Z1MM32M4N/vim-superman'
+Plug 'kshenoy/vim-signature'
+Plug 'vim-utils/vim-troll-stopper'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-dispatch'
 Plug 'tpope/vim-abolish'
@@ -69,22 +79,13 @@ Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
 Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
 Plug 'Shougo/vimshell.vim'
 Plug 'Shougo/unite.vim'
-Plug 'idanarye/vim-vebugger'
-Plug 'gilligan/vim-lldb'
-Plug 'farseer90718/unite-workflow'
-Plug 'mhinz/vim-startify'
-Plug 'kopischke/vim-fetch'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
-Plug 'chrisbra/vim-diff-enhanced'
-Plug 'niboan/plugconf'
 Plug 'wellle/visual-split.vim'
-Plug 'wgurecky/vimSum'
-" programming languages
-" Plug 'lervag/vimtex', { 'for': 'tex' }
-Plug 'plasticboy/vim-markdown', { 'for': 'markdown' }
-Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
-" unknown
+Plug 'niboan/plugconf'
+" Plug 'idanarye/vim-vebugger'
+" Plug 'gilligan/vim-lldb'
+" Plug 'chrisbra/vim-diff-enhanced'
 call plug#end()
 call plugconf#load()
 " }}}
@@ -188,8 +189,9 @@ if has("autocmd")
     autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\s\+$//e
     " condensing multiple blank lines into a single blank line
     autocmd FileType fortran,make,sh,bash,c,cpp,tex,vim,css,java,php,xml,markdown autocmd BufWritePre <buffer> :%s/\n\{3,}/\r\r/e
-    " set fold method to syntax
-    autocmd FileType fortran,make,dosini,sh,bash,c,cpp,tex,css,java,php,xml,markdown set foldmethod=syntax
+    " set fold method
+    autocmd FileType fortran,make,dosini,c,cpp,tex,css,java,php,xml,markdown set foldmethod=syntax
+    autocmd FileType sh,bash set foldmethod=indent
   augroup END
   " }}}
 endif

@@ -2,6 +2,9 @@
 prompt_git() {
 	local s='';
 	local branchName='';
+	local remoteName='';
+	local ahead_count='';
+	local behind_count='';
 
 	# Check if the current directory is in a Git repository.
 	if [ $(git rev-parse --is-inside-work-tree &>/dev/null; echo "${?}") == '0' ]; then
@@ -41,6 +44,17 @@ prompt_git() {
 			git rev-parse --short HEAD 2> /dev/null || \
 			echo '(unknown)')";
 
+		# Check ahead/behind commits status
+		remoteName=$(git rev-parse --abbrev-ref "@{upstream}")
+		ahead_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^<')
+    behind_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^>')
+    if [[ "$ahead_count" > 0 ]]; then
+      s+='(↑'$ahead_count')';
+    fi
+    if [[ "$behind_count" > 0 ]]; then
+			s+='(↓'$behind_count')';
+    fi
+
 		[ -n "${s}" ] && s=" [${s}]";
 
 		echo -e "${1}${branchName}${orange}${s}";
@@ -58,6 +72,18 @@ prompt_desk() {
 	else
 		echo -e "${1}{"$deskfile"}";
 	fi;
+}
+prompt_virtualenv() {
+	local s='';
+  local deskfile=$(desk | head -n 1);
+
+	# Check if the shell has loaded a Python VirtualEnv
+	if test -z "$VIRTUAL_ENV" ; then
+		return;
+  else
+      pvirtualenv="`basename \"$VIRTUAL_ENV\"`"
+		echo -e "${1}{"$pvirtualenv"}";
+  fi;
 }
 tput sgr0;
 bold=$(tput bold);
@@ -90,7 +116,8 @@ PS1+="\[${reset}\]@";
 PS1+="\[${hostStyle}\]\h";
 PS1+="\[${reset}\](\@ \d)"
 PS1+="\$(prompt_git \"${white} on ${yellow}\")"; # Git repository details
-PS1+="\$(prompt_desk \"${white} desk ${orange}\")"; # Git repository details
+PS1+="\$(prompt_desk \"${white} desk ${orange}\")"; # Desk files details
+PS1+="\$(prompt_virtualenv \"${white} pvenv ${orange}\")"; # Python VirtualEnv repository details
 PS1+="\n";
 PS1+="\[${reset}\]\w ";
 PS1+="\[${reset}\$(/bin/ls -1 | /usr/bin/wc -l | /bin/sed 's: ::g') files, \$(/bin/ls -lah | /bin/grep -m 1 total | /bin/sed 's/total //')b";
