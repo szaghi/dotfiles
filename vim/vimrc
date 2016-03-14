@@ -54,6 +54,7 @@ Plug 'mattn/vim-maketable'
 Plug 'Raimondi/delimitMate'
 Plug 'machakann/vim-swap'
 Plug 'ajh17/VimCompletesMe'
+Plug 'alpertuna/vim-header'
 
 " git
 Plug 'airblade/vim-gitgutter'
