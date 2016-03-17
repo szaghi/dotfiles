@@ -10,7 +10,7 @@ done;
 unset file;
 
 # load the git dotfiles
-for file in ~/.git/{git-flow-completition,git-hub/init}; do
+for file in ~/.git/{gibo-completion,git-flow-completition,git-hub/init}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;

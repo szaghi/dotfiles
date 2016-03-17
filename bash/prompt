@@ -45,7 +45,7 @@ prompt_git() {
 			echo '(unknown)')";
 
 		# Check ahead/behind commits status
-		remoteName=$(git rev-parse --abbrev-ref "@{upstream}")
+		remoteName=$(git rev-parse --abbrev-ref "@{upstream}" 2> /dev/null || echo '(unknown)')
 		ahead_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^<')
     behind_count=$(git rev-list --left-right ${branchName}...${remoteName} 2> /dev/null | grep -c '^>')
     if [[ "$ahead_count" > 0 ]]; then

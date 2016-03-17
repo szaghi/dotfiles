@@ -82,6 +82,10 @@
       path: git/gitconfig
       relink: true
       force: true
+    ~/.git/gibo-completion:
+      path: git/gibo/gibo-completion.bash
+      relink: true
+      force: true
     ~/.git/git_commit_message_template:
       path: git/git_commit_message_template
       relink: true
@@ -197,6 +201,10 @@
       force: true
     ~/.scripts/emojify:
       path: scripts/emojify/emojify
+      relink: true
+      force: true
+    ~/.scripts/gibo:
+      path: git/gibo/gibo
       relink: true
       force: true
     ~/.scripts/git-fire:

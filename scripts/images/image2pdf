@@ -1,0 +1,6 @@
+#!/bin/bash
+for file in $( ls *png *jpg ); do
+  echo "convert $file to pdf"
+  base_name=`basename $file .png`
+  convert $file $base_name.pdf
+done
