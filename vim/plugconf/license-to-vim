@@ -1,0 +1,2 @@
+let g:license_author = 'Stefano Zaghi'
+let g:license_email = 'stefano.zaghi@gmail.com'

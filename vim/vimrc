@@ -34,7 +34,8 @@ Plug 'unblevable/quick-scope'
 Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
-Plug 'vim-scripts/LanguageTool'
+" Plug 'vim-scripts/LanguageTool'
+Plug 'rhysd/vim-grammarous'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
@@ -87,6 +88,7 @@ Plug 'niboan/plugconf'
 " Plug 'idanarye/vim-vebugger'
 " Plug 'gilligan/vim-lldb'
 " Plug 'chrisbra/vim-diff-enhanced'
+Plug 'ararslan/license-to-vim'
 call plug#end()
 call plugconf#load()
 " }}}
