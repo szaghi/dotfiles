@@ -9,7 +9,7 @@ set nocompatible
 call plug#begin('~/.vim/plugged')
 " apparence
 Plug 'altercation/vim-colors-solarized'
-Plug 'luochen1990/rainbow'
+Plug 'junegunn/rainbow_parentheses.vim'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'ntpeters/vim-airline-colornum'
@@ -21,6 +21,7 @@ Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'jeetsukumaran/vim-filebeagle'
+Plug 'justincampbell/vim-eighties'
 
 " selection
 Plug 'terryma/vim-multiple-cursors'
@@ -34,7 +35,6 @@ Plug 'unblevable/quick-scope'
 Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
-" Plug 'vim-scripts/LanguageTool'
 Plug 'rhysd/vim-grammarous'
 Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
 Plug 'maksimr/vim-translator', { 'on': 'Translate' }
@@ -43,6 +43,8 @@ Plug 'danprince/vimsaurus'
 " Plug 'lervag/vimtex', { 'for': 'tex' }
 " Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
 Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
+Plug 'vim-pandoc/vim-pandoc'
+Plug 'vim-pandoc/vim-pandoc-syntax'
 
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
@@ -57,7 +59,7 @@ Plug 'machakann/vim-swap'
 Plug 'ajh17/VimCompletesMe'
 Plug 'alpertuna/vim-header'
 
-" git
+" git & github
 Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-fugitive'
 Plug 'jaxbot/github-issues.vim'
@@ -65,6 +67,7 @@ Plug 'mattn/webapi-vim'
 Plug 'mattn/gist-vim'
 Plug 'gregsexton/gitv'
 Plug 'rhysd/github-complete.vim'
+Plug 'junegunn/vim-github-dashboard'
 
 " utilities
 Plug 'mhinz/vim-startify'
@@ -195,6 +198,8 @@ if has("autocmd")
     " set fold method
     autocmd FileType fortran,make,dosini,c,cpp,tex,css,java,php,xml,markdown set foldmethod=syntax
     autocmd FileType sh,bash set foldmethod=indent
+    " activate rainbowparenthesis
+    autocmd FileType fortran,make,dosini,sh,bash,python,c,cpp,tex,vim,css,java,php,xml,markdown RainbowParentheses
   augroup END
   " }}}
 endif
