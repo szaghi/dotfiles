@@ -70,6 +70,9 @@ Plug 'rhysd/github-complete.vim'
 Plug 'junegunn/vim-github-dashboard'
 
 " utilities
+Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
+Plug 'Shougo/vimshell.vim'
+Plug 'Shougo/unite.vim'
 Plug 'mhinz/vim-startify'
 Plug 'EinfachToll/DidYouMean'
 Plug 'Z1MM32M4N/vim-superman'
@@ -81,9 +84,6 @@ Plug 'tpope/vim-abolish'
 Plug 'jamessan/vim-gnupg'
 Plug 'laurentgoudet/vim-howdoi'
 Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
-Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
-Plug 'Shougo/vimshell.vim'
-Plug 'Shougo/unite.vim'
 Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'wellle/visual-split.vim'
