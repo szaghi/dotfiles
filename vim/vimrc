@@ -58,6 +58,7 @@ Plug 'Raimondi/delimitMate'
 Plug 'machakann/vim-swap'
 Plug 'ajh17/VimCompletesMe'
 Plug 'alpertuna/vim-header'
+Plug 'KuoE0/vim-scavenger'
 
 " git & github
 Plug 'airblade/vim-gitgutter'

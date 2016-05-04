@@ -167,6 +167,10 @@
       path: scripts/images/alpha_image
       relink: true
       force: true
+    ~/.scripts/archive:
+      path: scripts/miscellanea/archive.sh
+      relink: true
+      force: true
     ~/.scripts/bashsaurus:
       path: scripts/bashsaurus/bashsaurus
       relink: true
@@ -248,7 +252,7 @@
       relink: true
       force: true
     ~/.scripts/kommit:
-      path: scripts/kommit/bin/kommit
+      path: scripts/kommit/bin/git-kommit
       relink: true
       force: true
     ~/.scripts/markdown_toclify.py:

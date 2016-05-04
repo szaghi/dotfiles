@@ -2,10 +2,7 @@
 source ~/.bash/functions
 
 # intel parallel studio
-source /opt/arch/intel/advisor_xe/advixe-vars.sh quiet
-source /opt/arch/intel/composerxe/bin/compilervars.sh intel64
-source /opt/arch/intel/inspector_xe/inspxe-vars.sh quiet
-source /opt/arch/intel/vtune_amplifier_xe/amplxe-vars.sh quiet
+source /opt/arch/intel/parallel_studio_xe_2016.3.067/bin/psxevars.sh intel64
 
 # g95
 pathmunge /opt/arch/g95-x86-64-0.94/bin after
