@@ -67,3 +67,6 @@
 [submodule "git/gibo"]
 	path = git/gibo
 	url = https://github.com/simonwhitaker/gibo
+[submodule "scripts/visual-pdf-diff"]
+	path = scripts/visual-pdf-diff
+	url = https://github.com/momeni/visual-pdf-diff

@@ -1,8 +1,13 @@
 # ~/.bash/aliases
 
-alias ls='ls --color=auto'
-alias ll='ls -lh'
-alias la='ls -A'
+# miscellanea
+alias ls='ls --color=auto' # defaul with colors
+alias ll='ls -lh'          # long details
+alias la='ls -A'           # all (also hidden)
+alias lr='ls -R'           # recursive
+alias lx='ll -BX'          # sort by extension
+alias lz='ll -rS'          # sort by size
+alias lt='ll -rt'          # sort by date
 alias lsUUID='sudo blkid'
 alias dir='ls --format=vertical'
 alias vdir='ls --format=long'

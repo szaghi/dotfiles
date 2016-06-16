@@ -2,6 +2,9 @@
 # Make vim the default editor.
 export EDITOR='vim';
 
+# Web browser
+export BROWSER="chromium"
+
 # Increase Bash history size. Allow 32³ entries; the default is 500.
 export HISTSIZE='32768';
 export HISTFILESIZE="${HISTSIZE}";
@@ -17,6 +20,7 @@ export LESS_TERMCAP_md="${yellow}";
 
 # Don’t clear the screen after quitting a manual page.
 export MANPAGER='less -X';
+export PAGER="less"
 
 # Colors
 if [ -e /lib/terminfo/x/xterm-256color ]; then

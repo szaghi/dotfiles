@@ -347,6 +347,11 @@
       path: scripts/iso/umountiso
       relink: true
       force: true
+    ~/.scripts/visualpdfdiff.sh:
+      path: scripts/visual-pdf-diff/visualpdfdiff.sh
+      relink: true
+      force: true
+        
 
     # shell
     ~/.dircolors.256dark:

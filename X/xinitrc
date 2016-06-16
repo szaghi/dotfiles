@@ -1,2 +1,3 @@
 xset +fp /home/stefano/.local/share/fonts/
 [[ -f ~/.Xresources ]] && xrdb -merge ~/.Xresources
+exec i3
