@@ -252,4 +252,8 @@ nnoremap <NL> i<CR><ESC>
 " markdown preview
 " nnoremap G :Start! github-markdown-preview %<CR>
 " nnoremap G :Start! greadme %<CR>
+" cycle through visual modes: visual -> visual-block -> visual-line -> visual
+xnoremap <expr> v
+            \ (mode() ==# 'v' ? "\<C-V>"
+            \ : mode() ==# 'V' ? 'v' : 'V')
 " }}}
