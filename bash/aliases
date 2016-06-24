@@ -69,6 +69,7 @@ alias pushgithub-AMR='git push -u origin AMR --tags'
 alias pushgithub-gh-pages='git push -u origin gh-pages'
 alias pushgithub-testing='git push -u origin testing --tags'
 alias pushgithub-master-local='git push -u zaghi-local master --tags'
+alias gitjk='history 10 | tac | gitjk_cmd'
 
 # acroread
 alias acroread='acroread > /dev/null 2>&1'
