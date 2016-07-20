@@ -1,0 +1,21 @@
+#!/bin/bash
+# create/syncronize a branch named 'sources' containing only the
+# main-non-third_party sources contained into the 'src' directory.
+branchName="$(git symbolic-ref --quiet --short HEAD 2> /dev/null || \
+              git rev-parse --short HEAD 2> /dev/null || \
+              echo '(unknown)')"
+if [ "$branchName" == "master" ]; then
+  if [ ! -d "src" ]; then
+    exit 0
+  fi
+  echo "syncronize 'sources'/'master' branches"
+  if [ `git branch --list sources` ]; then
+    git branch --delete --force sources
+  fi
+  git checkout -b sources
+  rm -f * > /dev/null 2>&1
+  rm -rf src/third_party > /dev/null 2>&1
+  git commit -a -m "sources branch in-sync with master!"
+  git checkout master
+fi
+exit 0

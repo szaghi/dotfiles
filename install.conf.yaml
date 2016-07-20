@@ -98,6 +98,10 @@
       path: git/git-hub
       relink: true
       force: true
+    ~/.git-templates:
+      path: git/git-templates
+      relink: true
+      force: true
     ~/.git/ghi_token:
       path: encrypt/ghi_token
       relink: true

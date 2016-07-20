@@ -45,3 +45,5 @@
 	user = szaghi
 [include]
 	path = ~/.git/ghi_token
+[init]
+  templateDir = ~/.git-templates

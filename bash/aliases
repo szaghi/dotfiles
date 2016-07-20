@@ -64,6 +64,7 @@ alias pdflatex='pdflatex -interaction=nonstopmode -halt-on-error'
 
 # git
 alias pushgithub-master='git push -u origin master --tags'
+alias pushgithub-develop='git push -u origin develop --tags'
 alias pushdropbox-master='git push -u dropbox master --tags'
 alias pushgithub-AMR='git push -u origin AMR --tags'
 alias pushgithub-gh-pages='git push -u origin gh-pages'
