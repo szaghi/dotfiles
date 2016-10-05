@@ -215,6 +215,10 @@
       path: git/gibo/gibo
       relink: true
       force: true
+    ~/.scripts/git-archive-all:
+      path: scripts/git-archive-all/git-archive-all.sh
+      relink: true
+      force: true
     ~/.scripts/git-fire:
       path: git/git-fire/git-fire 
       relink: true
