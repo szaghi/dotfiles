@@ -119,7 +119,7 @@ else
 fi;
 PS1="\[\033]0;\w\007\]";
 PS1+="\[\]\n";
-PS1+="\[${userStyle}\]\u";
+PS1+="┌╼ \[${userStyle}\]\u";
 PS1+="\[${reset}\]@";
 PS1+="\[${hostStyle}\]\h";
 PS1+="\[${reset}\](\@ \d)"
@@ -127,8 +127,8 @@ PS1+="\$(prompt_git \"${white} on ${yellow}\")"; # Git repository details
 PS1+="\$(prompt_desk \"${white} desk ${orange}\")"; # Desk files details
 PS1+="\$(prompt_virtualenv \"${white} pvenv ${orange}\")"; # Python VirtualEnv repository details
 PS1+="\n";
-PS1+="\[${reset}\]\w ";
+PS1+="\[${reset}├───╼ \]\[${blue}\w\] ";
 PS1+="\[${reset}\$(/bin/ls -1 | /usr/bin/wc -l | /bin/sed 's: ::g') files, \$(/bin/ls -lah | /bin/grep -m 1 total | /bin/sed 's/total //')b";
 PS1+="\n";
-PS1+="\[${yellow}\]→ \[${reset}\]";
+PS1+="└──────╼ \[${reset}\]";
 export PS1;

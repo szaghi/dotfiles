@@ -28,7 +28,7 @@ alias apt-search='sudo apt-cache search'
 
 # pacman/yaourt
 alias pacman-clean='sudo pacman -Rns $(pacman -Qqtd)'
-alias yaourt-update='yaourt -Syu ; yaourt -Su --aur'
+alias yaourt-update='yaourt -Syu --force --noconfirm ; yaourt -Syu --force --noconfirm --aur'
 
 # pip
 alias pip-upgrade="sudo pip install --upgrade pip"

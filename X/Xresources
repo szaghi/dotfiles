@@ -1,3 +1,5 @@
+setxkbmap -model pc105 -layout it
+
 Xcursor.theme: bridge
 
 ! urxvt

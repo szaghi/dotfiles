@@ -2,16 +2,22 @@
 source ~/.bash/functions
 
 # intel parallel studio
-source /opt/arch/intel/parallel_studio_xe_2016.3.067/bin/psxevars.sh intel64
-
-# g95
-pathmunge /opt/arch/g95-x86-64-0.94/bin after
+source /opt/arch/intel-2017-beta/parallel_studio_xe_2017.1.043/bin/psxevars.sh intel64 > /dev/null
 
 # OpenMP
 OMP_NUM_THREADS=6
 export OMP_NUM_THREADS
 
-# mpi
-# module load openmpi-1.6.5-intel
+# Coarray
+pathmunge /opt/arch/opencoarrays/build/bin after
+FOR_COARRAY_NUM_IMAGES=2
+export FOR_COARRAY_NUM_IMAGES
 
-export MANPATH LD_LIBRARY_PATH LD_RUN_PATH
+# mpi
+# MPIDIR=/opt/arch/mpi/bin/mpich/3.2.0/gnu/6.2.1
+# PATH=$MPIDIR/bin:$PATH
+# LD_LIBRARY_PATH=$MPIDIR/lib/mpich:$MPIDIR/lib:$LD_LIBRARY_PATH
+# LD_RUN_PATH=$MPIDIR/lib/mpich:$MPIDIR/lib:$LD_RUN_PATH
+# MANPATH=$MPIDIR/share/man:$MANPATH
+
+export PATH LD_LIBRARY_PATH LD_RUN_PATH MANPATH 

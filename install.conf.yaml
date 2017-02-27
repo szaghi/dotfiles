@@ -219,6 +219,10 @@
       path: scripts/git-archive-all/git-archive-all.sh
       relink: true
       force: true
+    ~/.scripts/git_list_large_files:
+      path: scripts/git-list-large-files/git_list_large_files.sh
+      relink: true
+      force: true
     ~/.scripts/git-fire:
       path: git/git-fire/git-fire 
       relink: true
@@ -273,6 +277,10 @@
       force: true
     ~/.scripts/makeself:
       path: scripts/makeself/makeself.sh
+      relink: true
+      force: true
+    ~/.scripts/md-preview.sh:
+      path: scripts/miscellanea/md-preview.sh
       relink: true
       force: true
     ~/.scripts/nef_rename:

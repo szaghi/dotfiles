@@ -2,7 +2,7 @@
 source ~/.bash/functions
 
 # paraview
-pathmunge /opt/arch/paraview/5.0.0/bin after
+pathmunge /opt/arch/paraview/5.2.0/bin after
 
 # acroread
 pathmunge /opt/arch/Adobe/Reader9/bin after
