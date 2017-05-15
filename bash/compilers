@@ -2,7 +2,7 @@
 source ~/.bash/functions
 
 # intel parallel studio
-source /opt/arch/intel-2017-beta/parallel_studio_xe_2017.1.043/bin/psxevars.sh intel64 > /dev/null
+# source ~/intel/parallel_studio_xe_2017.2.050/bin/psxevars.sh intel64 > /dev/null
 
 # OpenMP
 OMP_NUM_THREADS=6
