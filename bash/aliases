@@ -17,6 +17,7 @@ alias mv='mv -i'
 alias cd..='cd ..'
 alias ..='cd ..'
 alias grep="grep --color=auto"
+alias bd='. bd -si'
 
 # apt
 alias apt-update='sudo apt-get update'

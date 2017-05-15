@@ -179,6 +179,10 @@
       path: scripts/bashsaurus/bashsaurus
       relink: true
       force: true
+    ~/.scripts/bd:
+      path: scripts/bd/bd
+      relink: true
+      force: true
     ~/.scripts/borg-automated-backup.sh:
       path: scripts/borg-automated-backup/borg-automated-backup.sh
       relink: true

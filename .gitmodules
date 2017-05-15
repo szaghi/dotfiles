@@ -73,3 +73,6 @@
 [submodule "scripts/git-archive-all"]
 	path = scripts/git-archive-all
 	url = https://github.com/meitar/git-archive-all.sh
+[submodule "scripts/bd"]
+	path = scripts/bd
+	url = https://github.com/vigneshwaranr/bd

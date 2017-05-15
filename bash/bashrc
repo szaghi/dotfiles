@@ -51,6 +51,11 @@ fi;
 # add tab completion for SSH hostnames based on ~/.ssh/config, ignoring wildcards
 [ -e "$HOME/.ssh/config" ] && complete -o "default" -o "nospace" -W "$(grep "^Host" ~/.ssh/config | grep -v "[?*]" | cut -d " " -f2- | tr ' ' '\n')" scp sftp ssh;
 
+# autocomplete to bd script
+if [ -f /home/stefano/dotfiles/scripts/bd/bash_completion.d/bd ]; then
+	source /home/stefano/dotfiles/scripts/bd/bash_completion.d/bd;
+fi;
+
 # added by travis gem
 [ -f /home/stefano/.travis/travis.sh ] && source /home/stefano/.travis/travis.sh
 # Hook for desk activation
