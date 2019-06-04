@@ -1,3 +1,9 @@
+#!/bin/bash
+# File: bashrc
+# Author: Stefano Zaghi <stefano.zaghi@gmail.com>
+# Date: 26.07.2017
+# Last Modified Date: 26.07.2017
+# Last Modified By: Stefano Zaghi <stefano.zaghi@gmail.com>
 # ~/.bashrc
 
 # if not running interactively, don't do anything
@@ -58,5 +64,11 @@ fi;
 
 # added by travis gem
 [ -f /home/stefano/.travis/travis.sh ] && source /home/stefano/.travis/travis.sh
+
 # Hook for desk activation
 [ ! -z "$DESK_ENV" ] && source "$DESK_ENV"
+
+# icons-in-terminal
+if [ -f /home/stefano/.local/share/icons-in-terminal/icons_bash.sh ]; then
+   source /home/stefano/.local/share/icons-in-terminal/icons_bash.sh
+fi;

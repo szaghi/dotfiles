@@ -31,9 +31,9 @@
 [alias]
 	d = difftool
 	hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
-	submodule-update = submodule foreach git pull origin master
 	lg = log --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr %an)%Creset' --abbrev-commit --date=relative
 	tree = !git lg --graph
+	rebase-last-five = "!b=\"$(git branch --no-color | cut -c3-)\" ; h=\"$(git rev-parse $b)\" ; echo \"Current branch: $b $h\" ; c=\"$(git rev-parse $b~4)\" ; echo \"Recreating $b branch with initial commit $c ...\" ; git checkout --orphan new-start $c ; git commit -C $c ; git rebase --onto new-start $c $b ; git branch -d new-start ; git gc"
 [core]
 	editor = vim
 	whitespace = space-before-tab,-indent-with-non-tab,trailing-space

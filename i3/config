@@ -12,7 +12,8 @@
 # bitlbee
 
 # Special mod key
-set $mod Mod4
+set $mod Mod1
+# set $mod Mod4
 
 # Workspaces
 bindsym $mod+n exec i3-input -F 'rename workspace to "%s"' -P 'New name for this workspace: '
@@ -152,7 +153,8 @@ mode "$mode_system" {
     bindsym Escape mode "default"
 }
 
-bindsym $mod+End mode "$mode_system"
+#bindsym $mod+End mode "$mode_system"
+bindsym $mod+BackSpace mode "$mode_system"
 
 # status bar
 bar {
@@ -163,21 +165,23 @@ bar {
     background #073642
     statusline #839496
     separator #b58900
-    # class border backgrd text
-    focused_workspace #cb4b16 #cb4b16 #ffffff
-    active_workspace  #cb4b16 #cb4b16 #ffffff
+    background #202020
+    focused_workspace #0044a3 #0044a3 #ffffff
+    active_workspace  #0044a3 #0044a3 #ffffff
     inactive_workspace #252525 #252525 #6b6b6b
     urgent_workspace #252525 #252525 #c7a551
   }
 }
 
 # class border backgr text separator
-client.focused #cb4b16 #cb4b16 #ffffff #b58900
+client.focused #0044a3 #0044a3 #ffffff #b58900
 client.focused_inactive #333333 #333333 #888888 #292d2e
 client.unfocused #333333 #333333 #888888 #292d2e
 client.urgent #2f343a #900000 #ffffff #900000
 
 # Autostarts
+exec --no-startup-id "setxkbmap -layout us -variant altgr-intl"
+exec --no-startup-id "xmodmap ~/.Xmodmap"
 exec --no-startup-id clipit
 exec --no-startup-id setxkbmap it
 exec --no-startup-id unclutter -idle 2
@@ -190,12 +194,7 @@ exec --no-startup-id ~/scripts/icemcfd11-lmgrd
 exec --no-startup-id gitter
 
 # Shortcuts
-bindsym $mod+Print exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'
-bindsym $mod+c exec chromium
-bindsym $mod+g exec chromium --app=https://mail.google.com/mail/u/0/#inbox
-bindsym $mod+i exec ~/scripts/icemcfd11-lxdotool click 2aunch.sh
-bindsym $mod+p exec /opt/arch/paraview/4.3.1/bin/paraview
-bindsym $mod+Shift+a exec xdotool click 2
+bindsym $mod+equal exec scrot 'screenshot-%Y-%m-%d-%H-%M-%S_$wx$h.png' -e 'mv $f ~/pictures/'
 # pulseaudio
 bindsym $mod+Shift+p exec /usr/bin/pulseaudio-ctl up 1
 bindsym $mod+Shift+o exec /usr/bin/pulseaudio-ctl down 1

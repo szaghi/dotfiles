@@ -9,22 +9,22 @@ set nocompatible
 call plug#begin('~/.vim/plugged')
 " apparence
 Plug 'altercation/vim-colors-solarized'
-Plug 'lifepillar/vim-solarized8'
-Plug 'romainl/Apprentice'
-Plug 'chriskempson/base16-vim'
+" Plug 'romainl/Apprentice'
+" Plug 'chriskempson/base16-vim'
 Plug 'junegunn/rainbow_parentheses.vim'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'ntpeters/vim-airline-colornum'
 Plug 'myusuf3/numbers.vim'
-Plug 'junegunn/limelight.vim'
+" Plug 'junegunn/limelight.vim'
 
 " buffers and files
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'jeetsukumaran/vim-filebeagle'
-Plug 'justincampbell/vim-eighties'
+" Plug 'justincampbell/vim-eighties'
+" Plug 'arithran/vim-delete-hidden-buffers'
 
 " selection
 Plug 'terryma/vim-multiple-cursors'
@@ -36,68 +36,68 @@ Plug 'unblevable/quick-scope'
 Plug 'junegunn/vim-slash'
 
 " spell check and languages
-Plug 'scrooloose/syntastic', { 'for':  ['python'] }
-Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
-Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
+" Plug 'scrooloose/syntastic', { 'for':  ['python'] }
+" Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
+" Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
 " Plug 'tomedunn/vim.fortran'
-Plug 'rhysd/vim-grammarous'
-Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
-Plug 'maksimr/vim-translator', { 'on': 'Translate' }
-Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
-Plug 'danprince/vimsaurus'
+" Plug 'rhysd/vim-grammarous'
+" Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
+" Plug 'maksimr/vim-translator', { 'on': 'Translate' }
+" Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
+" Plug 'danprince/vimsaurus'
 " Plug 'lervag/vimtex', { 'for': 'tex' }
 " Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
-Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
+" Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
 " Plug 'vim-pandoc/vim-pandoc'
 " Plug 'vim-pandoc/vim-pandoc-syntax'
 
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
-Plug 'yaroot/vissort'
+" Plug 'yaroot/vissort'
 Plug 'tpope/vim-commentary'
 Plug 'csexton/trailertrash.vim'
 Plug 'godlygeek/tabular'
 Plug 'junegunn/vim-easy-align'
 Plug 'mattn/vim-maketable'
-Plug 'Raimondi/delimitMate'
-Plug 'machakann/vim-swap'
-Plug 'ajh17/VimCompletesMe'
-Plug 'alpertuna/vim-header'
-Plug 'KuoE0/vim-scavenger'
+" Plug 'Raimondi/delimitMate'
+" Plug 'machakann/vim-swap'
+" Plug 'ajh17/VimCompletesMe'
+" Plug 'alpertuna/vim-header'
+" Plug 'KuoE0/vim-scavenger'
 
 " git & github
 Plug 'airblade/vim-gitgutter'
-Plug 'tpope/vim-fugitive'
-Plug 'jaxbot/github-issues.vim'
-Plug 'mattn/webapi-vim'
-Plug 'mattn/gist-vim'
-Plug 'gregsexton/gitv'
-Plug 'rhysd/github-complete.vim'
-Plug 'junegunn/vim-github-dashboard'
+" Plug 'tpope/vim-fugitive'
+" Plug 'jaxbot/github-issues.vim'
+" Plug 'mattn/webapi-vim'
+" Plug 'mattn/gist-vim'
+" Plug 'gregsexton/gitv'
+" Plug 'rhysd/github-complete.vim'
+" Plug 'junegunn/vim-github-dashboard'
 
 " utilities
-Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
-Plug 'Shougo/vimshell.vim'
-Plug 'Shougo/unite.vim'
-Plug 'mhinz/vim-startify'
-Plug 'EinfachToll/DidYouMean'
+" Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
+" Plug 'Shougo/vimshell.vim'
+" Plug 'Shougo/unite.vim'
+" Plug 'mhinz/vim-startify'
+" Plug 'EinfachToll/DidYouMean'
 Plug 'Z1MM32M4N/vim-superman'
-Plug 'kshenoy/vim-signature'
-Plug 'vim-utils/vim-troll-stopper'
-Plug 'tpope/vim-repeat'
-Plug 'tpope/vim-dispatch'
-Plug 'tpope/vim-abolish'
+" Plug 'kshenoy/vim-signature'
+" Plug 'vim-utils/vim-troll-stopper'
+" Plug 'tpope/vim-repeat'
+" Plug 'tpope/vim-dispatch'
+" Plug 'tpope/vim-abolish'
 Plug 'jamessan/vim-gnupg'
-Plug 'laurentgoudet/vim-howdoi'
-Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
-Plug 'KabbAmine/vCoolor.vim'
+" Plug 'laurentgoudet/vim-howdoi'
+" Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
+" Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
-Plug 'wellle/visual-split.vim'
+" Plug 'wellle/visual-split.vim'
 Plug 'niboan/plugconf'
 " Plug 'idanarye/vim-vebugger'
 " Plug 'gilligan/vim-lldb'
 " Plug 'chrisbra/vim-diff-enhanced'
-Plug 'ararslan/license-to-vim'
+" Plug 'ararslan/license-to-vim'
 call plug#end()
 call plugconf#load()
 " }}}
@@ -105,10 +105,10 @@ call plugconf#load()
 " Highlighting and colors {{{
 if &t_Co > 2 || has("gui_running")
   syntax on " switch syntax highlighting on, when the terminal has colors
+  set synmaxcol=132
 endif
 set background=dark
-" colorscheme solarized
-colorscheme solarized8_dark_high
+colorscheme solarized
 if &diff
   " colorscheme apprentice
   " colorscheme base16-default-dark
@@ -159,7 +159,7 @@ set title                                                                " chang
 set noerrorbells                                                         " don't beep
 set showcmd                                                              " show (partial) command in the last line of the screen
 set nomodeline                                                           " disable mode lines (security measure)
-"set diffopt+=iwhite                                                      " ignoring trailing white spaces when doing diff
+set diffopt+=iwhite                                                      " ignoring trailing white spaces when doing diff
 set iskeyword+=:                                                         " turn on the search of keyword
 set foldenable                                                           " enable folding
 set foldcolumn=1                                                         " add a fold column

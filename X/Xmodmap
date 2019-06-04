@@ -1,0 +1,3 @@
+clear control
+add control = Control_L
+keycode 105 = ISO_Level3_Shift

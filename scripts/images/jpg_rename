@@ -1,26 +1,18 @@
 #!/bin/bash
-#===============================================================================
-#
-#          FILE:  nef_rename
-# 
-#         USAGE:  ./nef_rename 
-# 
-#   DESCRIPTION:  
-# 
-#       OPTIONS:  ---
-#  REQUIREMENTS:  ---
-#          BUGS:  ---
-#         NOTES:  ---
-#        AUTHOR:   (), 
-#       COMPANY:  
-#       VERSION:  1.0
-#       CREATED:  09/15/2011 03:58:44 PM CEST
-#      REVISION:  ---
-#===============================================================================
-
-
+# File: .scripts/jpg_rename
+# Author: Stefano Zaghi <stefano.zaghi@gmail.com>
+# Date: 25.09.2017
+# Last Modified Date: 25.09.2017
+# Last Modified By: Stefano Zaghi <stefano.zaghi@gmail.com>
 for file in $( ls *.[jJ][pP][gG] ); do
-  newname=`exiftool -s -DateTimeOriginal $file | awk '{print $3":"$4}' | awk -F : '{print $1"_"$2"_"$3"-"$4"_"$5"_"$6}'`
-  echo "Rename $file in $newname.jpg" 
-  mv "$file" "$newname.jpg" 
+   newname=`exiftool -s -DateTimeOriginal $file | awk '{print $3":"$4}' | awk -F : '{print $1"_"$2"_"$3"-"$4"_"$5"_"$6}'`
+   if [[ -e $newname.jpg ]] ; then
+       i=0
+       while [[ -e $newname-$i.jpg ]] ; do
+          let i++
+       done
+       newname=$newname-$i
+   fi
+   echo "Rename $file in $newname.jpg"
+   mv "$file" "$newname.jpg"
 done

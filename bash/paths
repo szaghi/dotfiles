@@ -11,7 +11,7 @@ pathmunge ~/.bin after
 pathmunge ~/.scripts after
 
 # ruby scripts
-pathmunge ~/.gem/ruby/2.4.0/bin
+pathmunge ~/.gem/ruby/2.5.0/bin
 
 # brew
 pathmunge ~/.linuxbrew/bin
@@ -21,6 +21,9 @@ export INFOPATH="~/.linuxbrew/share/info:$INFOPATH"
 # go
 pathmunge ~/go/bin after
 export GOPATH=~/go
+
+# odrive
+pathmunge ~/.odrive-agent/bin after
 
 # directories for fast access to, separated by colon
 CDPATH=".:~:~/insean/projects:~/fortran"

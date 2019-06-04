@@ -72,6 +72,7 @@ alias pushgithub-gh-pages='git push -u origin gh-pages'
 alias pushgithub-testing='git push -u origin testing --tags'
 alias pushgithub-master-local='git push -u zaghi-local master --tags'
 alias gitjk='history 10 | tac | gitjk_cmd'
+alias git-submodule-update="git submodule foreach 'rm -rf * ; git reset --hard HEAD ; git checkout master ; git pull'"
 
 # acroread
 alias acroread='acroread > /dev/null 2>&1'
@@ -87,3 +88,30 @@ vman() {
 
 # yapf
 alias yapf='python -m yapf --style=/home/stefano/python/yapf-style.ini'
+
+# pointwise 18
+alias pointwise='/opt/SolidSQUAD_License_Servers/Bin/rlm -c /opt/SolidSQUAD_License_Servers/Licenses/rlm_SSQ.lic -dlog /opt/SolidSQUAD_License_Servers/Logs/rlm.log -nows -noudp & /opt/pointwise18.0R4/pointwise'
+
+# salome
+alias salome='export LD_PRELOAD=/usr/lib/libfreetype.so ; /opt/salome/appli_V8_4_0/salome'
+
+# cura
+alias cura='/opt/cura/Cura-4.0.0-BETA.AppImage'
+
+# slic3r
+alias slic3r='/opt/slic3r/Slic3r-1.3.1-dev-34e633a-x86_64.AppImage'
+
+# slic3rPE
+alias slic3rPE='/opt/slic3rPE/Slic3rPE-1.42.0-beta2+linux64-full-201904140843.AppImage'
+
+# PrusaSlicer
+alias prusaslicer='/opt/prusa_slicer/PrusaSlicer-2.0.0-rc+linux64-201905141708.AppImage'
+
+# kisslicer
+alias kisslicer='/opt/kisslicer/KISSlicer'
+
+# simplify3D
+alias simplify3D='LD_PRELOAD=/opt/simplify3D/4.0.1/Interface.so /opt/simplify3D/4.0.1/LaunchScript.sh'
+
+# meshmixer
+alias meshmixer='wine ~/.wine/drive_c/Program\ Files/Autodesk/Meshmixer/meshmixer.exe'

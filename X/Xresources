@@ -1,4 +1,6 @@
-setxkbmap -model pc105 -layout it
+!setxkbmap -layout it
+setxkbmap -layout us -variant altgr-intl
+xmodmap ~/.Xmodmap
 
 Xcursor.theme: bridge
 
@@ -37,7 +39,7 @@ URxvt*color7: #eee8d5
 URxvt*color15: #fdf6e3
 
 ! fonts
-URxvt*font: xft:Droid Sans Mono:size=10,xft:Monoid:style=Retina:size=10
+/* URxvt*font: xft:Droid Sans Mono:size=10,xft:Monoid:style=Retina:size=10 */
 ! URxvt.xftAntialias: true
 
 ! disable the scrollbar

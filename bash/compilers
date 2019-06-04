@@ -2,16 +2,11 @@
 source ~/.bash/functions
 
 # intel parallel studio
-# source ~/intel/parallel_studio_xe_2017.2.050/bin/psxevars.sh intel64 > /dev/null
+# source /opt/intel/composerxe/linux/bin/compilervars.sh intel64 #> /dev/null
 
 # OpenMP
 OMP_NUM_THREADS=6
 export OMP_NUM_THREADS
-
-# Coarray
-pathmunge /opt/arch/opencoarrays/build/bin after
-FOR_COARRAY_NUM_IMAGES=2
-export FOR_COARRAY_NUM_IMAGES
 
 # mpi
 # MPIDIR=/opt/arch/mpi/bin/mpich/3.2.0/gnu/6.2.1

@@ -137,6 +137,11 @@
       relink: true
       force: true
 
+    ~/.Xmodmap:
+      path: X/Xmodmap
+      relink: true
+      force: true
+
     ~/.Xresources:
       path: X/Xresources
       relink: true
@@ -259,6 +264,10 @@
       path:  scripts/icemcfd/icemcfd11-lmgrd
       relink: true
       force: true
+    ~/.scripts/icemcfd14_launcher.sh:
+      path: scripts/icemcfd/icemcfd14_launcher.sh
+      relink: true
+      force: true
     ~/.scripts/jpg2mjpeg:
       path: scripts/miscellanea/jpg2mjpeg
       relink: true
@@ -305,6 +314,10 @@
       force: true
     ~/.scripts/pdfA4scale:
       path: scripts/pdf/pdfA4scale
+      relink: true
+      force: true
+    ~/.scripts/mount_nas.sh:
+      path: scripts/miscellanea/mount_nas.sh
       relink: true
       force: true
     ~/.scripts/png2xvid.sh:

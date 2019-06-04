@@ -76,3 +76,6 @@
 [submodule "scripts/bd"]
 	path = scripts/bd
 	url = https://github.com/vigneshwaranr/bd
+[submodule "fonts/icons-in-terminal"]
+	path = fonts/icons-in-terminal
+	url = https://github.com/sebastiencs/icons-in-terminal
