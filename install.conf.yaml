@@ -22,10 +22,6 @@
       path: bash/aliases
       relink: true
       force: true
-    ~/.bash/commacd:
-      path: bash/scripts/commacd/commacd.bash
-      relink: true
-      force: true
     ~/.bash/compilers:
       path: bash/compilers
       relink: true
