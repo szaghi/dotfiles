@@ -49,9 +49,6 @@
 [submodule "scripts/sshrc"]
 	path = scripts/sshrc
 	url = https://github.com/Russell91/sshrc
-[submodule "bash/scripts/bashmarks"]
-	path = bash/scripts/bashmarks
-	url = https://github.com/huyng/bashmarks
 [submodule "bash/scripts/commacd"]
 	path = bash/scripts/commacd
 	url = https://github.com/shyiko/commacd
