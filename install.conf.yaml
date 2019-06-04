@@ -38,10 +38,6 @@
       path: bash/functions
       relink: true
       force: true
-    ~/.bash/grip-chromium:
-      path: bash/scripts/grip-chromium/grip-chromium.sh
-      relink: true
-      force: true
     ~/.bash/optprogs:
       path: bash/optprogs
       relink: true
