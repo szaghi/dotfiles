@@ -54,10 +54,6 @@
       path: bash/scripts/bash_ini_parser/read_ini.sh 
       relink: true
       force: true
-    ~/.bash/shml:
-      path: bash/scripts/shml/shml.sh
-      relink: true
-      force: true
     ~/.bash/welcome:
       path: bash/welcome
       relink: true
