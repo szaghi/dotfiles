@@ -6,8 +6,6 @@
   - [mkdir -p ~/.local/share, Creating local/share directory]
   - [mkdir -p ~/.local/share/konsole/, Creating local/share directory]
   - [mkdir -p ~/.scripts, Creating scripts directory]
-  - [mkdir -p ~/.vmail, Creating vmail config directory]
-  - [mkdir -p ~/.weechat, Creating weechat config directory]
   - [touch ~/.python_history, Creating python interpreter history]
 
 - link:
@@ -407,15 +405,5 @@
       force: true
     ~/.vimrc:
       path: vim/vimrc
-      relink: true
-      force: true
-    ~/.vmailrc:
-      path: encrypt/vmailrc
-      relink: true
-      force: true
-
-    # weechat
-    ~/.weechat/weechat.conf:
-      path: weechat/weechat.conf
       relink: true
       force: true

@@ -14,8 +14,6 @@
 |terminal     | [terminlogy](https://www.enlightenment.org/about-terminology)  |
 |editor       | [vim](http://www.vim.org)                                      |
 |music player | [cmus](https://cmus.github.io)                                 |
-|email        | [vmail](https://github.com/danchoi/vmail)                      |
-|chat         | [wheechat](https://weechat.org/)                               |
 |theme        | [solarized (everywhere)](http://ethanschoonover.com/solarized) |
 
 > A dotfiles repository is not intended to be forked, commonly it is a backup, this is my home not your...
@@ -107,7 +105,6 @@ Presently my tree organization is the following:
 + **miscellanea**: contains dotfiles for various stuff that do not necessity more than one config file thus that do not need a dedicated directory;
 + **terminal**: contains configurations (IO and colors) for the terminal;
 + **vim**: no explanation is necessary... vim rocks!
-+ **weechat**: colors and configurations of weechat.
 
 I will not give you details about each of them. In the following there are some screenshots of my dotfiles application result.
 

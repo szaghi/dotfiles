@@ -32,9 +32,6 @@ else
 fi
 eval "$(dircolors ~/.dircolors.256dark)"
 
-# Vmail hyperlinks
-export VMAIL_HTML_PART_READER='elinks -dump'
-
 # python interpreter supercharged
 export PYTHONSTARTUP="/home/stefano/.pythonrc"
 
