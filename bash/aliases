@@ -27,9 +27,8 @@ alias apt-remove='sudo apt-get remove'
 alias apt-purge='sudo apt-get purge'
 alias apt-search='sudo apt-cache search'
 
-# pacman/yaourt
+# pacman
 alias pacman-clean='sudo pacman -Rns $(pacman -Qqtd)'
-alias yaourt-update='yaourt -Syu --force --noconfirm ; yaourt -Syu --force --noconfirm --aur'
 
 # pip
 alias pip-upgrade="sudo pip install --upgrade pip"
@@ -40,7 +39,7 @@ alias gem-upgrade="gem update --system"
 alias gem-update="gem update"
 
 # packages
-alias packs-update='yaourt-update ; pip-update ; gem-update ; npm-update'
+alias packs-update='pip-update ; gem-update ; npm-update'
 
 # make
 alias make='make -j 10'

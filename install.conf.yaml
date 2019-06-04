@@ -129,12 +129,6 @@
       relink: true
       force: true
 
-    # yaourt
-    ~/.yaourtrc:
-      path: miscellanea/yaourtrc
-      relink: true
-      force: true
-
     # python
     ~/.gdbinit:
       path: python/gdb-dashboard/.gdbinit
