@@ -2,6 +2,7 @@
 
 - shell:
   - [mkdir -p ~/.bash, Creating bash sources directory]
+  - [mkdir -p ~/.config, Creating config sources directory]
   - [mkdir -p ~/.git, Creating git sources directory]
   - [mkdir -p ~/.local/share, Creating local/share directory]
   - [mkdir -p ~/.local/share/konsole/, Creating local/share directory]
@@ -10,24 +11,20 @@
 
 - link:
     # bash
-    ~/.bashrc:
-      path: bash/bashrc
+    ~/.bash/aliases:
+      path: bash/aliases
       relink: true
       force: true
     ~/.bash_profile:
       path: bash/bash_profile
       relink: true
       force: true
-    ~/.bash/aliases:
-      path: bash/aliases
+    ~/.bashrc:
+      path: bash/bashrc
       relink: true
       force: true
     ~/.bash/compilers:
       path: bash/compilers
-      relink: true
-      force: true
-    ~/.bash/concurrent:
-      path: bash/scripts/bash-concurrent/concurrent.lib.sh
       relink: true
       force: true
     ~/.bash/exports:
@@ -50,26 +47,46 @@
       path: bash/prompt
       relink: true
       force: true
-    ~/.bash/read_ini:
-      path: bash/scripts/bash_ini_parser/read_ini.sh 
-      relink: true
-      force: true
     ~/.bash/welcome:
       path: bash/welcome
       relink: true
       force: true
-
-    # git
-    ~/.gitconfig:
-      path: git/gitconfig
+    ~/.bash/concurrent:
+      path: bash/scripts/bash-concurrent/concurrent.lib.sh
       relink: true
       force: true
+    ~/.bash/read_ini:
+      path: bash/scripts/bash_ini_parser/read_ini.sh 
+      relink: true
+      force: true
+
+    # bspwm
+    ~/.config/bspwm/bspwmrc:
+      path: bspwm/bspwmrc
+      relink: true
+      force: true
+    ~/.config/bspwm/logout.sh:
+      path: bspwm/logout.sh
+      relink: true
+      force: true
+
+    # fonts
+    ~/.local/share/fonts:
+      path: fonts
+      relink: true
+      force: true
+
+    # git
     ~/.git/gibo-completion:
       path: git/gibo/gibo-completion.bash
       relink: true
       force: true
     ~/.git/git_commit_message_template:
       path: git/git_commit_message_template
+      relink: true
+      force: true
+    ~/.gitconfig:
+      path: git/gitconfig
       relink: true
       force: true
     ~/.git/git-flow-completition:
@@ -95,12 +112,6 @@
       relink: true
       force: true
 
-    # fonts
-    ~/.local/share/fonts:
-      path: fonts
-      relink: true
-      force: true
-
     # icons
     ~/.local/share/icons:
       path: icons
@@ -110,6 +121,22 @@
     # latex
     ~/.latexmkrc:
       path: miscellanea/latexmkrc
+      relink: true
+      force: true
+
+    # polybar
+    ~/.config/polybar/config:
+      path: polybar/config
+      relink: true
+      force: true
+    ~/.config/polybar/launch.sh:
+      path: polybar/launch.sh
+      relink: true
+      force: true
+
+    # sxhkd
+    ~/.config/sxhkd/sxhkdrc:
+      path: sxhkd/sxhkdrc
       relink: true
       force: true
 
@@ -206,10 +233,6 @@
       force: true
     ~/.scripts/git_list_large_files:
       path: scripts/git-list-large-files/git_list_large_files.sh
-      relink: true
-      force: true
-    ~/.scripts/git-fire:
-      path: git/git-fire/git-fire 
       relink: true
       force: true
     ~/.scripts/git-remote-dropbox:

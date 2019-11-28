@@ -19,9 +19,6 @@
 [submodule "python/gdb-dashboard"]
 	path = python/gdb-dashboard
 	url = https://github.com/cyrus-and/gdb-dashboard
-[submodule "git/git-fire"]
-	path = git/git-fire
-	url = https://github.com/qw3rtman/git-fire
 [submodule "scripts/bashsaurus"]
 	path = scripts/bashsaurus
 	url = https://github.com/danprince/bashsaurus

@@ -1,3 +1,9 @@
 xset +fp /home/stefano/.local/share/fonts/
 [[ -f ~/.Xresources ]] && xrdb -merge ~/.Xresources
-exec i3
+# exec i3
+# sxhkd &
+exec bspwm
+
+# setxkbmap -layout it
+setxkbmap -layout us -variant altgr-intl
+xmodmap ~/.Xmodmap

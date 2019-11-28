@@ -2,10 +2,14 @@
 source ~/.bash/functions
 
 # blender
-pathmunge /opt/blender/2.79 after
+pathmunge /opt/blender/2.80 after
 
 # paraview
 #pathmunge /opt/paraview/5.5.0/bin after
+
+
+# meshconv
+pathmunge /opt/meshconv after
 
 # tecplot
 pathmunge /opt/tecplot/bin after

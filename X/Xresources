@@ -1,7 +1,3 @@
-!setxkbmap -layout it
-setxkbmap -layout us -variant altgr-intl
-xmodmap ~/.Xmodmap
-
 Xcursor.theme: bridge
 
 ! urxvt

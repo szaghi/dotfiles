@@ -1,0 +1,48 @@
+#! /bin/sh
+
+# set second monitor if necessary
+is_second_monitor_connected=$(xrandr --query | grep 'HDMI-0')
+if [[ $is_second_monitor_connected = *connected* ]]; then
+   xrandr --output DP-4 --primary --mode 2560x1440 --rotate normal --output HDMI-0 --mode 1680x1050 --rotate normal --left-of DP-4
+fi
+
+killall sxhkd 2> /dev/null
+sxhkd &
+
+bspc monitor DP-4 -d DP-4/1 DP-4/2 DP-4/3 DP-4/4 DP-4/5
+bspc monitor HDMI-0 -d HDMI-0/6 HDMI-0/7 HDMI-0/8 HDMI-0/9 HDMI-0/0
+
+bspc config border_width         2
+bspc config window_gap           8
+bscp config top_padding          0
+
+bspc config split_ratio          0.52
+bspc config borderless_monocle   true
+bspc config gapless_monocle      true
+
+bscp config top_padding 0
+
+bspc config normal_border_color "#484848"
+bspc config focused_border_color "#1F8999"
+bspc config urgent_border_color "#B58900"
+bspc config presel_border_color "#26E2FF"
+
+xset dpms 0 300 0
+
+export XSECURELOCK_SAVER=saver_blank
+export XSECURELOCK_DIM_COLOR=black
+export XSECURELOCK_AUTH_BACKGROUND_COLOR=black
+export XSECURELOCK_AUTH_FOREGROUND_COLOR=gold
+export XSECURELOCK_PASSWORD_PROMPT=emoticon
+export XSECURELOCK_SHOW_HOSTNAME=1
+xss-lock -n /usr/lib/xsecurelock/dimmer -l -- xsecurelock &
+
+# start polybar(s)
+if [ -x /usr/bin/polybar ]; then
+	bash $HOME/.config/polybar/launch.sh
+fi
+
+# background image
+feh --bg-fill /home/stefano/dotfiles/background/fortran_for_dsa_scientific.png &
+
+# blueberry-tray &

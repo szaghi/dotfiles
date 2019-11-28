@@ -1,0 +1,4 @@
+#!/bin/bash
+for file in $( ls *.[nN][eE][fF] ); do
+   dcraw -v -e $file
+done
