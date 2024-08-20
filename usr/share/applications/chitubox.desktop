@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ChituBox
+Comment=ChituBox Slicer
+Exec=/opt/chitubox/chitubox/CHITUBOX
+Icon=/opt/chitubox/chitubox/resource/ico/freeIcon.ico
+Terminal=false
+Categories=Application

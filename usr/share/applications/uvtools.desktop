@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=UVTools
+Comment=UVTools
+Exec=/opt/uvtools/uvtools/UVtools
+Icon=/opt/uvtools/uvtools.png
+Terminal=false
+Categories=Application

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Telegram
+Comment=Telegram messaging
+Exec=/opt/telegram/Telegram
+Icon=/opt/telegram/telegram.png
+Terminal=false
+Categories=Application

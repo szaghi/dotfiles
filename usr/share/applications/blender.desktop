@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Blender
+Comment=Blender
+Exec=/opt/blender/4.0.2/blender
+Icon=/opt/blender/4.0.2/blender.svg
+Terminal=false
+Categories=Application

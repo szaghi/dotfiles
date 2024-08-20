@@ -9,33 +9,31 @@ set nocompatible
 call plug#begin('~/.vim/plugged')
 " apparence
 Plug 'altercation/vim-colors-solarized'
-" Plug 'romainl/Apprentice'
-" Plug 'chriskempson/base16-vim'
 Plug 'junegunn/rainbow_parentheses.vim'
-Plug 'vim-airline/vim-airline'
-Plug 'vim-airline/vim-airline-themes'
-Plug 'ntpeters/vim-airline-colornum'
+Plug 'itchyny/lightline.vim'
+Plug 'mengelbrecht/lightline-bufferline'
 Plug 'myusuf3/numbers.vim'
-" Plug 'junegunn/limelight.vim'
 
 " buffers and files
 Plug 'majutsushi/tagbar'
 Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'jeetsukumaran/vim-filebeagle'
-" Plug 'justincampbell/vim-eighties'
-" Plug 'arithran/vim-delete-hidden-buffers'
+" Plug 'preservim/nerdtree'
 
 " selection
-Plug 'terryma/vim-multiple-cursors'
+" Plug 'terryma/vim-multiple-cursors'
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
-Plug 'chrisbra/NrrwRgn'
-Plug 'Konfekt/FastFold'
-Plug 'ferranpm/vim-isolate'
-Plug 'unblevable/quick-scope'
-Plug 'junegunn/vim-slash'
+" Plug 'chrisbra/NrrwRgn'
+" Plug 'Konfekt/FastFold'
+" Plug 'ferranpm/vim-isolate'
+" Plug 'unblevable/quick-scope'
+" Plug 'junegunn/vim-slash'
 
 " spell check and languages
+Plug 'lervag/vimtex', { 'for': 'tex' }
+Plug 'iamcco/markdown-preview.nvim', { 'do': { -> mkdp#util#install() }, 'for': ['markdown', 'vim-plug']}
+
 " Plug 'scrooloose/syntastic', { 'for':  ['python'] }
 " Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
 " Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
@@ -45,11 +43,12 @@ Plug 'junegunn/vim-slash'
 " Plug 'maksimr/vim-translator', { 'on': 'Translate' }
 " Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
 " Plug 'danprince/vimsaurus'
-" Plug 'lervag/vimtex', { 'for': 'tex' }
-" Plug 'gabrielelana/vim-markdown', { 'for': 'markdown' }
-" Plug 'ajorgensen/vim-markdown-toc', { 'for': 'markdown' }
 " Plug 'vim-pandoc/vim-pandoc'
 " Plug 'vim-pandoc/vim-pandoc-syntax'
+Plug 'vim-python/python-syntax'
+" Plug 'dense-analysis/ale'
+" Plug 'vim-syntastic/syntastic'
+Plug 'nvie/vim-flake8'
 
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
@@ -60,45 +59,19 @@ Plug 'godlygeek/tabular'
 Plug 'junegunn/vim-easy-align'
 Plug 'mattn/vim-maketable'
 Plug 'cohama/lexima.vim'
-" Plug 'Raimondi/delimitMate'
-" Plug 'machakann/vim-swap'
-" Plug 'ajh17/VimCompletesMe'
-" Plug 'alpertuna/vim-header'
-" Plug 'KuoE0/vim-scavenger'
+Plug 'pechorin/any-jump.vim'
+Plug 'junegunn/fzf.vim'
 
 " git & github
 Plug 'airblade/vim-gitgutter'
-" Plug 'tpope/vim-fugitive'
-" Plug 'jaxbot/github-issues.vim'
-" Plug 'mattn/webapi-vim'
-" Plug 'mattn/gist-vim'
-" Plug 'gregsexton/gitv'
-" Plug 'rhysd/github-complete.vim'
-" Plug 'junegunn/vim-github-dashboard'
 
 " utilities
-" Plug 'Shougo/vimproc.vim', { 'do' : 'make' }
-" Plug 'Shougo/vimshell.vim'
-" Plug 'Shougo/unite.vim'
-" Plug 'mhinz/vim-startify'
-" Plug 'EinfachToll/DidYouMean'
 Plug 'Z1MM32M4N/vim-superman'
-" Plug 'kshenoy/vim-signature'
-" Plug 'vim-utils/vim-troll-stopper'
-" Plug 'tpope/vim-repeat'
-" Plug 'tpope/vim-dispatch'
-" Plug 'tpope/vim-abolish'
 Plug 'jamessan/vim-gnupg'
-" Plug 'laurentgoudet/vim-howdoi'
-" Plug 'itchyny/calendar.vim', { 'on': 'Calendar' }
-" Plug 'KabbAmine/vCoolor.vim'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
-" Plug 'wellle/visual-split.vim'
 Plug 'niboan/plugconf'
-" Plug 'idanarye/vim-vebugger'
-" Plug 'gilligan/vim-lldb'
-" Plug 'chrisbra/vim-diff-enhanced'
-" Plug 'ararslan/license-to-vim'
+" Plug 'puremourning/vimspector'
+
 call plug#end()
 call plugconf#load()
 " }}}
@@ -106,14 +79,42 @@ call plugconf#load()
 " Highlighting and colors {{{
 if &t_Co > 2 || has("gui_running")
   syntax on " switch syntax highlighting on, when the terminal has colors
-  set synmaxcol=132
 endif
 set background=dark
 colorscheme solarized
+hi clear SpellBad
+hi SpellBad cterm=underline
 if &diff
   " colorscheme apprentice
   " colorscheme base16-default-dark
 endif
+" }}}
+
+" lighline tabline setting {{{
+let g:lightline = {
+      \ 'colorscheme': 'solarized',
+      \ 'active': {
+      \   'left': [ [ 'mode', 'paste' ], [ 'readonly', 'filename', 'modified' ] ]
+      \ },
+      \ 'tabline': {
+      \   'left': [ ['buffers'] ],
+      \   'right': [ ['close'] ]
+      \ },
+      \ 'component_expand': {
+      \   'buffers': 'lightline#bufferline#buffers'
+      \ },
+      \ 'component_type': {
+      \   'buffers': 'tabsel'
+      \ }
+      \ }
+let g:lightline#bufferline#show_number  = 1
+let g:lightline#bufferline#shorten_path = 0
+let g:lightline#bufferline#unnamed      = '[No Name]'
+
+let g:lightline                  = {}
+let g:lightline.tabline          = {'left': [['buffers']], 'right': [['close']]}
+let g:lightline.component_expand = {'buffers': 'lightline#bufferline#buffers'}
+let g:lightline.component_type   = {'buffers': 'tabsel'}
 " }}}
 
 " Editing behaviour {{{
@@ -126,7 +127,8 @@ set expandtab                                                            " expan
 set shiftwidth=3                                                         " number of spaces to use for autoindenting
 set shiftround                                                           " use multiple of shiftwidth when indenting with '<' and '>'
 set backspace=indent,eol,start                                           " allow backspacing over everything in insert mode
-set autoindent                                                           " always set autoindenting on
+" set autoindent                                                           " always set autoindenting on
+set smartindent                                                          " always set smartindenting on
 set copyindent                                                           " copy the previous indentation on autoindenting
 set number                                                               " always show line numbers
 set showmatch                                                            " set show matching parenthesis
@@ -138,10 +140,11 @@ set virtualedit=all                                                      " allow
 set hlsearch                                                             " highlight search terms
 set incsearch                                                            " show search matches as you type
 set nolist                                                               " don't show invisible characters by default,
-set mouse=a                                                              " enable using the mouse if terminal emulator supports it (xterm does)
+set mouse=r                                                              " enable using the mouse if terminal emulator supports it (xterm does)
 set formatoptions+=1                                                     " When wrapping paragraphs, don't end lines with 1-letter words (looks stupid)
 set encoding=utf-8                                                       " file encoding
-set lazyredraw                                                           " don't update the display while executing macros
+" set lazyredraw                                                           " don't update the display while executing macros
+set redrawtime=10000                                                     " take as long as needed to calculate syntax
 set laststatus=2                                                         " tell VIM to always put a status line in, even if there is only one window
 set cmdheight=2                                                          " use a status bar that is 2 rows high
 let g:buftabs_only_basename = 1                                          " show only basename in tabs title
@@ -150,7 +153,7 @@ set hidden                                                               " hide 
 set switchbuf=useopen                                                    " reveal already opened files from the quickfix window instead of opening new buffers
 set nobackup                                                             " do not keep backup files, it's 70's style cluttering
 set noswapfile                                                           " do not write annoying intermediate swap files
-set viminfo='10,\"100,:20,n~/.viminfo                                    " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line
+" set viminfo='10,\"100,:20,n~/.viminfo                                    " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line
 set wildmenu                                                             " make tab completion for files/buffers act like bash
 set wildmode=list:full                                                   " show a list when pressing tab and complete first full match
 " set esckeys                                                              " allow cursor keys in insert mode
@@ -170,11 +173,14 @@ set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo " which
 set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·                           " characters are not displayed on long lines
 set fileformats="unix,dos,mac"                                           " file formats
 set termencoding=utf-8                                                   " file encoding
+set showtabline=2                                                        " show tabline
 " }}}
 
 " Filetype specific handling {{{
 source ~/.vim/fortranrc.vim
 source ~/.vim/fobosrc.vim
+source ~/.vim/latexrc.vim
+source ~/.vim/markdownrc.vim
 source ~/.vim/pythonrc.vim
 " }}}
 
@@ -187,9 +193,6 @@ if has("autocmd")
   " positiong the cursor to the last position before closing the file
   autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
 
-  " set .md as markdown
-  autocmd BufNewFile,BufRead *.md set filetype=markdown
-
   " Don't screw up folds when inserting text that might affect them, until
   " leaving insert mode. Foldmethod is local to the window.
   augroup folding
@@ -199,6 +202,18 @@ if has("autocmd")
     autocmd FileType sh,bash let sh_fold_enabled=1
     autocmd FileType xml let xml_syntax_folding=1
   augroup END
+
+  " " NERDTree
+  " augroup folding
+  "   autocmd!
+  "   " Start NERDTree and put the cursor back in the other window.
+  "   autocmd VimEnter * NERDTree | wincmd p
+  "   " Exit Vim if NERDTree is the only window remaining in the only tab.
+  "   autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif
+  "   " If another buffer tries to replace NERDTree, put it in the other window, and bring back NERDTree.
+  "   autocmd BufEnter * if bufname('#') =~ 'NERD_tree_\d\+' && bufname('%') !~ 'NERD_tree_\d\+' && winnr('$') > 1 |
+  "   \ let buf=bufnr() | buffer# | execute "normal! \<C-W>w" | execute 'buffer'.buf | endif
+  " augroup END
 
   " programming tips {{{
   augroup programming
@@ -253,9 +268,6 @@ endfunction
 noremap <C-C> :call ToggleVirtualedit()<CR>
 " Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
-" markdown preview
-" nnoremap G :Start! github-markdown-preview %<CR>
-" nnoremap G :Start! greadme %<CR>
 " cycle through visual modes: visual -> visual-block -> visual-line -> visual
 xnoremap <expr> v
             \ (mode() ==# 'v' ? "\<C-V>"

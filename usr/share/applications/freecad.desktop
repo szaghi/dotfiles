@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=FreeCAD
+Comment=FreeCAD
+Exec=/opt/freecad/freecad
+Icon=/opt/freecad/freecad.png
+Terminal=false
+Categories=Application

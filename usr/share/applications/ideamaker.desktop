@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ideamaker
+Comment=Ideamaker Slicer
+Exec=/opt/ideamaker/ideamaker
+Icon=/opt/ideamaker/ideamaker.png
+Terminal=false
+Categories=Application

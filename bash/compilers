@@ -2,10 +2,11 @@
 source ~/.bash/functions
 
 # intel parallel studio
-# source /opt/intel/composerxe/linux/bin/compilervars.sh intel64 #> /dev/null
+# source /opt/intel/bin/compilervars.sh intel64 > /dev/null 2>&1
+# source /opt/intel/oneapi/setvars.sh #> /dev/null 2>&1
 
 # OpenMP
-OMP_NUM_THREADS=6
+OMP_NUM_THREADS=8
 export OMP_NUM_THREADS
 
 # mpi
@@ -14,5 +15,12 @@ export OMP_NUM_THREADS
 # LD_LIBRARY_PATH=$MPIDIR/lib/mpich:$MPIDIR/lib:$LD_LIBRARY_PATH
 # LD_RUN_PATH=$MPIDIR/lib/mpich:$MPIDIR/lib:$LD_RUN_PATH
 # MANPATH=$MPIDIR/share/man:$MANPATH
+export OMPI_MCA_btl_base_warn_component_unused=0
+
+# CUDA
+# PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/bin:$PATH
+# LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk/Linux_x86_64/20.7/compilers/lib:$LD_LIBRARY_PATH
+# PATH=/opt/nvidia/hpc_sdk-v11.6/Linux_x86_64/22.3/compilers/bin:$PATH
+# LD_LIBRARY_PATH=/opt/nvidia/hpc_sdk-v11.6/Linux_x86_64/22.3/compilers/lib:$LD_LIBRARY_PATH
 
 export PATH LD_LIBRARY_PATH LD_RUN_PATH MANPATH 

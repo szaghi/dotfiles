@@ -1,0 +1,27 @@
+#!/bin/bash
+# File: .scripts/mp4_rename
+# Author: Stefano Zaghi <stefano.zaghi@gmail.com>
+# Date: 18.08.2024
+# Last Modified Date: 18.08.2024
+# Last Modified By: Stefano Zaghi <stefano.zaghi@gmail.com>
+for file in $( ls *.[mM][pP][4] ); do
+   bname=`echo $file | awk -F . '{print $1}'`
+   newname=`exiftool -s -CreateDate $file | awk '{print $3":"$4}' | awk -F : '{print $1"_"$2"_"$3"-"$4"_"$5"_"$6}'`
+   if [[ -e $newname.mp4 ]] ; then
+       i=0
+       while [[ -e $newname-$i.mp4 ]] ; do
+          let i++
+       done
+       newname=$newname-$i
+   fi
+   echo "Rename $file in $newname.mp4"
+   mv "$file" "$newname.mp4"
+   for filesrt in $( ls $bname.[sS][rR][tT] ); do
+      echo "Rename $bname.SRT in $newname.srt"
+      mv "$filesrt" "$newname.srt"
+   done
+   for filelrf in $( ls $bname.[lL][rR][fF] ); do
+      echo "Rename $bname.LRF in $newname.lrf"
+      mv "$filelrf" "$newname.lrf"
+   done
+done

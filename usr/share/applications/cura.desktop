@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=CURA
+Comment=CURA Ultimaker Slicer
+Exec=/opt/cura/cura
+Icon=/opt/cura/cura.png
+Terminal=false
+Categories=Application

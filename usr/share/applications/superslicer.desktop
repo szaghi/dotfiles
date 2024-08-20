@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=SuperSlicer
+Comment=SuperSlicer
+Exec=/opt/superslicer/superslicer
+Icon=/opt/superslicer/superslicer.png
+Terminal=false
+Categories=Application

@@ -75,7 +75,7 @@ def _pythonrc_enable_history():
                 readline.read_history_file(history_path)
             except IOError:
                 pass
-		
+
         readline.set_history_length(-1)
 
 
@@ -262,7 +262,7 @@ def _pythonrc_fix_linecache():
             else:
                 return []
         try:
-            fp = open(fullname, 'rU')
+            fp = open(fullname, 'r')
             lines = fp.readlines()
             fp.close()
         except IOError:

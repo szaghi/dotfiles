@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Paraview
+Comment=Paraview
+Exec=/opt/paraview/5.12.0/bin/paraview
+Icon=/opt/paraview/5.12.0/share/icons/hicolor/96x96/apps/paraview.png
+Terminal=false
+Categories=Application

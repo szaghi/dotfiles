@@ -1,9 +1,6 @@
 #!/bin/bash
-# File: bashrc
 # Author: Stefano Zaghi <stefano.zaghi@gmail.com>
-# Date: 26.07.2017
-# Last Modified Date: 26.07.2017
-# Last Modified By: Stefano Zaghi <stefano.zaghi@gmail.com>
+# Date: 09.09.2020
 # ~/.bashrc
 
 # if not running interactively, don't do anything
@@ -72,3 +69,11 @@ fi;
 if [ -f /home/stefano/.local/share/icons-in-terminal/icons_bash.sh ]; then
    source /home/stefano/.local/share/icons-in-terminal/icons_bash.sh
 fi;
+
+# pnpm
+export PNPM_HOME="/home/stefano/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end

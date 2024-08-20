@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lychee
+Comment=Lychee slicer
+Exec=/opt/lychee/lychee
+Icon=/opt/lychee/lychee.png
+Terminal=false
+Categories=Application

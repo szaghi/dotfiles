@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Bitwarden
+Comment=Bitwarden
+Exec=/opt/bitwarden/bitwarden
+Icon=/opt/bitwarden/bitwarden-icon.png
+Terminal=false
+Categories=Application

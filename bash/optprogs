@@ -1,23 +1,50 @@
 # ~/.bash/optprogs
 source ~/.bash/functions
 
+# openfoam
+# osource /opt/openfoam8/etc/bashrc
+
 # blender
-pathmunge /opt/blender/2.80 after
+# opathmunge /opt/blender/4.0.2 after
+
+# freecad
+# opathmunge /opt/freecad after
 
 # paraview
-#pathmunge /opt/paraview/5.5.0/bin after
+# opathmunge /opt/paraview/5.12.0/bin after
 
+# SuperSlicer
+# opathmunge /opt/superslicer/superslicer after
 
-# meshconv
-pathmunge /opt/meshconv after
+# Ideamaker
+# opathmunge /opt/ideamaker/ideamaker after
 
-# tecplot
-pathmunge /opt/tecplot/bin after
-TECPHYFILE=~/.Trash/tecplot.phy
-export TECPHYFILE
+# cura
+# opathmunge /opt/cura/cura after
 
-# android sdk (adb, fastboot)
-pathmunge /opt/android-sdk/platform-tools/
+# orcaslicer
+# opathmunge /opt/orcaslicer/orcaslicer after
 
-# zoom
-pathmunge /opt/zoom/ after
+# lychee
+# opathmunge /opt/lychee after
+
+# # chitubox
+# pathmunge /opt/chitubox/chitubox after
+# export LD_LIBRARY_PATH=/opt/chitubox/chitubox/lib:$LD_LIBRARY_PATH
+
+# uvtools
+# opathmunge /opt/uvtools/uvtools after
+
+# # meshconv
+# pathmunge /opt/meshconv after
+
+# # tecplot
+# pathmunge /opt/tecplot/bin after
+# TECPHYFILE=~/.Trash/tecplot.phy
+# export TECPHYFILE
+
+# # android sdk (adb, fastboot)
+# pathmunge /opt/android-sdk/platform-tools/
+
+# # zoom
+# pathmunge /opt/zoom/ after

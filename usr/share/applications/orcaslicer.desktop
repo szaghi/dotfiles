@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=orcaslicer
+Comment=orcaslicer
+Exec=/opt/orcaslicer/orcaslicer
+Icon=/opt/orcaslicer/orcaslicer.png
+Terminal=false
+Categories=Application
