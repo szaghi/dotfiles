@@ -1,6 +1,3 @@
-[submodule "dotbot"]
-	path = dotbot
-	url = https://github.com/anishathalye/dotbot
 [submodule "python/scholar"]
 	path = python/scholar
 	url = https://github.com/ckreibich/scholar.py
@@ -64,6 +61,3 @@
 [submodule "scripts/bd"]
 	path = scripts/bd
 	url = https://github.com/vigneshwaranr/bd
-[submodule "fonts/icons-in-terminal"]
-	path = fonts/icons-in-terminal
-	url = https://github.com/sebastiencs/icons-in-terminal
