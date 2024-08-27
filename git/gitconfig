@@ -1,7 +1,7 @@
 [user]
 	name = Stefano Zaghi
 	email = stefano.zaghi@gmail.com
-	signingkey = AE8C1C13C07FCC17
+	signingkey = 14768B4E6C9599E9
 [color]
   branch = always
   diff = always
