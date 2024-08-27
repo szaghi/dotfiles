@@ -28,7 +28,7 @@ ln -fs $dot/bash/welcome ~/.bash/welcome
 ln -fs $dot/bin/act ~/.bin/act
 
 # desks
-# ln -fs $dot/desks/mpich-3.3.2-gnu-10.0.1.sh ~/.desk/desks/mpich-3.3.2-gnu-10.0.1.sh
+ln -fs $dot/desks/nvidia-24.sh ~/.desk/desks/nvidia-24.sh
 # ln -fs $dot/desks/mpich-3.3.2-intel-19.1.2.254.sh ~/.desk/desks/mpich-3.3.2-intel-19.1.2.254.sh
 # ln -fs $dot/desks/openmpi-4.0.5-gnu-10.0.1.sh ~/.desk/desks/openmpi-4.0.5-gnu-10.0.1.sh
 # ln -fs $dot/desks/openmpi-4.0.5-intel-19.1.2.254.sh ~/.desk/desks/openmpi-4.0.5-intel-19.1.2.254.sh
