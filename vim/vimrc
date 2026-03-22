@@ -88,6 +88,9 @@ if &diff
   " colorscheme apprentice
   " colorscheme base16-default-dark
 endif
+" cursor style
+let &t_SI = "\e[6 q"
+let &t_EI = "\e[2 q"
 " }}}
 
 " lighline tabline setting {{{

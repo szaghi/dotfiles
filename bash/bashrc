@@ -7,7 +7,7 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.bash/{aliases,compilers,concurrent,exports,functions,optprogs,paths,prompt,pyenv,read_ini}; do
+for file in ~/.bash/{private,aliases,compilers,claude_code,concurrent,exports,functions,optprogs,paths,prompt,pyenv,read_ini}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;
@@ -77,3 +77,20 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# API keys are loaded from ~/.bash/private
+
+source '/home/stefano/.bash_completions/mosaic.sh'
+
+
+
+source '/home/stefano/.bash_completions/FoBiS.py.sh'
+
+
+source '/home/stefano/.bash_completions/fobis.sh'
+
+

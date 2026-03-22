@@ -90,8 +90,7 @@ vman() {
 # yapf
 alias yapf='python -m yapf --style=/home/stefano/python/yapf-style.ini'
 
-# pointwise 18
-alias pointwise='/opt/SolidSQUAD_License_Servers/Bin/rlm -c /opt/SolidSQUAD_License_Servers/Licenses/rlm_SSQ.lic -dlog /opt/SolidSQUAD_License_Servers/Logs/rlm.log -nows -noudp & /opt/pointwise18.0R4/pointwise'
+# pointwise alias is in ~/.bash/private
 
 # salome
 alias salome='export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libfreetype.so ; /opt/salome/9.8.0/salome'
@@ -99,8 +98,7 @@ alias salome='export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libfreetype.so ; /opt/
 # meshmixer
 alias meshmixer='wine ~/.wine/drive_c/Program\ Files/Autodesk/Meshmixer/meshmixer.exe'
 
-# CFMS login servers
-alias ssh-cfms-01='ssh -XY szaghi@172.20.1.51'
-alias ssh-cfms-02='ssh -XY szaghi@172.20.1.52'
-alias ssh-cfms-03='ssh -XY szaghi@172.20.1.53'
-alias ssh-cfms-04='ssh -XY szaghi@172.20.1.54'
+# CFMS SSH aliases are in ~/.bash/private
+
+# paraview on WSL
+alias paraview-wsl='/mnt/c/Program\ Files/ParaView\ 5.13.0/bin/paraview.exe'

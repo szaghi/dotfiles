@@ -15,13 +15,17 @@ function run_borg {
 }
 
 # backup on nas-zaghi
-run_borg /mnt/nas-zaghi/stefano/zaghi-backup/home/ /home/stefano
-#run_borg /mnt/nas-zaghi/stefano/zaghi-backup/backup/ /backup/stefano/
+BORG_NAS_ZAGHI="${BORG_NAS_ZAGHI:-/mnt/nas-zaghi/stefano/zaghi-backup/home/}"
+run_borg "$BORG_NAS_ZAGHI" /home/stefano
+#BORG_NAS_ZAGHI_BACKUP="${BORG_NAS_ZAGHI_BACKUP:-/mnt/nas-zaghi/stefano/zaghi-backup/backup/}"
+#run_borg "$BORG_NAS_ZAGHI_BACKUP" /backup/stefano/
 
 # backup on nas-odroid
-run_borg /mnt/nas-odroid/zaghi-backup/home/fortran/ /home/stefano/fortran
+BORG_NAS_ODROID="${BORG_NAS_ODROID:-/mnt/nas-odroid/zaghi-backup/home/fortran/}"
+run_borg "$BORG_NAS_ODROID" /home/stefano/fortran
 
 # backup on nas-muscari
-# run_borg /mnt/nas-muscari/zaghi-backup/home/ /home/stefano
+# BORG_NAS_MUSCARI="${BORG_NAS_MUSCARI:-/mnt/nas-muscari/zaghi-backup/home/}"
+# run_borg "$BORG_NAS_MUSCARI" /home/stefano
 
 exit 0
