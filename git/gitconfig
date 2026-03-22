@@ -1,7 +1,7 @@
 [user]
 	name = Stefano Zaghi
 	email = stefano.zaghi@gmail.com
-	signingkey = 14768B4E6C9599E9
+	signingkey = C6D8B6D063DA7309
 [color]
   branch = always
   diff = always
@@ -11,8 +11,6 @@
   showbranch = auto
   status = auto
   ui = always
-[http]
-	sslVerify = false
 [credential]
 	helper = cache
 [giggle]
@@ -48,9 +46,11 @@
 [include]
 	path = ~/.git/ghi_token
 [init]
-  templateDir = ~/.git-templates
+	defaultBranch = main
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
+[tag]
+	gpgsign = true

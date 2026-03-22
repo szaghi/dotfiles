@@ -11,7 +11,7 @@ source ~/.bash/functions
 # opathmunge /opt/freecad after
 
 # paraview
-# opathmunge /opt/paraview/5.12.0/bin after
+pathmunge /opt/paraview/ParaView-6.0.1-MPI-Linux-Python3.12-x86_64/bin after
 
 # SuperSlicer
 # opathmunge /opt/superslicer/superslicer after

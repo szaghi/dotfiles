@@ -1,8 +1,8 @@
-# nvidia-24.7.sh
+# nvidia-26.sh
 #
-# Description: nvidia SDK 24.7 environment
+# Description: nvidia SDK 26 environment
 #
-SDK=/opt/nvidia/hpc_sdk/Linux_x86_64/24.11
+SDK=/opt/nvidia/hpc_sdk/Linux_x86_64/2026
 export NVHPC_ROOT=$SDK
 PATH=$SDK/compilers/bin:$SDK/comm_libs/mpi/bin:$PATH
 LD_LIBRARY_PATH=$SDK/compilers/lib:$LD_LIBRARY_PATH

@@ -1,3 +1,11 @@
 vim/plugged/
 vim/.netrwhist
 vim/view/
+vim/vim
+bash/private
+openrouter-ai-key
+*.gpg
+*token*
+*secret*
+*api-key*
+*api_key*

@@ -1,11 +1,11 @@
 # ~/.bash/paths
 source ~/.bash/functions
 
-# local path
-pathmunge . after
-
 # bin
 pathmunge ~/.bin after
+
+# ~/.local/bin
+pathmunge ~/.local/bin
 
 # scripts
 pathmunge ~/.scripts after

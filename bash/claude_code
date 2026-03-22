@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# Claude Code Dual-Mode Setup: Local Ollama + Cloud Anthropic
+#
+# Workstation: 2x NVIDIA CUDA GPUs (12GB VRAM each) + 64GB system RAM
+# Source from ~/.bashrc or ~/.zshrc
+
+# ── GPU CONFIGURATION ─────────────────────────────────────────────────────────
+# Identify GPUs with: nvidia-smi -L
+export OLLAMA_GPU_UUID="GPU-63e0fc4d-bd54-cc22-532e-299518238d61"
+export OLLAMA_GPU_ID="1"
+
+# ── OLLAMA SERVER SETTINGS ────────────────────────────────────────────────────
+export OLLAMA_HOST="127.0.0.1:11434"
+export OLLAMA_KEEP_ALIVE="10m"
+export OLLAMA_NUM_PARALLEL="1"
+export OLLAMA_MAX_LOADED_MODELS="1"
+export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM, required for KV quant
+export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for more savings
+
+# ── MODEL DEFAULTS ────────────────────────────────────────────────────────────
+# DEFAULT: qwen3.5:latest — best quality/hardware balance, 2 GPUs
+#   Fast fallback: qwen3-coder (~19GB Q4_K_M, fits entirely in 2×12GB VRAM)
+#   Lighter single-GPU options: qwen2.5-coder:7b (~5GB), glm-4.7-flash (~14GB)
+#   Avoid dense 30B+ models — RAM spill makes them 5-20x slower than MoE.
+OLLAMA_DEFAULT_MODEL="qwen3.5:latest"
+OLLAMA_FAST_MODEL="qwen3-coder"
+
+# Plan-mode: architect (planner) + executor (implementer)
+OLLAMA_PLAN_MODEL="qwen3.5:27b"   # Architect: designs approach, breaks down tasks
+OLLAMA_EXEC_MODEL="qwen3.5:35b"   # Executor: fast implementation of the plan
+
+# ── LOCAL CLAUDE FUNCTIONS ────────────────────────────────────────────────────
+
+claude-local() {
+    # Local Ollama — full context, default model (requires 2 GPUs)
+    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
+    ANTHROPIC_AUTH_TOKEN=ollama \
+    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$model" "${@:2}"
+}
+
+claude-local-fast() {
+    # Local Ollama — fast model (fits entirely in VRAM, single GPU OK)
+    ANTHROPIC_AUTH_TOKEN=ollama \
+    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$OLLAMA_FAST_MODEL" "$@"
+}
+
+claude-local-plan() {
+    # Local plan mode: starts with architect (qwen3.5:27b) for planning.
+    # When ready to implement, switch mid-session with: /model qwen3.5:35b
+    printf '\n=== LOCAL PLAN MODE ===\n'
+    printf '  ARCHITECT : %s\n' "$OLLAMA_PLAN_MODEL"
+    printf '  EXECUTOR  : %s\n' "$OLLAMA_EXEC_MODEL"
+    printf '\nStarting with architect model. Switch to executor when ready:\n'
+    printf '  /model %s\n\n' "$OLLAMA_EXEC_MODEL"
+    ANTHROPIC_AUTH_TOKEN=ollama \
+    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$OLLAMA_PLAN_MODEL" "$@"
+}
+
+claude-local-exec() {
+    # Local executor only — skips planning, jumps straight to implementer model
+    ANTHROPIC_AUTH_TOKEN=ollama \
+    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$OLLAMA_EXEC_MODEL" "$@"
+}
+
+# ── CLOUD CLAUDE FUNCTIONS ────────────────────────────────────────────────────
+
+claude-sonnet() { claude --model "sonnet" "$@"; }
+claude-opus()   { claude --model "opus" "$@"; }
+claude-plan()   { claude --model "opusplan" "$@"; }  # Opus plan + Sonnet execute
+
+# ── OLLAMA SERVICE MANAGEMENT ─────────────────────────────────────────────────
+
+ollama-start() {
+    # Start Ollama pinned to a specific GPU (defaults to OLLAMA_GPU_UUID)
+    local gpu="${OLLAMA_GPU_UUID:-${1:-$OLLAMA_GPU_ID}}"
+    echo "Starting Ollama on GPU: $gpu"
+    CUDA_VISIBLE_DEVICES="$gpu" ollama serve &
+    disown
+    sleep 2
+    echo "Ollama running at http://${OLLAMA_HOST}"
+}
+
+ollama-start-multi() {
+    # Start Ollama on ALL GPUs (needed for models > 12GB like qwen3.5:latest)
+    echo "Starting Ollama on ALL GPUs — do not run HPC jobs concurrently"
+    ollama serve &
+    disown
+    sleep 2
+    echo "Ollama running at http://${OLLAMA_HOST}"
+}
+
+ollama-stop() {
+    pkill -f "ollama serve" 2>/dev/null && echo "Ollama stopped." || echo "Ollama not running."
+}
+
+ollama-restart() {
+    ollama-stop
+    sleep 1
+    ollama-start "$@"
+}
+
+ollama-status() {
+    echo "=== Ollama Process ==="
+    pgrep -a "ollama" || echo "Not running"
+    echo ""
+    echo "=== Loaded Models ==="
+    curl -s "http://${OLLAMA_HOST}/api/ps" 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "Cannot reach Ollama"
+    echo ""
+    echo "=== GPU Status ==="
+    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
+               --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
+}
+
+# ── MODEL HELPERS ─────────────────────────────────────────────────────────────
+
+ollama-pull() {
+    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
+    echo "Pulling: $model"
+    ollama pull "$model"
+}
+
+ollama-create-64k() {
+    # Create a 64K-capped variant — predictable RAM when running HPC jobs in parallel
+    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
+    local variant="${model}-64k"
+    local tmpfile
+    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
+    cat > "$tmpfile" <<EOF
+FROM $model
+PARAMETER num_ctx 65536
+EOF
+    ollama create "$variant" -f "$tmpfile"
+    rm -f "$tmpfile"
+    echo "Created: $variant  (use with: claude-local $variant)"
+}
+
+ollama-models() {
+    ollama list 2>/dev/null || echo "Ollama not running. Start with: ollama-start"
+}
+
+# ── QUICK REFERENCE ───────────────────────────────────────────────────────────
+
+claude-help() {
+    cat <<'HELP'
+╔══════════════════════════════════════════════════════════════╗
+║           Claude Code Dual-Mode Quick Reference              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  LOCAL (Ollama, privacy-first):                              ║
+║    claude-local              qwen3.5:latest (2 GPU, default) ║
+║    claude-local <model>      Override model                  ║
+║    claude-local-fast         qwen3-coder (fits VRAM, 1 GPU)  ║
+║    claude-local-plan         Plan: qwen3.5:27b (architect)   ║
+║                              then /model qwen3.5:35b to exec ║
+║    claude-local-exec         Jump straight to executor       ║
+║                                                              ║
+║  CLOUD (Anthropic API):                                      ║
+║    claude                    Subscription default            ║
+║    claude-sonnet             Force Sonnet                    ║
+║    claude-opus               Force Opus                      ║
+║    claude-plan               Opus plan + Sonnet execute      ║
+║                                                              ║
+║  MID-SESSION (inside Claude Code):                           ║
+║    /model qwen3.5:35b        Switch to executor              ║
+║    /model sonnet             Switch to Sonnet (cloud)        ║
+║                                                              ║
+║  OLLAMA MANAGEMENT:                                          ║
+║    ollama-start              Start on dedicated GPU          ║
+║    ollama-start-multi        Start on ALL GPUs (large models)║
+║    ollama-stop               Stop Ollama                     ║
+║    ollama-restart            Restart Ollama                  ║
+║    ollama-status             GPU + loaded model status       ║
+║    ollama-pull [model]       Pull a model                    ║
+║    ollama-create-64k [model] Create 64K-capped variant       ║
+║    ollama-models             List available models           ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+HELP
+}
