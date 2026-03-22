@@ -1,7 +1,7 @@
 #!/bin/bash
 pathmunge () {
   # Add paths to PATH
-  if test -d $1 && ! echo $PATH | /bin/egrep -q "(^|:)$1($|:)" ; then
+  if test -d $1 && ! echo $PATH | /bin/grep -E -q "(^|:)$1($|:)" ; then
     if [ "$2" = "after" ] ; then
       PATH=$PATH:$1
     else

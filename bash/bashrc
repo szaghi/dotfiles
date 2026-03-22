@@ -85,12 +85,4 @@ export NVM_DIR="$HOME/.nvm"
 # API keys are loaded from ~/.bash/private
 
 source '/home/stefano/.bash_completions/mosaic.sh'
-
-
-
-source '/home/stefano/.bash_completions/FoBiS.py.sh'
-
-
 source '/home/stefano/.bash_completions/fobis.sh'
-
-
