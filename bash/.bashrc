@@ -49,23 +49,20 @@ fi;
 [ -e "$HOME/.ssh/config" ] && complete -o "default" -o "nospace" -W "$(grep "^Host" ~/.ssh/config | grep -v "[?*]" | cut -d " " -f2- | tr ' ' '\n')" scp sftp ssh;
 
 # autocomplete to bd script
-if [ -f /home/stefano/dotfiles/scripts/bd/bash_completion.d/bd ]; then
-	source /home/stefano/dotfiles/scripts/bd/bash_completion.d/bd;
+if [ -f "$HOME/.bash/completions/bd" ]; then
+	source "$HOME/.bash/completions/bd";
 fi;
-
-# added by travis gem
-[ -f /home/stefano/.travis/travis.sh ] && source /home/stefano/.travis/travis.sh
 
 # Hook for desk activation
 [ ! -z "$DESK_ENV" ] && source "$DESK_ENV"
 
 # icons-in-terminal
-if [ -f /home/stefano/.local/share/icons-in-terminal/icons_bash.sh ]; then
-   source /home/stefano/.local/share/icons-in-terminal/icons_bash.sh
+if [ -f "$HOME/.local/share/icons-in-terminal/icons_bash.sh" ]; then
+   source "$HOME/.local/share/icons-in-terminal/icons_bash.sh"
 fi;
 
 # pnpm
-export PNPM_HOME="/home/stefano/.local/share/pnpm"
+export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
@@ -78,5 +75,5 @@ export NVM_DIR="$HOME/.nvm"
 
 # API keys are loaded from ~/.bash/private
 
-source '/home/stefano/.bash_completions/mosaic.sh'
-source '/home/stefano/.bash_completions/fobis.sh'
+[[ -f "$HOME/.bash_completions/mosaic.sh" ]] && source "$HOME/.bash_completions/mosaic.sh"
+[[ -f "$HOME/.bash_completions/fobis.sh" ]] && source "$HOME/.bash_completions/fobis.sh"

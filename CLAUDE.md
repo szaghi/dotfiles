@@ -8,36 +8,46 @@ Personal dotfiles for Stefano Zaghi — a Linux/WSL2 workstation setup focused o
 
 ## Deployment
 
-Dotfiles are deployed via `dotify.sh` (custom symlink script, not dotbot despite the README):
+Dotfiles are deployed via **GNU Stow** through the `dotify.sh` wrapper:
 
 ```bash
+# Install stow (once)
+sudo apt install stow
+
+# Deploy all packages
 bash ~/dotfiles/dotify.sh
+
+# Dry-run (preview changes without applying)
+bash ~/dotfiles/dotify.sh --dry-run
+
+# Uninstall (remove all symlinks)
+bash ~/dotfiles/dotify.sh --uninstall
+
+# Deploy a specific package only
+bash ~/dotfiles/dotify.sh bash vim
 ```
 
-This creates symlinks from `~/dotfiles/<dir>/file` → `~/<target>`. Key mappings:
-- `bash/*` → `~/.bash/*` and `~/.bashrc`, `~/.inputrc`
-- `vim/` → `~/.vim/` and `~/.vimrc`
-- `git/gitconfig` → `~/.gitconfig`
-- `desks/*.sh` → `~/.desk/desks/*.sh`
-- `python/*` → `~/.pythonrc`, `~/.pylintrc`
-- `miscellanea/latexmkrc` → `~/.latexmkrc`
-- `claude/*` → `~/.claude/*` (CLAUDE.md, settings.json, settings.local.json, statusline-command.sh, commands/)
+Each top-level directory is a **stow package** whose internal layout mirrors `$HOME`. For example, `bash/.bashrc` is symlinked to `~/.bashrc`, and `bash/.bash/aliases` to `~/.bash/aliases`.
+
+Machine-specific packages (e.g. `usr/` for desktop files) are listed in `machines/<hostname>` and auto-applied.
 
 ## Directory Structure
 
-- **`bash/`** — Shell config: `bashrc`, `aliases`, `exports`, `functions`, `paths`, `optprogs`, `inputrc`, `claude_code`, `prompt`, `compilers`
-- **`claude/`** — Claude Code config: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/` (custom slash commands). Secrets (`.credentials.json`, `.env`) are gitignored and never tracked.
-- **`vim/`** — Vim config: `vimrc` + per-filetype rc files (`fortranrc.vim`, `pythonrc.vim`, `latexrc.vim`, `markdownrc.vim`, `fobosrc.vim`); plugins managed via vim-plug in `plugged/`
-- **`git/`** — `gitconfig`, commit message template (Conventional Commits)
-- **`desks/`** — [desk](https://github.com/jamesob/desk) environment scripts for HPC toolchains (nvidia HPC SDK, Intel, AMD, GCC, OpenMPI variants); activated via `desk` command
-- **`scripts/`** — Bundled third-party scripts: `bd` (back-directory), `gws` (git workspace), `desk`, `borg-automated-backup`, image utilities, etc.
-- **`python/`** — `pythonrc`, `pylintrc`, `gdb-dashboard`, `git-remote-dropbox`, `markdown-toclify`, `scholar`
-- **`bin/`** — `act` (GitHub Actions local runner)
-- **`miscellanea/`** — `latexmkrc`, `mount-zaghi-nas.sh`
+Each directory is a stow package — internal paths mirror `$HOME`:
+
+- **`bash/`** — Shell config: `.bashrc`, `.bash_profile`, `.inputrc`, `.bash/{aliases,exports,functions,paths,optprogs,claude_code,compilers,prompt}`. The `bd` back-directory completion is vendored at `.bash/completions/bd`.
+- **`claude/`** — Claude Code config in `.claude/`: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/`. Secrets (`.credentials.json`, `.env`) are gitignored.
+- **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, plugconf, spell, syntax). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
+- **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
+- **`desks/`** — [desk](https://github.com/jamesob/desk) environment scripts in `.desk/desks/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants).
+- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, etc.) and `.bin/act`. The `bd` and `desk` scripts are vendored here.
+- **`python/`** — `.pythonrc`, `.pylintrc`
+- **`miscellanea/`** — `.latexmkrc`
+- **`usr/`** — Desktop application entries in `.local/share/applications/` (machine-specific, see `machines/`)
 
 ## Commit Convention
 
-Commits use **Conventional Commits** (enforced by the git commit template at `git/git_commit_message_template`):
+Commits use **Conventional Commits** (enforced by the git commit template at `git/.git-templates/git_commit_message_template`):
 
 ```
 <type>(<scope>): <description>
@@ -45,7 +55,7 @@ Commits use **Conventional Commits** (enforced by the git commit template at `gi
 
 Types: `feat`, `fix`, `build`, `ci`, `test`, `docs`, `refactor`, `perf`, `style`, `chore`, `revert`. GPG signing is enabled for commits and tags.
 
-## Claude Code / Ollama Setup (`bash/claude_code`)
+## Claude Code / Ollama Setup (`bash/.bash/claude_code`)
 
 This file (sourced by `~/.bashrc`) configures dual-mode Claude Code operation:
 
@@ -68,7 +78,7 @@ desk go gcc-15.1.0     # Load GCC 15.1.0
 desk go intel          # Load Intel compilers
 ```
 
-Each desk script in `desks/` sets `PATH`, `LD_LIBRARY_PATH`, `MANPATH`, and compiler-specific env vars. The NVIDIA desk also sets MPI launch flags tuned for UCX.
+Each desk script in `desks/.desk/desks/` sets `PATH`, `LD_LIBRARY_PATH`, `MANPATH`, and compiler-specific env vars. The NVIDIA desk also sets MPI launch flags tuned for UCX.
 
 ## Vim Key Conventions
 
