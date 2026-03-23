@@ -47,7 +47,12 @@ _pct_color() {
 
 # ── Model ────────────────────────────────────────────────────────────────────
 model_part=""
-[ -n "$_model" ] && model_part="${violet}${_model}${reset}"
+if [ -n "$_model" ]; then
+    model_part="${violet}${_model}${reset}"
+    if [ -n "${CLAUDE_LOCAL_GPUS:-}" ]; then
+        model_part+="${dim}·${CLAUDE_LOCAL_GPUS}×GPU${reset}"
+    fi
+fi
 
 # ── Working directory ────────────────────────────────────────────────────────
 dir_part=""

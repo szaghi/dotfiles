@@ -18,16 +18,15 @@ export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM, required for KV quant
 export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for more savings
 
 # ── MODEL DEFAULTS ────────────────────────────────────────────────────────────
-# DEFAULT: qwen3.5:latest — best quality/hardware balance, 2 GPUs
-#   Fast fallback: qwen3-coder (~19GB Q4_K_M, fits entirely in 2×12GB VRAM)
-#   Lighter single-GPU options: qwen2.5-coder:7b (~5GB), glm-4.7-flash (~14GB)
+# DEFAULT: qwen3-coder:latest — MoE 30B-A3B Q4_K_M, 18 GB, dual GPU
+#   3B active params → inference speed of a 3B dense model, quality > 30B dense.
 #   Avoid dense 30B+ models — RAM spill makes them 5-20x slower than MoE.
-OLLAMA_DEFAULT_MODEL="qwen3.5:latest"
-OLLAMA_FAST_MODEL="qwen3-coder"
+OLLAMA_DEFAULT_MODEL="qwen3-coder:latest"
+OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
 
 # Plan-mode: architect (planner) + executor (implementer)
-OLLAMA_PLAN_MODEL="qwen3.5:27b"   # Architect: designs approach, breaks down tasks
-OLLAMA_EXEC_MODEL="qwen3.5:35b"   # Executor: fast implementation of the plan
+OLLAMA_PLAN_MODEL="qwen3.5:27b"          # Architect: broad reasoning, designs approach
+OLLAMA_EXEC_MODEL="qwen3-coder:latest"   # Executor: coding-specialized, fast MoE inference
 
 # ── LOCAL CLAUDE FUNCTIONS ────────────────────────────────────────────────────
 
@@ -37,29 +36,50 @@ claude-local() {
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
     ANTHROPIC_API_KEY="" \
+    CLAUDE_LOCAL_GPUS=2 \
     claude --model "$model" "${@:2}"
 }
 
-claude-local-fast() {
-    # Local Ollama — fast model (fits entirely in VRAM, single GPU OK)
+claude-local-light() {
+    # Local Ollama — single-GPU model (8.9 GB); use when GPU 2 is needed for HPC jobs
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
     ANTHROPIC_API_KEY="" \
-    claude --model "$OLLAMA_FAST_MODEL" "$@"
+    CLAUDE_LOCAL_GPUS=1 \
+    claude --model "$OLLAMA_LIGHT_MODEL" "$@"
 }
 
 claude-local-plan() {
-    # Local plan mode: starts with architect (qwen3.5:27b) for planning.
-    # When ready to implement, switch mid-session with: /model qwen3.5:35b
+    # Local plan mode: starts with architect for planning.
+    # When ready to implement, switch mid-session with: /model plan-executor
+    # Run ollama-plan-setup once to register the short-name aliases.
     printf '\n=== LOCAL PLAN MODE ===\n'
-    printf '  ARCHITECT : %s\n' "$OLLAMA_PLAN_MODEL"
-    printf '  EXECUTOR  : %s\n' "$OLLAMA_EXEC_MODEL"
-    printf '\nStarting with architect model. Switch to executor when ready:\n'
-    printf '  /model %s\n\n' "$OLLAMA_EXEC_MODEL"
+    printf '  ARCHITECT : plan-architect  (%s)\n' "$OLLAMA_PLAN_MODEL"
+    printf '  EXECUTOR  : plan-executor   (%s)\n' "$OLLAMA_EXEC_MODEL"
+    printf '\nSwitch to executor when ready:\n'
+    printf '  /model plan-executor\n\n'
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
     ANTHROPIC_API_KEY="" \
-    claude --model "$OLLAMA_PLAN_MODEL" "$@"
+    CLAUDE_LOCAL_GPUS=2 \
+    claude --model "plan-architect" "$@"
+}
+
+ollama-plan-setup() {
+    # Register short-name aliases for plan-mode models (run once after ollama-start)
+    local tmpfile
+    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
+
+    printf 'FROM %s\n' "$OLLAMA_PLAN_MODEL" > "$tmpfile"
+    ollama create plan-architect -f "$tmpfile" \
+        && printf 'Created: plan-architect → %s\n' "$OLLAMA_PLAN_MODEL"
+
+    printf 'FROM %s\n' "$OLLAMA_EXEC_MODEL" > "$tmpfile"
+    ollama create plan-executor -f "$tmpfile" \
+        && printf 'Created: plan-executor  → %s\n' "$OLLAMA_EXEC_MODEL"
+
+    rm -f "$tmpfile"
+    printf '\nUse /model plan-executor inside a session to switch.\n'
 }
 
 claude-local-exec() {
@@ -67,6 +87,7 @@ claude-local-exec() {
     ANTHROPIC_AUTH_TOKEN=ollama \
     ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
     ANTHROPIC_API_KEY="" \
+    CLAUDE_LOCAL_GPUS=2 \
     claude --model "$OLLAMA_EXEC_MODEL" "$@"
 }
 
@@ -74,7 +95,7 @@ claude-local-exec() {
 
 claude-sonnet() { claude --model "sonnet" "$@"; }
 claude-opus()   { claude --model "opus" "$@"; }
-claude-plan()   { claude --model "opusplan" "$@"; }  # Opus plan + Sonnet execute
+claude-plan()   { claude --permission-mode plan --model "opusplan" "$@"; }  # read-only plan (Opus) → auto-switch to Sonnet on execute
 
 # ── OLLAMA SERVICE MANAGEMENT ─────────────────────────────────────────────────
 
@@ -149,39 +170,40 @@ ollama-models() {
 # ── QUICK REFERENCE ───────────────────────────────────────────────────────────
 
 claude-help() {
-    cat <<'HELP'
-╔══════════════════════════════════════════════════════════════╗
-║           Claude Code Dual-Mode Quick Reference              ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  LOCAL (Ollama, privacy-first):                              ║
-║    claude-local              qwen3.5:latest (2 GPU, default) ║
-║    claude-local <model>      Override model                  ║
-║    claude-local-fast         qwen3-coder (fits VRAM, 1 GPU)  ║
-║    claude-local-plan         Plan: qwen3.5:27b (architect)   ║
-║                              then /model qwen3.5:35b to exec ║
-║    claude-local-exec         Jump straight to executor       ║
-║                                                              ║
-║  CLOUD (Anthropic API):                                      ║
-║    claude                    Subscription default            ║
-║    claude-sonnet             Force Sonnet                    ║
-║    claude-opus               Force Opus                      ║
-║    claude-plan               Opus plan + Sonnet execute      ║
-║                                                              ║
-║  MID-SESSION (inside Claude Code):                           ║
-║    /model qwen3.5:35b        Switch to executor              ║
-║    /model sonnet             Switch to Sonnet (cloud)        ║
-║                                                              ║
-║  OLLAMA MANAGEMENT:                                          ║
-║    ollama-start              Start on dedicated GPU          ║
-║    ollama-start-multi        Start on ALL GPUs (large models)║
-║    ollama-stop               Stop Ollama                     ║
-║    ollama-restart            Restart Ollama                  ║
-║    ollama-status             GPU + loaded model status       ║
-║    ollama-pull [model]       Pull a model                    ║
-║    ollama-create-64k [model] Create 64K-capped variant       ║
-║    ollama-models             List available models           ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-HELP
+    local b=$'\033[1m' r=$'\033[0m' dim=$'\033[2m'
+    local sep="${dim}  ──────────────────────────────────────────────────────${r}"
+    printf '\n'
+    printf "  ${b}claude${r} — dual-mode quick reference\n"
+    printf '\n'
+    printf "  ${b}LOCAL${r}  Ollama · privacy-first\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'claude-local'               'qwen3-coder MoE 30B-A3B  dual GPU · default'
+    printf '  %-28s%s\n' 'claude-local <model>'       'override model'
+    printf '  %-28s%s\n' 'claude-local-light'         'deepseek-coder-v2 16B  single GPU · HPC-safe'
+    printf '  %-28s%s\n' 'claude-local-plan'          'plan-architect → /model plan-executor to switch'
+    printf '  %-28s%s\n' 'claude-local-exec'          'skip planning, run executor directly'
+    printf '\n'
+    printf "  ${b}CLOUD${r}  Anthropic API\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'claude'                     'subscription default'
+    printf '  %-28s%s\n' 'claude-sonnet'              'force Sonnet'
+    printf '  %-28s%s\n' 'claude-opus'                'force Opus'
+    printf '  %-28s%s\n' 'claude-plan'                'read-only plan (Opus) → auto-switch to Sonnet'
+    printf '\n'
+    printf "  ${b}MID-SESSION${r}  inside Claude Code\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' '/model plan-executor'       'switch to executor (local plan mode)'
+    printf '  %-28s%s\n' '/model sonnet'              'switch to Sonnet'
+    printf '\n'
+    printf "  ${b}OLLAMA${r}  service management\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'ollama-start'               'start on dedicated GPU'
+    printf '  %-28s%s\n' 'ollama-start-multi'         'start on all GPUs'
+    printf '  %-28s%s\n' 'ollama-stop / -restart'     'stop / restart'
+    printf '  %-28s%s\n' 'ollama-status'              'GPU + loaded model status'
+    printf '  %-28s%s\n' 'ollama-pull [model]'        'pull a model'
+    printf '  %-28s%s\n' 'ollama-create-64k [model]'  'create 64K-capped variant'
+    printf '  %-28s%s\n' 'ollama-plan-setup'          'register plan-architect / plan-executor aliases'
+    printf '  %-28s%s\n' 'ollama-models'              'list available models'
+    printf '\n'
 }

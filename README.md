@@ -296,23 +296,28 @@ deployed to `~/.claude/`:
 **Dual-mode Claude Code** (`bash/claude_code`):
 
 ```bash
-# Local — Ollama, privacy-first (requires 2× NVIDIA GPU)
-claude-local                  # qwen3.5:latest (default)
-claude-local-fast             # qwen3-coder (fits in VRAM, 1 GPU)
-claude-local-plan             # architect model, switch to executor mid-session
-claude-local-exec             # jump straight to executor model
+# Local — Ollama, privacy-first (requires 2× NVIDIA GPU unless noted)
+claude-local                  # qwen3-coder:latest — MoE 30B-A3B, 18 GB (default)
+claude-local-light            # deepseek-coder-v2:16b, 8.9 GB — single GPU, HPC-safe
+claude-local-plan             # architect: plan-architect → /model plan-executor to switch
+claude-local-exec             # jump straight to executor (qwen3-coder:latest)
 
 # Cloud — Anthropic API
 claude                        # subscription default
 claude-sonnet                 # force Sonnet
 claude-opus                   # force Opus
-claude-plan                   # Opus plan + Sonnet execute
+claude-plan                   # read-only plan (Opus) → auto-switch to Sonnet on execute
 
 # Ollama management
 ollama-start-multi            # start on all GPUs (large models)
+ollama-plan-setup             # register plan-architect / plan-executor aliases (run once)
 ollama-status                 # GPU + loaded model status
 claude-help                   # full quick-reference
 ```
+
+`ollama-plan-setup` must be run once after each fresh Ollama start to register the
+`plan-architect` and `plan-executor` short-name aliases. Re-run it if `OLLAMA_PLAN_MODEL`
+or `OLLAMA_EXEC_MODEL` are changed.
 
 ---
 
