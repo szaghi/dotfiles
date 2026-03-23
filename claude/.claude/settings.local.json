@@ -33,7 +33,10 @@
       "Bash(grep:*)",
       "Bash(find /home/stefano/dotfiles -name *gibo* -type f)",
       "Bash(/tmp/check_submodules.txt:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebFetch(domain:ollama.com)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
