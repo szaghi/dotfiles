@@ -21,12 +21,14 @@ This creates symlinks from `~/dotfiles/<dir>/file` → `~/<target>`. Key mapping
 - `desks/*.sh` → `~/.desk/desks/*.sh`
 - `python/*` → `~/.pythonrc`, `~/.pylintrc`
 - `miscellanea/latexmkrc` → `~/.latexmkrc`
+- `claude/*` → `~/.claude/*` (CLAUDE.md, settings.json, settings.local.json, statusline-command.sh, commands/)
 
 ## Directory Structure
 
 - **`bash/`** — Shell config: `bashrc`, `aliases`, `exports`, `functions`, `paths`, `optprogs`, `inputrc`, `claude_code`, `prompt`, `compilers`
+- **`claude/`** — Claude Code config: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/` (custom slash commands). Secrets (`.credentials.json`, `.env`) are gitignored and never tracked.
 - **`vim/`** — Vim config: `vimrc` + per-filetype rc files (`fortranrc.vim`, `pythonrc.vim`, `latexrc.vim`, `markdownrc.vim`, `fobosrc.vim`); plugins managed via vim-plug in `plugged/`
-- **`git/`** — `gitconfig`, commit message template (Conventional Commits), `gibo` (gitignore generator), `git-hub` CLI
+- **`git/`** — `gitconfig`, commit message template (Conventional Commits)
 - **`desks/`** — [desk](https://github.com/jamesob/desk) environment scripts for HPC toolchains (nvidia HPC SDK, Intel, AMD, GCC, OpenMPI variants); activated via `desk` command
 - **`scripts/`** — Bundled third-party scripts: `bd` (back-directory), `gws` (git workspace), `desk`, `borg-automated-backup`, image utilities, etc.
 - **`python/`** — `pythonrc`, `pylintrc`, `gdb-dashboard`, `git-remote-dropbox`, `markdown-toclify`, `scholar`

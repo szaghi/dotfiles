@@ -7,13 +7,7 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.bash/{private,aliases,compilers,claude_code,concurrent,exports,functions,optprogs,paths,prompt,pyenv,read_ini}; do
-	[ -r "$file" ] && [ -f "$file" ] && source "$file";
-done;
-unset file;
-
-# load the git dotfiles
-for file in ~/.git/{gibo-completion,git-flow-completition,git-hub/.rc}; do
+for file in ~/.bash/{private,aliases,compilers,claude_code,exports,functions,optprogs,paths,prompt}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;

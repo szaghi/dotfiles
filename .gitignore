@@ -4,6 +4,8 @@ vim/view/
 vim/vim
 bash/private
 openrouter-ai-key
+claude/.credentials.json
+claude/.env
 *.gpg
 *token*
 *secret*

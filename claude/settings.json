@@ -1,0 +1,28 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/stefano/.claude/statusline-command.sh"
+  },
+  "permissions": {
+    "allow": [
+      "Read(/home/stefano/fortran/**)",
+      "Write(/home/stefano/fortran/**)",
+      "Edit(/home/stefano/fortran/**)",
+      "Read(/home/stefano/python/**)",
+      "Write(/home/stefano/python/**)",
+      "Edit(/home/stefano/python/**)"
+    ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
+  }
+}
