@@ -70,21 +70,15 @@ prompt_git() {
 		return;
 	fi;
 }
-prompt_desk() {
-	local s='';
-  local deskfile=$(desk | head -n 1);
-
-	# Check if the shell has loaded a deskfile
-	if [ "$deskfile" == 'No desk activated.' ]; then
+prompt_lmod() {
+	# Show loaded Lmod modules (LOADEDMODULES is colon-separated, e.g. gcc/15.1.0:openmpi/5.0.7-gnu14.2.0)
+	if [[ -z "${LOADEDMODULES:-}" ]]; then
 		return;
-	else
-		echo -e "${1}{"$deskfile"}";
-	fi;
+	fi
+	local mods="${LOADEDMODULES//:/ }"
+	echo -e "${1}{${mods}}";
 }
 prompt_virtualenv() {
-	local s='';
-  local deskfile=$(desk | head -n 1);
-
 	# Check if the shell has loaded a Python VirtualEnv
 	if test -z "$VIRTUAL_ENV" ; then
 		return;
@@ -124,7 +118,7 @@ PS1+="\[${reset}\]@";
 PS1+="\[${hostStyle}\]\h";
 PS1+="\[${reset}\](\@ \d)"
 PS1+="\$(prompt_git \"${white} on ${yellow}\")"; # Git repository details
-PS1+="\$(prompt_desk \"${white} desk ${orange}\")"; # Desk files details
+PS1+="\$(prompt_lmod \"${white} env ${orange}\")"; # Lmod loaded modules
 PS1+="\$(prompt_virtualenv \"${white} pvenv ${orange}\")"; # Python VirtualEnv repository details
 PS1+="\n";
 PS1+="\[${reset}├───╼ \]\[${blue}\w\] ";

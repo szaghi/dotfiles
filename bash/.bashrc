@@ -53,9 +53,6 @@ if [ -f "$HOME/.bash/completions/bd" ]; then
 	source "$HOME/.bash/completions/bd";
 fi;
 
-# Hook for desk activation
-[ ! -z "$DESK_ENV" ] && source "$DESK_ENV"
-
 # icons-in-terminal
 if [ -f "$HOME/.local/share/icons-in-terminal/icons_bash.sh" ]; then
    source "$HOME/.local/share/icons-in-terminal/icons_bash.sh"

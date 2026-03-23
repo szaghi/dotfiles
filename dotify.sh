@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DOT="$(cd "$(dirname "$0")" && pwd)"
-PACKAGES=(bash vim git claude desks python scripts miscellanea)
+PACKAGES=(bash vim git claude modules python scripts miscellanea)
 
 usage() {
   echo "Usage: $(basename "$0") [OPTIONS] [packages...]"
