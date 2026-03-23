@@ -1,11 +1,12 @@
-vim/plugged/
-vim/.netrwhist
+vim/.vim/plugged/
+vim/.vim/.netrwhist
+vim/.vim/view/
 vim/view/
 vim/vim
-bash/private
+bash/.bash/private
 openrouter-ai-key
-claude/.credentials.json
-claude/.env
+claude/.claude/.credentials.json
+claude/.claude/.env
 *.gpg
 *token*
 *secret*

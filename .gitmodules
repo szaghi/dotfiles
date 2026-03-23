@@ -1,6 +1,0 @@
-[submodule "scripts/desk"]
-	path = scripts/desk
-	url = https://github.com/jamesob/desk
-[submodule "scripts/bd"]
-	path = scripts/bd
-	url = https://github.com/vigneshwaranr/bd

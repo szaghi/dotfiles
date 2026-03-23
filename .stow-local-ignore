@@ -1,0 +1,21 @@
+# Directories that are not stow packages
+^background$
+^screenshots$
+^machines$
+^scripts/bd$
+^scripts/desk$
+^scripts/dpkg$
+^scripts/pacman$
+^scripts/pdf$
+^scripts/tecplot$
+^bin$
+
+# Repo metadata
+^README\.md$
+^CLAUDE\.md$
+^dotify\.sh$
+^\.stow-local-ignore$
+^\.gitignore$
+^\.gitattributes$
+^\.claude$
+^\.git$

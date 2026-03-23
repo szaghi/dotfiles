@@ -13,14 +13,8 @@
   ui = always
 [credential]
 	helper = cache
-[giggle]
-	main-window-maximized = true
-	main-window-geometry = 700x550+599+282
-	history-view-vpane-position = 639
-	main-window-view = HistoryView
-	file-view-vpane-position = 469
 [commit]
-  template = ~/.git/git_commit_message_template
+  template = ~/.git-templates/git_commit_message_template
 	gpgsign = true
 [diff]
 	tool = vimdiff
@@ -43,8 +37,6 @@
 	whitespace = fix
 [github]
 	user = szaghi
-[include]
-	path = ~/.git/ghi_token
 [init]
 	defaultBranch = main
 [filter "lfs"]
