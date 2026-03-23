@@ -2,148 +2,233 @@
 
 # szaghi's dotfiles
 
-[![Join the chat at https://gitter.im/szaghi/dotfiles](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/szaghi/dotfiles?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 > *dotfiles* are your virtual home... this is my home
 
-|App          | My choice                                                      |
-|-------------|----------------------------------------------------------------|
-|os           | [Arch Linux](www.archlinux.org)                                |
-|wm           | [i3-gaps](https://github.com/Airblader/i3)                     |
-|shell        | [bash]( http://www.gnu.org/software/bash)                      |
-|terminal     | [terminlogy](https://www.enlightenment.org/about-terminology)  |
-|editor       | [vim](http://www.vim.org)                                      |
-|music player | [cmus](https://cmus.github.io)                                 |
-|theme        | [solarized (everywhere)](http://ethanschoonover.com/solarized) |
+| | My choice |
+|---|---|
+| **OS** | [Arch Linux](https://archlinux.org) + [WSL2](https://learn.microsoft.com/en-us/windows/wsl/) on Windows 11 |
+| **Desktop** | [KDE Plasma](https://kde.org/plasma-desktop/) |
+| **Shell** | [bash](https://www.gnu.org/software/bash/) |
+| **Terminal** | [Konsole](https://konsole.kde.org/) (Arch) · [Windows Terminal](https://github.com/microsoft/terminal) (WSL2) |
+| **Editor** | [vim](https://www.vim.org) |
+| **Theme** | [Solarized dark](https://ethanschoonover.com/solarized/) (everywhere) |
 
-> A dotfiles repository is not intended to be forked, commonly it is a backup, this is my home not your...
-
-> However, my settings can inspire yours and viceversa, sharing our configs is great!
-
-## What?
-
-##### This repository is
-
-+ a place where to backup my personal configuration files;
-+ a place for sharing my idea;
-+ a place where I hope others can inspire me.
-
-![preview](screenshots/preview.png)
-
-For my *buggy* memory and for your *inspiration*, in the following I give some details about my dotfiles.
-
-> Your help is very appreciated: share with me your dotfiles (and idea), **open an issue** in this repository!
+> A dotfiles repository is not intended to be forked — it is a personal backup and a source of inspiration.
+> Feel free to take what is useful; sharing configs is great.
 
 ## Table of contents
 
 - [Bootstrap](#bootstrap)
-- [dotfiles Tree](#dotfiles-tree)
-  - [i3](#i3)
+- [Directory structure](#directory-structure)
   - [bash](#bash)
   - [vim](#vim)
+  - [git](#git)
+  - [desks — HPC environments](#desks--hpc-environments)
+  - [claude](#claude)
+  - [scripts](#scripts)
 - [Copyrights](#copyrights)
+
+---
 
 ## Bootstrap
 
-> you are your dotfiles, this is me... you should **not** bootstrap from here!
+Deployment is handled by `dotify.sh`, a custom symlink script.
+It creates `~/.bash/`, `~/.vim/`, etc. and populates them with symlinks
+pointing back into this repository.
 
-> ok, you are advised, follow this bootstrap can **destroy** your home!
+### Fresh installation
 
-During my *pernigration* into the web I found [dotbot](https://github.com/anishathalye/dotbot), that is (in short) a smart tool for managing dotfiles.
+```bash
+# 1. Clone the repository
+git clone https://github.com/szaghi/dotfiles ~/dotfiles
 
-My managing approach is:
+# 2. (optional) copy your private bash file
+cp your-private-stuff ~/dotfiles/bash/private
 
-+ store dotfiles into one directory (I named *dotfiles* but it does not matter) thus that I can:
-  + easy version control dotfiles by means of git;
-  + keep clean the repository:
-    + exploit a tree organization based on nested directory;
-  + easy bootstrapping for fresh installation;
-+ my home must contain only *sym links* to the actual dotfiles:
-  + dotbot do this job for me greatly.
-
-Bootstrapping is very simple:
-
-##### Bootstrapping
-```shell
-git clone https://github.com/szaghi/dotfiles your-dotfiles
-cd your-dotfiles
-./install
-```
-No matter you call your dotfiles root directory: dotbot (`install` is its wrapper) will create symbolic links from your dotfiles root directory into your home (but not just this: it will check for previous invalid sym links, cleaning your home if necessary).
-
-The *automagical* bootstrap is done by the [install.conf.yaml](https://github.com/szaghi/dotfiles/blob/master/install.conf.yaml) dotfile where (in a very simple syntax) are defined which (and how) configuration files (and directories) must be symbolically linked into your home.
-
-For example, the **vim** bootstrapping is done by (extracted from my [install.conf.yaml](https://github.com/szaghi/dotfiles/blob/master/install.conf.yaml)):
-
-```yaml
-- link:
-    ~/.vim:
-      path: vim/
-      relink: true
-      force: true
-
-    ~/.vimrc:
-      path: vim/vimrc
-      relink: true
-      force: true
+# 3. Run the deploy script
+bash ~/dotfiles/dotify.sh
 ```
 
-For more details see dotbot [documentation](https://github.com/anishathalye/dotbot).
+`dotify.sh` is idempotent — re-running it is safe; it overwrites symlinks with `ln -fs`.
 
-Go to [Top](#top) or [TOC](#table-of-contents)
+### Submodules
 
-## Dotfiles Tree
+Only two third-party tools are tracked as git submodules:
 
-Presently my tree organization is the following:
+| Submodule | Purpose |
+|---|---|
+| `scripts/desk` | Lightweight environment switcher for HPC toolchains |
+| `scripts/bd` | `bd` — back-directory navigation |
 
-+ **bash**: contains my shell (bash obviously) settings, aliases, exports, ecc...;
-+ **dotbot**: is the git submodule repository containing the dotbot bootstrapper;
-+ **encrypt**: is where I place my encrypted files... stay away;
-+ **git**: contains git configurations;
-+ **i3**: contains i3 wm configurations and scripts;
-+ **icons**: contains my preferred (mouse) icons;
-+ **miscellanea**: contains dotfiles for various stuff that do not necessity more than one config file thus that do not need a dedicated directory;
-+ **terminal**: contains configurations (IO and colors) for the terminal;
-+ **vim**: no explanation is necessary... vim rocks!
+Initialize them after cloning:
 
-I will not give you details about each of them. In the following there are some screenshots of my dotfiles application result.
+```bash
+git submodule update --init
+```
 
-### i3
+---
 
-[i3-gaps](https://github.com/Airblader/i3) is **great**, but it has a big cons... it creates addiction, be careful!
+## Directory structure
 
-I do not use the main branch of i3: I prefer to have a small gap between each window: my settings refers to the [i3-gaps](https://github.com/Airblader/i3) fork.
+```
+dotfiles/
+├── bash/          shell configuration
+├── bin/           standalone binaries (act)
+├── claude/        Claude Code configuration
+├── desks/         HPC desk environment scripts
+├── git/           git configuration and commit template
+├── miscellanea/   single-file configs (latexmkrc, NAS mount script)
+├── python/        Python env (pythonrc, pylintrc)
+├── scripts/       bundled third-party scripts and image utilities
+├── usr/           user-level service files
+├── vim/           vim configuration and plugins
+└── dotify.sh      deploy script
+```
 
-![preview](screenshots/preview.png)
+---
 
-The status bar is slightly hacked for showing the title of the window currently active.
+### bash
 
-### Bash
+`bash/bashrc` loads modular files from `~/.bash/`:
 
-I use a 2-lines bash prompt providing many useful informations.
+| File | Purpose |
+|---|---|
+| `aliases` | Command shortcuts (`ll`, `bd`, pacman helpers, LaTeX, git push aliases) |
+| `exports` | Environment variables |
+| `paths` | `PATH` additions |
+| `functions` | Shell utility functions |
+| `compilers` | Compiler flags and module helpers |
+| `optprogs` | Optional program configuration |
+| `prompt` | Two-line bash prompt with git status integration |
+| `claude_code` | Dual-mode Claude Code setup (local Ollama + cloud Anthropic) |
+| `private` | Machine-specific secrets — **not tracked** |
 
-##### Prompt
+The prompt is two-line and git-aware: it shows branch, dirty state, and ahead/behind counts.
 
-![preview](screenshots/bash-prompt.png)
+---
 
-In particular, when dealing with git repositories, my prompt is like the *liquid* one (google it for more details) providing contextual informations about the current status of the repository where you are.
+### vim
 
-##### Git branches
+Plugins are managed with [vim-plug](https://github.com/junegunn/vim-plug).
+The full plugin set lives in `vim/plugged/` (not tracked).
 
-![preview](screenshots/bash-git-branches.png)
+**Install / update plugins:**
 
-##### Git status
+```vim
+:PlugInstall
+:PlugUpdate
+```
 
-![preview](screenshots/bash-git-status.png)
+Selected plugins:
 
-### Vim
+| Category | Plugins |
+|---|---|
+| Appearance | vim-colors-solarized, lightline + lightline-bufferline, numbers, rainbow-parentheses |
+| Navigation | tagbar, vim-filebeagle, fzf.vim, any-jump |
+| Editing | vim-commentary, trailertrash, vim-easy-align, tabular, lexima, vim-foldfocus |
+| Languages | vimtex, markdown-preview.nvim, python-syntax |
+| Git | vim-gitgutter |
+| Utilities | vim-superman, vim-gnupg, HowMuch, plugconf, vim-bbye |
 
-To be written.
+Per-filetype config is split into dedicated files: `fortranrc.vim`, `pythonrc.vim`,
+`latexrc.vim`, `markdownrc.vim`, `fobosrc.vim`.
 
-Go to [Top](#top) or [TOC](#table-of-contents)
+**Key mappings (leader = `,`):**
+
+| Key | Action |
+|---|---|
+| `<C-Right>` / `<C-Left>` | Next / previous buffer |
+| `qq` | Close buffer (Bdelete) |
+| `<F2>` | Toggle line wrap |
+| `<C-C>` | Toggle virtualedit |
+
+---
+
+### git
+
+| File | Deployed to | Purpose |
+|---|---|---|
+| `git/gitconfig` | `~/.gitconfig` | Git identity, aliases, GPG signing |
+| `git/git_commit_message_template` | `~/.git/git_commit_message_template` | Conventional Commits template |
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
+`type(scope): description`
+
+---
+
+### desks — HPC environments
+
+[desk](https://github.com/jamesob/desk) is used to switch between compiler toolchains.
+Each script in `desks/` loads a full environment (compilers, MPI, paths).
+
+```bash
+desk go nvidia-26          # NVIDIA HPC SDK 26
+desk go gcc-15.1.0         # GCC 15.1.0
+desk go intel              # Intel oneAPI compilers
+desk go amd-5.1.0          # AMD AOCC
+desk go openmpi-5.0.7-gnu-14.2.0
+```
+
+Available desks: `nvidia-24`, `nvidia-25`, `nvidia-26`, `gcc-15.1.0`, `intel`,
+`amd-5.1.0`, and several OpenMPI variants.
+
+---
+
+### claude
+
+`claude/` holds configuration for [Claude Code](https://claude.ai/code),
+deployed to `~/.claude/`:
+
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` | Global instructions for Claude Code |
+| `settings.json` | Permissions and tool settings |
+| `settings.local.json` | Machine-specific overrides — **gitignored** |
+| `statusline-command.sh` | Custom status line command |
+| `commands/semantic-commit.md` | `/semantic-commit` slash command |
+
+**Dual-mode Claude Code** (`bash/claude_code`):
+
+```bash
+# Local — Ollama, privacy-first (requires 2× NVIDIA GPU)
+claude-local                  # qwen3.5:latest (default)
+claude-local-fast             # qwen3-coder (fits in VRAM, 1 GPU)
+claude-local-plan             # architect model, switch to executor mid-session
+claude-local-exec             # jump straight to executor model
+
+# Cloud — Anthropic API
+claude                        # subscription default
+claude-sonnet                 # force Sonnet
+claude-opus                   # force Opus
+claude-plan                   # Opus plan + Sonnet execute
+
+# Ollama management
+ollama-start-multi            # start on all GPUs (large models)
+ollama-status                 # GPU + loaded model status
+claude-help                   # full quick-reference
+```
+
+---
+
+### scripts
+
+| Path | Purpose |
+|---|---|
+| `scripts/desk/` | desk submodule |
+| `scripts/bd/` | bd back-directory submodule |
+| `scripts/images/` | Image processing utilities (convert, crop, scale, alpha…) |
+| `scripts/iso/` | ISO mount/umount helpers |
+| `scripts/miscellanea/` | Misc scripts (archive, PDF preview, NAS mount…) |
+| `scripts/borg-automated-backup/` | Borg backup automation |
+| `scripts/pdf/` | PDF utilities |
+
+---
 
 ## Copyrights
 
-My dotfiles come from a long time usage of GNU/Linux boxes. I take inspiration from a lot of people sharing their dotfiles into the web, I cannot precisely say from where and who. Anyhow, my dotfiles are distributed under the terms of [*WTFPL, Do What the Fuck You Want to*](http://www.wtfpl.net/) Public License without any warranty.
+My dotfiles come from many years of GNU/Linux usage and inspiration from countless
+people sharing their configs on the web. Distributed under the terms of the
+[WTFPL — Do What the Fuck You Want to Public License](http://www.wtfpl.net/),
+without any warranty.
 
-Go to [Top](#top) or [TOC](#table-of-contents)
+Go to [Top](#top)
