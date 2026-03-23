@@ -29,7 +29,7 @@ export TERM='xterm-256color'
 eval "$(dircolors ~/.dircolors.256dark)"
 
 # python interpreter supercharged
-export PYTHONSTARTUP="/home/stefano/.pythonrc"
+export PYTHONSTARTUP="$HOME/.pythonrc"
 
 # highlighting inside manpages and elsewhere
 export LESS_TERMCAP_mb=$'\E[01;31m'       # begin blinking
@@ -43,3 +43,10 @@ export LESS_TERMCAP_us=$'\E[04;38;5;146m' # begin underline
 # Some sane exports
 export PATH SHOST CPU HOSTNAME HOSTTYPE OSTYPE MACHTYPE SHELL INDEXSTYLE
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
+# Lmod — environment module system
+# Install with: sudo apt install lmod
+if [ -f /usr/share/lmod/lmod/init/bash ]; then
+  source /usr/share/lmod/lmod/init/bash
+fi
+export MODULEPATH="$HOME/.modules"

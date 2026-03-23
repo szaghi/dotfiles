@@ -39,8 +39,8 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 - **`claude/`** — Claude Code config in `.claude/`: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/`. Secrets (`.credentials.json`, `.env`) are gitignored.
 - **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, plugconf, spell, syntax). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
 - **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
-- **`desks/`** — [desk](https://github.com/jamesob/desk) environment scripts in `.desk/desks/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants).
-- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, etc.) and `.bin/act`. The `bd` and `desk` scripts are vendored here.
+- **`modules/`** — Lmod modulefiles in `.modules/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants). Load with `module load gcc/15.1.0`.
+- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, etc.) and `.bin/act`. The `bd` script is vendored here.
 - **`python/`** — `.pythonrc`, `.pylintrc`
 - **`miscellanea/`** — `.latexmkrc`
 - **`usr/`** — Desktop application entries in `.local/share/applications/` (machine-specific, see `machines/`)
@@ -68,17 +68,97 @@ This file (sourced by `~/.bashrc`) configures dual-mode Claude Code operation:
 
 Default local model: `qwen3-coder-next` (~52GB Q4_K_M MoE, needs both GPUs). Fast fallback: `qwen3-coder` (~19GB, fits in 2×12GB VRAM).
 
-## HPC Desk Environments
+## HPC Lmod Environments
 
-Environment toolchains are loaded with the `desk` command (from `scripts/desk/`):
+Environment toolchains are managed via Lmod (install: `sudo apt install lmod`).
+Modulefiles live in `modules/.modules/` (deployed to `~/.modules/` via stow).
+Lmod is initialised in `bash/.bash/exports` with `MODULEPATH=$HOME/.modules`.
 
 ```bash
-desk go nvidia-24      # Load NVIDIA HPC SDK 24.11
-desk go gcc-15.1.0     # Load GCC 15.1.0
-desk go intel          # Load Intel compilers
+module avail                         # list all modules
+module load gcc/15.1.0               # load GCC 15.1.0
+module load nvhpc/24.11              # load NVIDIA HPC SDK 24.11
+module load openmpi/5.0.7-gnu14.2.0  # load OpenMPI
+module list                          # show loaded modules
+module purge                         # unload everything
 ```
 
-Each desk script in `desks/.desk/desks/` sets `PATH`, `LD_LIBRARY_PATH`, `MANPATH`, and compiler-specific env vars. The NVIDIA desk also sets MPI launch flags tuned for UCX.
+The bash prompt reflects loaded modules: `env {gcc/15.1.0 openmpi/5.0.7-gnu14.2.0}`.
+
+### Adding a new modulefile
+
+Create `modules/.modules/<name>/<version>.lua`. The file is immediately visible to
+Lmod (no re-stow needed — the directory is already a symlink into the repo).
+Conventions to follow:
+
+- Always guard the install path with `isDir(root)` / `LmodError(...)`.
+- Use `family("compiler")` for compiler modules so only one is active at a time.
+- Set `CC` / `CXX` / `FC` / `F77` / `F90` env vars for compiler modules.
+- For NVHPC modules on WSL2: prepend `/usr/lib/wsl/lib` to `LD_LIBRARY_PATH`
+  and set `UCX_MEMTYPE_CACHE=n`.
+- Use `pathJoin(root, "subdir")` (not string concatenation) for portable paths.
+
+Minimal compiler template:
+
+```lua
+whatis("Toolchain name and version")
+help([[Longer description — install path, what is included, WSL2 notes.]])
+
+local root = "/path/to/install"
+family("compiler")
+
+if not isDir(root) then
+  LmodError(root .. " not found")
+end
+
+prepend_path("PATH",            pathJoin(root, "bin"))
+prepend_path("LD_LIBRARY_PATH", pathJoin(root, "lib"))
+prepend_path("MANPATH",         pathJoin(root, "share/man"))
+
+setenv("CC",  "gcc")
+setenv("CXX", "g++")
+setenv("FC",  "gfortran")
+setenv("F77", "gfortran")
+setenv("F90", "gfortran")
+```
+
+Verify with `module avail` and `module load <name>/<version>`.
+
+## Adding New Dotfiles
+
+### File in an existing package
+
+Place the file at the mirrored path inside the package directory, then re-stow:
+
+```bash
+# Example: new bash helper
+cp my-helper ~/dotfiles/bash/.bash/my-helper
+bash ~/dotfiles/dotify.sh bash     # idempotent, safe to re-run
+```
+
+### New stow package
+
+1. Mirror the `$HOME` layout inside a new top-level directory:
+
+   ```bash
+   mkdir -p ~/dotfiles/foo/.config/foo
+   cp ~/.config/foo/config ~/dotfiles/foo/.config/foo/config
+   ```
+
+2. Add the package name to `PACKAGES` in `dotify.sh`.
+
+3. Deploy and commit:
+
+   ```bash
+   bash ~/dotfiles/dotify.sh foo
+   git add dotify.sh foo/
+   git commit
+   ```
+
+### Machine-specific package
+
+Add the package name to `machines/<hostname>` (one name per line).
+`dotify.sh` reads this file automatically after the common packages.
 
 ## Vim Key Conventions
 
