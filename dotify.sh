@@ -6,6 +6,7 @@ mkdir -p ~/.config
 mkdir -p ~/.desk/desks
 mkdir -p ~/.git
 mkdir -p ~/.scripts
+mkdir -p ~/.claude/commands
 
 dot=~/dotfiles
 
@@ -37,8 +38,6 @@ done
 # git
 ln -fs $dot/git/git_commit_message_template ~/.git/git_commit_message_template
 ln -fs $dot/git/gitconfig ~/.gitconfig
-ln -fs $dot/git/git-flow-completion/git-flow-completion.bash ~/.git/git-flow-completition
-
 # latex
 ln -fs $dot/miscellanea/latexmkrc ~/.latexmkrc
 
@@ -78,3 +77,10 @@ ln -fs $dot/scripts/miscellanea/texcount.pl ~/.scripts/texcount.pl
 # vim
 ln -fs $dot/vim/ ~/.vim
 ln -fs $dot/vim/vimrc ~/.vimrc
+
+# claude
+ln -fs $dot/claude/CLAUDE.md ~/.claude/CLAUDE.md
+ln -fs $dot/claude/settings.json ~/.claude/settings.json
+ln -fs $dot/claude/settings.local.json ~/.claude/settings.local.json
+ln -fs $dot/claude/statusline-command.sh ~/.claude/statusline-command.sh
+ln -fs $dot/claude/commands/semantic-commit.md ~/.claude/commands/semantic-commit.md

@@ -16,7 +16,6 @@ Plug 'myusuf3/numbers.vim'
 
 " buffers and files
 Plug 'majutsushi/tagbar'
-Plug 'kien/ctrlp.vim'
 Plug 'moll/vim-bbye'
 Plug 'jeetsukumaran/vim-filebeagle'
 " Plug 'preservim/nerdtree'
@@ -48,8 +47,6 @@ Plug 'iamcco/markdown-preview.nvim', { 'do': { -> mkdp#util#install() }, 'for': 
 Plug 'vim-python/python-syntax'
 " Plug 'dense-analysis/ale'
 " Plug 'vim-syntastic/syntastic'
-Plug 'nvie/vim-flake8'
-
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
 " Plug 'yaroot/vissort'
@@ -254,8 +251,6 @@ noremap <F2> :set wrap! wrap?<CR>
 " Buffer navigation
 nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
-" CtrlP file explorer
-nnoremap <C-e> :CtrlP<CR>
 " Buffer close
 nnoremap qq :Bdelete<CR>
 " Cursor movements limited or not

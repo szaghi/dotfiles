@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:dev.elsevier.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.elsevier.com)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:api.semanticscholar.org)",
+      "WebFetch(domain:info.arxiv.org)",
+      "WebFetch(domain:www.semanticscholar.org)",
+      "WebFetch(domain:doaj.org)",
+      "WebFetch(domain:unpaywall.org)",
+      "WebFetch(domain:api.crossref.org)",
+      "WebFetch(domain:api.unpaywall.org)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pip3:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/mosaic:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm:*)",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(chmod +x:*)",
+      "Bash(curl:*)",
+      "Bash(grep -r \"git-hub\\\\|git hub\" ~/dotfiles --include=*.sh --include=*.bash --include=*.zsh --include=*.fish -l)",
+      "Bash(grep -r \"git-remote-dropbox\\\\|scholar\\\\|gdb-dashboard\\\\|markdown-toclify\" /home/stefano/dotfiles --include=*.sh --include=*.bash)",
+      "Bash(git ls-tree:*)",
+      "Bash(git config:*)",
+      "Bash(grep:*)",
+      "Bash(find /home/stefano/dotfiles -name *gibo* -type f)",
+      "Bash(/tmp/check_submodules.txt:*)",
+      "Read(//tmp/**)"
+    ]
+  }
+}
