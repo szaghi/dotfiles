@@ -1,17 +1,16 @@
-whatis("OpenMPI 3.1.5 bundled with NVIDIA HPC SDK 23.1")
+whatis("OpenMPI 5.0.10 built with GCC 15.2.0")
 
 help([[
-OpenMPI 3.1.5 from NVIDIA HPC SDK 23.1 bundle.
-Automatically loads nvhpc/23.1.
+OpenMPI 5.0.10 compiled with GCC 15.2.0
+Automatically loads gcc/15.2.0 if no compiler is active.
 ]])
 
-depends_on("nvhpc/23.1")
+depends_on("gcc/15.2.0")
 
-local sdk  = "/opt/nvidia/hpc_sdk-v12.0/Linux_x86_64/23.1"
-local ompi = pathJoin(sdk, "comm_libs/openmpi/openmpi-3.1.5")
+local ompi = "/opt/openmpi/bin/5.0.10/gnu/15.2.0"
 
 if not isDir(ompi) then
-  LmodError("OpenMPI 3.1.5/nvhpc23.1 not found at " .. ompi)
+  LmodError("OpenMPI 5.0.10/gnu15.2.0 not found at " .. ompi)
 end
 
 prepend_path("PATH",            pathJoin(ompi, "bin"))
