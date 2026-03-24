@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Welcome banner — displayed on every interactive terminal open.
+# Requires: fortune (sudo apt install fortune) for quotes.
+
+__welcome() {
+    [[ $- != *i* ]] && return
+
+    # Banner palette — tones matching the black hole accretion disk
+    local R=$'\e[0m'
+    local c_host=$'\e[38;5;215m'    # light peach
+    local c_kernel=$'\e[38;5;209m'  # salmon
+    local c_uptime=$'\e[38;5;208m'  # orange
+    local c_cpu=$'\e[38;5;202m'     # bright orange-red
+    local c_mem=$'\e[38;5;166m'     # orange-red
+    local c_shell=$'\e[38;5;130m'   # dark orange / brown
+    local c_gpu=$'\e[38;5;124m'     # red
+    local val=$'\e[38;5;244m'       # base0  — grey values
+    local dot=$'\e[38;5;240m'       # base01 — dim separator
+    local b01=$'\e[38;5;240m'       # base01 — grey fortune text
+
+    local bw=80  # banner visual width (columns)
+
+    # Strip ANSI codes and return visual length
+    __vlen() {
+        local s
+        s=$(printf '%s' "$1" | sed 's/\x1b\[[0-9;]*m//g')
+        echo ${#s}
+    }
+
+    # Print a string centered within bw columns
+    __cprint() {
+        local text="$1" vl pad
+        vl=$(__vlen "$text")
+        pad=$(( (bw - vl) / 2 ))
+        [[ $pad -lt 0 ]] && pad=0
+        printf "%${pad}s%s\n" "" "$text"
+    }
+
+    printf '\n'
+
+    # ── Banner ────────────────────────────────────────────────────────────
+    [[ -f "$HOME/.bash/bh-ascii.txt" ]] && cat "$HOME/.bash/bh-ascii.txt"
+
+    printf '\n'
+
+    # ── System info ───────────────────────────────────────────────────────
+    local host kernel uptime_str cpu mem_used mem_total bv
+    host=$(hostname -s)
+    kernel=$(uname -r | cut -c1-25)
+    uptime_str=$(uptime -p 2>/dev/null | sed 's/^up //')
+    cpu=$(grep -m1 "^model name" /proc/cpuinfo 2>/dev/null \
+          | cut -d: -f2 | sed 's/^ *//;s/  */ /g' | cut -c1-25)
+    read -r mem_used mem_total < <(
+        awk '/MemTotal/{t=$2} /MemAvailable/{a=$2}
+             END{printf "%d %d", (t-a)/1024, t/1024}' /proc/meminfo)
+    bv="${BASH_VERSION%%(*}"
+
+    local sep=" ${dot}·${R} "
+    local row1="${c_host}host${R} ${val}${host}${R}${sep}${c_kernel}kernel${R} ${val}${kernel}${R}${sep}${c_uptime}uptime${R} ${val}${uptime_str}${R}"
+    local row2="${c_cpu}cpu${R} ${val}${cpu:-unknown}${R}${sep}${c_mem}memory${R} ${val}${mem_used}/${mem_total} MiB${R}${sep}${c_shell}shell${R} ${val}bash ${bv}${R}"
+
+    __cprint "$row1"
+    __cprint "$row2"
+
+    # ── GPU info (via nvidia-smi, one row per detected card) ──────────────
+    if command -v nvidia-smi &>/dev/null; then
+        local gpu_row="" i=0
+        while IFS=',' read -r name mem_u mem_t; do
+            name=$(printf '%s' "$name" | sed 's/^ *//;s/ *$//' | cut -c1-22)
+            mem_u=$(printf '%s' "$mem_u" | sed 's/^ *//;s/ *$//')
+            mem_t=$(printf '%s' "$mem_t" | sed 's/^ *//;s/ *$//')
+            local item="${c_gpu}gpu${i}${R} ${val}${name} (${mem_u}/${mem_t} MiB)${R}"
+            if [[ $i -eq 0 ]]; then
+                gpu_row="$item"
+            else
+                gpu_row+="${sep}${item}"
+            fi
+            (( i++ ))
+        done < <(nvidia-smi --query-gpu=name,memory.used,memory.total \
+                             --format=csv,noheader,nounits 2>/dev/null)
+        [[ -n "$gpu_row" ]] && __cprint "$gpu_row"
+    fi
+
+    printf '\n'
+
+    # ── Fortune (grey, centered) ──────────────────────────────────────────
+    if command -v fortune &>/dev/null; then
+        while IFS= read -r line; do
+            __cprint "${b01}${line}${R}"
+        done < <(fortune -s)
+        printf '\n'
+    fi
+
+    unset -f __vlen __cprint
+}
+
+__welcome
+unset -f __welcome

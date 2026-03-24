@@ -7,7 +7,7 @@
 [ -z "$PS1" ] && return;
 
 # load the bash dotfiles
-for file in ~/.bash/{private,aliases,compilers,claude_code,exports,functions,optprogs,paths,prompt}; do
+for file in ~/.bash/{private,aliases,compilers,claude_code,exports,functions,optprogs,paths,prompt,welcome}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
 unset file;
