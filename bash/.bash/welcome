@@ -8,6 +8,7 @@ __welcome() {
     # Banner palette — tones matching the black hole accretion disk
     local R=$'\e[0m'
     local c_host=$'\e[38;5;215m'    # light peach
+    local c_ip=$'\e[38;5;222m'      # gold
     local c_kernel=$'\e[38;5;209m'  # salmon
     local c_uptime=$'\e[38;5;208m'  # orange
     local c_cpu=$'\e[38;5;202m'     # bright orange-red
@@ -44,8 +45,9 @@ __welcome() {
     printf '\n'
 
     # ── System info ───────────────────────────────────────────────────────
-    local host kernel uptime_str cpu mem_used mem_total bv
+    local host ip_addr kernel uptime_str cpu mem_used mem_total bv
     host=$(hostname -s)
+    ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
     kernel=$(uname -r | cut -c1-25)
     uptime_str=$(uptime -p 2>/dev/null | sed 's/^up //')
     cpu=$(grep -m1 "^model name" /proc/cpuinfo 2>/dev/null \
@@ -56,7 +58,7 @@ __welcome() {
     bv="${BASH_VERSION%%(*}"
 
     local sep=" ${dot}·${R} "
-    local row1="${c_host}host${R} ${val}${host}${R}${sep}${c_kernel}kernel${R} ${val}${kernel}${R}${sep}${c_uptime}uptime${R} ${val}${uptime_str}${R}"
+    local row1="${c_host}host${R} ${val}${host}${R}${sep}${c_ip}ip${R} ${val}${ip_addr:-n/a}${R}${sep}${c_kernel}kernel${R} ${val}${kernel}${R}${sep}${c_uptime}uptime${R} ${val}${uptime_str}${R}"
     local row2="${c_cpu}cpu${R} ${val}${cpu:-unknown}${R}${sep}${c_mem}memory${R} ${val}${mem_used}/${mem_total} MiB${R}${sep}${c_shell}shell${R} ${val}bash ${bv}${R}"
 
     __cprint "$row1"
