@@ -1,8 +1,4 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bash /home/stefano/.claude/statusline-command.sh"
-  },
   "permissions": {
     "allow": [
       "Read(/home/stefano/fortran/**)",
@@ -12,6 +8,10 @@
       "Write(/home/stefano/python/**)",
       "Edit(/home/stefano/python/**)"
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/stefano/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
@@ -24,5 +24,6 @@
         "repo": "anthropics/skills"
       }
     }
-  }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
