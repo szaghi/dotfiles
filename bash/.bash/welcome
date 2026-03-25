@@ -47,7 +47,9 @@ __welcome() {
     # ── System info ───────────────────────────────────────────────────────
     local host ip_addr kernel uptime_str cpu mem_used mem_total bv
     host=$(hostname -s)
-    ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
+    ip_addr=$(ip route get 1 2>/dev/null \
+              | awk 'NR==1{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+    [[ -z "$ip_addr" ]] && ip_addr=$(hostname -I 2>/dev/null | awk '{print $1}')
     kernel=$(uname -r | cut -c1-25)
     uptime_str=$(uptime -p 2>/dev/null | sed 's/^up //')
     cpu=$(grep -m1 "^model name" /proc/cpuinfo 2>/dev/null \
