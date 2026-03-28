@@ -36,7 +36,10 @@
       "Read(//tmp/**)",
       "WebFetch(domain:ollama.com)",
       "WebSearch",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(wc:*)",
+      "Bash(find ~/fortran/Xall_GPU/src -type f \\\\\\( -name \"*.F90\" -o -name \"*.f90\" \\\\\\) -exec wc -l {} +)",
+      "Bash(gh repo:*)"
     ]
   }
 }
