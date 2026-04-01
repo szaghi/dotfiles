@@ -97,6 +97,25 @@ claude-sonnet() { claude --model "sonnet" "$@"; }
 claude-opus()   { claude --model "opus" "$@"; }
 claude-plan()   { claude --permission-mode plan --model "opusplan" "$@"; }  # read-only plan (Opus) → auto-switch to Sonnet on execute
 
+# ── OPENROUTER FUNCTIONS ──────────────────────────────────────────────────────
+# Requires OPENROUTER_API_KEY in the environment (set in ~/.bash/exports or ~/.env)
+
+OPENROUTER_DEFAULT_MODEL="qwen/qwen3.6-plus-preview:free"
+
+claude-openrouter() {
+    # OpenRouter cloud API — Anthropic-compatible endpoint, free-tier models
+    local model="${1:-$OPENROUTER_DEFAULT_MODEL}"
+    local key="${OPENROUTER_API_KEY:-$(cat "$HOME/.openrouter-ai-key" 2>/dev/null)}"
+    if [[ -z "$key" ]]; then
+        echo "Error: no OpenRouter API key found (set OPENROUTER_API_KEY or place it in ~/.openrouter-ai-key)" >&2
+        return 1
+    fi
+    ANTHROPIC_AUTH_TOKEN="$key" \
+    ANTHROPIC_BASE_URL="https://openrouter.ai/api" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$model" "${@:2}"
+}
+
 # ── OLLAMA SERVICE MANAGEMENT ─────────────────────────────────────────────────
 
 ollama-start() {
@@ -189,6 +208,11 @@ claude-help() {
     printf '  %-28s%s\n' 'claude-sonnet'              'force Sonnet'
     printf '  %-28s%s\n' 'claude-opus'                'force Opus'
     printf '  %-28s%s\n' 'claude-plan'                'read-only plan (Opus) → auto-switch to Sonnet'
+    printf '\n'
+    printf "  ${b}OPENROUTER${r}  cloud free-tier · key from ~/.openrouter-ai-key\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'claude-openrouter'          'qwen/qwen3.6-plus-preview:free  (default)'
+    printf '  %-28s%s\n' 'claude-openrouter <model>'  'any OpenRouter model ID'
     printf '\n'
     printf "  ${b}MID-SESSION${r}  inside Claude Code\n"
     printf '%s\n' "$sep"

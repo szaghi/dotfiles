@@ -293,7 +293,7 @@ deployed to `~/.claude/`:
 | `statusline-command.sh` | Custom status line command |
 | `commands/semantic-commit.md` | `/semantic-commit` slash command |
 
-**Dual-mode Claude Code** (`bash/claude_code`):
+**Three-mode Claude Code** (`bash/claude_code`):
 
 ```bash
 # Local — Ollama, privacy-first (requires 2× NVIDIA GPU unless noted)
@@ -308,6 +308,10 @@ claude-sonnet                 # force Sonnet
 claude-opus                   # force Opus
 claude-plan                   # read-only plan (Opus) → auto-switch to Sonnet on execute
 
+# OpenRouter — cloud API, free-tier models
+claude-openrouter             # qwen/qwen3.6-plus-preview:free (default)
+claude-openrouter <model-id>  # any OpenRouter model ID (e.g. google/gemma-3-27b-it:free)
+
 # Ollama management
 ollama-start-multi            # start on all GPUs (large models)
 ollama-plan-setup             # register plan-architect / plan-executor aliases (run once)
@@ -318,6 +322,10 @@ claude-help                   # full quick-reference
 `ollama-plan-setup` must be run once after each fresh Ollama start to register the
 `plan-architect` and `plan-executor` short-name aliases. Re-run it if `OLLAMA_PLAN_MODEL`
 or `OLLAMA_EXEC_MODEL` are changed.
+
+The OpenRouter API key is read from `~/.openrouter-ai-key` (not tracked in git).
+`OPENROUTER_API_KEY` env var overrides it if set. Uses OpenRouter's Anthropic-compatible
+endpoint (`https://openrouter.ai/api`) — note: the SDK appends `/v1/messages` automatically.
 
 ---
 
