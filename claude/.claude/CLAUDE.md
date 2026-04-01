@@ -42,3 +42,5 @@ Individual `-fno-*` flags do not isolate the trigger. Do not use allocatable cop
 - `/semantic-commit` (and similar skills) means **generate and display** the
   commit message only — never run `git commit` automatically; let the user
   run it in their terminal
+
+@RTK.md
