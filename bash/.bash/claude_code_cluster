@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Claude Code — minimal Ollama setup for HPC clusters
+#
+# Source from ~/.bashrc (or load explicitly on the cluster node):
+#   source ~/.bash/claude_code_cluster
+#
+# Ollama is expected to be started before use.
+# GPU allocation is managed by the cluster scheduler (SLURM/PBS).
+
+# ── SCRATCH PATHS ─────────────────────────────────────────────────────────────
+_SCRATCH="/scratch_local/szaghi"
+
+# Node.js / Claude Code (installed under scratch to avoid home quota)
+export NVM_DIR="${_SCRATCH}/nvm"
+# shellcheck source=/dev/null
+[[ -s "${NVM_DIR}/nvm.sh" ]] && source "${NVM_DIR}/nvm.sh"
+export PATH="${_SCRATCH}/node/bin:${PATH}"
+
+# Ollama models stored on scratch (avoids filling ~/.ollama in home)
+export OLLAMA_MODELS="${_SCRATCH}/ollama/models"
+
+# ── OLLAMA SERVER SETTINGS ────────────────────────────────────────────────────
+export OLLAMA_HOST="${OLLAMA_HOST:-127.0.0.1:11434}"
+export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-10m}"
+export OLLAMA_NUM_PARALLEL="1"
+export OLLAMA_MAX_LOADED_MODELS="1"
+export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM; required for KV quant
+export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16
+
+# ── MODEL DEFAULT ─────────────────────────────────────────────────────────────
+OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen3-coder-next:q8_0}"
+
+# ── CLAUDE LOCAL ──────────────────────────────────────────────────────────────
+
+claude-local() {
+    # Run Claude Code against local Ollama.
+    # Usage: claude-local [model] [claude-code-args...]
+    #   model defaults to $OLLAMA_DEFAULT_MODEL
+    #   override example: claude-local qwen3-coder:latest
+    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
+    ANTHROPIC_AUTH_TOKEN=ollama \
+    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$model" "${@:2}"
+}
+
+# ── OLLAMA SERVICE ────────────────────────────────────────────────────────────
+
+ollama-start() {
+    # Start Ollama (GPU selection left to the cluster environment).
+    # Override listen address: OLLAMA_HOST=0.0.0.0:11434 ollama-start
+    echo "Starting Ollama at http://${OLLAMA_HOST}"
+    ollama serve &
+    disown
+    sleep 2
+    echo "Ollama ready."
+}
+
+ollama-stop() {
+    pkill -f "ollama serve" 2>/dev/null && echo "Ollama stopped." || echo "Ollama not running."
+}
+
+ollama-status() {
+    echo "=== Ollama process ==="
+    pgrep -a ollama || echo "Not running"
+    echo ""
+    echo "=== Loaded models ==="
+    curl -s "http://${OLLAMA_HOST}/api/ps" 2>/dev/null | python3 -m json.tool 2>/dev/null \
+        || echo "Cannot reach Ollama at http://${OLLAMA_HOST}"
+    echo ""
+    echo "=== GPU status ==="
+    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
+               --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
+}
+
+ollama-models() {
+    ollama list 2>/dev/null || echo "Ollama not running — start with: ollama-start"
+}
+
+# ── QUICK REFERENCE ───────────────────────────────────────────────────────────
+
+claude-help() {
+    local b=$'\033[1m' r=$'\033[0m' dim=$'\033[2m'
+    local sep="${dim}  ──────────────────────────────────────────────${r}"
+    printf '\n'
+    printf "  ${b}claude-local${r} — Ollama cluster quick reference\n"
+    printf '\n'
+    printf "  ${b}RUN${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-32s%s\n' 'claude-local'                'use default model ('"$OLLAMA_DEFAULT_MODEL"')'
+    printf '  %-32s%s\n' 'claude-local <model>'        'override model for this session'
+    printf '\n'
+    printf "  ${b}OLLAMA${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-32s%s\n' 'ollama-start'                'start Ollama (all cluster GPUs)'
+    printf '  %-32s%s\n' 'ollama-stop'                 'stop Ollama'
+    printf '  %-32s%s\n' 'ollama-status'               'process + loaded models + GPU memory'
+    printf '  %-32s%s\n' 'ollama-models'               'list downloaded models'
+    printf '\n'
+    printf "  ${b}ENV OVERRIDES${r}  (export before sourcing or calling)\n"
+    printf '%s\n' "$sep"
+    printf '  %-32s%s\n' 'OLLAMA_HOST'                 "listen/connect address (default: 127.0.0.1:11434)"
+    printf '  %-32s%s\n' 'OLLAMA_DEFAULT_MODEL'        "model used when no arg given"
+    printf '  %-32s%s\n' 'OLLAMA_KEEP_ALIVE'           "model idle timeout (default: 10m)"
+    printf '\n'
+}

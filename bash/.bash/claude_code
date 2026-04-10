@@ -183,7 +183,51 @@ EOF
 }
 
 ollama-models() {
-    ollama list 2>/dev/null || echo "Ollama not running. Start with: ollama-start"
+    local output
+    output=$(ollama list 2>/dev/null) || { echo "Ollama not running. Start with: ollama-start"; return 1; }
+
+    local header lines
+    header=$(printf '%s\n' "$output" | head -1)
+    lines=$(printf '%s\n' "$output" | tail -n +2)
+    [[ -z "$lines" ]] && { printf '%s\n' "$header"; echo "(no models)"; return 0; }
+
+    printf '%s\n' "$header"
+    local cat matched
+    for cat in cloud embedding plan exec; do
+        matched=$(printf '%s\n' "$lines" | awk -v c="$cat" '$1 ~ "[-:]"c"$"')
+        [[ -n "$matched" ]] && printf '\n  [%s]\n%s\n' "$cat" "$matched"
+    done
+
+    matched=$(printf '%s\n' "$lines" | awk '$1 !~ "[-:](cloud|embedding|plan|exec)$"')
+    [[ -n "$matched" ]] && printf '\n  [misc]\n%s\n' "$matched"
+}
+
+ollama-rename() {
+    # Rename an Ollama model with exact casing, bypassing ollama cp inheritance quirk.
+    # Uses the existing modelfile (with its blob SHA) so local-only models work too.
+    # Usage: ollama-rename <old-name> <new-name>
+    if [[ $# -ne 2 ]]; then
+        echo "Usage: ollama-rename <old-name> <new-name>" >&2
+        return 1
+    fi
+    local old="$1" new="$2"
+    local tmpfile
+    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
+    if ! ollama show "$old" --modelfile > "$tmpfile" 2>/dev/null && \
+       ! ollama show --modelfile "$old" > "$tmpfile" 2>/dev/null; then
+        echo "Error: model '$old' not found. Available models:" >&2
+        ollama list >&2
+        rm -f "$tmpfile"
+        return 1
+    fi
+    if ollama create "$new" -f "$tmpfile"; then
+        ollama rm "$old"
+    else
+        echo "Error: failed to create '$new' — '$old' was not removed." >&2
+        rm -f "$tmpfile"
+        return 1
+    fi
+    rm -f "$tmpfile"
 }
 
 # ── QUICK REFERENCE ───────────────────────────────────────────────────────────
@@ -229,5 +273,194 @@ claude-help() {
     printf '  %-28s%s\n' 'ollama-create-64k [model]'  'create 64K-capped variant'
     printf '  %-28s%s\n' 'ollama-plan-setup'          'register plan-architect / plan-executor aliases'
     printf '  %-28s%s\n' 'ollama-models'              'list available models'
+    printf '  %-28s%s\n' 'ollama-rename <old> <new>'  'rename model with exact casing'
     printf '\n'
+    printf "  ${b}LLAMA.CPP${r}  direct GGUF inference · no Ollama needed\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'llama-start-all [model]'    'start llama-server + proxy in one step'
+    printf '  %-28s%s\n' 'llama-start [model.gguf]'   'start llama-server only (default: Qwen3.5-27B Q6_K)'
+    printf '  %-28s%s\n' 'llama-stop / -restart'      'stop / restart llama-server'
+    printf '  %-28s%s\n' 'llama-status'               'process + served model + GPU memory'
+    printf '  %-28s%s\n' 'llama-proxy-start'          'start Anthropic↔OpenAI proxy'
+    printf '  %-28s%s\n' 'llama-proxy-stop'           'stop proxy'
+    printf '  %-28s%s\n' 'claude-llama [name]'        'run Claude Code via llama-server (checks both services)'
+    printf '\n'
+    printf "  ${b}LLAMA.CPP ENV OVERRIDES${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'LLAMACPP_DEFAULT_MODEL'     'full path to GGUF (default: Qwen3.5-27B Q6_K)'
+    printf '  %-28s%s\n' 'LLAMACPP_GPU_LAYERS'        'layers on GPU (-1 = all, default: -1)'
+    printf '  %-28s%s\n' 'LLAMACPP_CTX'               'context size in tokens (default: 32768)'
+    printf '  %-28s%s\n' 'LLAMACPP_PORT'              'llama-server port (default: 8080)'
+    printf '  %-28s%s\n' 'LLAMACPP_PROXY_PORT'        'proxy port (default: 4000)'
+    printf '\n'
+}
+
+# ── LLAMA.CPP CONFIGURATION ───────────────────────────────────────────────────
+# llama-server (Homebrew) exposes an OpenAI-compatible API only.
+# claude-llama uses a thin Python proxy (~/.scripts/llama-anthropic-proxy.py)
+# to translate Claude Code's Anthropic SDK calls into OpenAI chat completions.
+#
+# Typical workflow:
+#   llama-start [model.gguf]   # start inference server
+#   llama-proxy-start          # start Anthropic↔OpenAI translation proxy
+#   claude-llama               # run Claude Code
+
+# Prefer a locally CUDA-built binary over the Homebrew one (which has no GPU support)
+_llamacpp_default_bin() {
+    local cuda_build="${HOME}/llama.cpp-cuda/build/bin/llama-server"
+    if [[ -x "$cuda_build" ]]; then echo "$cuda_build"
+    else echo "llama-server"
+    fi
+}
+LLAMACPP_BIN="${LLAMACPP_BIN:-$(_llamacpp_default_bin)}"
+# Runtime lib paths for the CUDA-built binary (NVHPC 26.1 CUDA 13.1)
+_llamacpp_cuda_libs="/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/cuda/13.1/targets/x86_64-linux/lib:/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/math_libs/13.1/targets/x86_64-linux/lib"
+[[ ":${LD_LIBRARY_PATH}:" != *":${_llamacpp_cuda_libs%%:*}:"* ]] && \
+    export LD_LIBRARY_PATH="${_llamacpp_cuda_libs}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+LLAMACPP_HOST="127.0.0.1"
+LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
+LLAMACPP_PROXY_PORT="${LLAMACPP_PROXY_PORT:-4000}"
+LLAMACPP_MODELS_DIR="${LLAMACPP_MODELS_DIR:-${HOME}/models}"
+# Default: Qwen3.5-27B distilled (Q6_K, ~23 GB — needs both GPUs)
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/.cache/huggingface/hub/models--Jackrong--Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF/snapshots/268a860d70c80f5eafbd9c58443612334747278a/Qwen3.5-27B.Q6_K.gguf}"
+LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"   # -1 = all layers on GPU
+LLAMACPP_CTX="${LLAMACPP_CTX:-32768}"
+
+_llama_model_path() {
+    # Resolve model: full/relative path, or filename relative to LLAMACPP_MODELS_DIR
+    local model="${1:-$LLAMACPP_DEFAULT_MODEL}"
+    if [[ -z "$model" ]]; then
+        echo "Error: no model — set LLAMACPP_DEFAULT_MODEL or pass a path" >&2
+        return 1
+    fi
+    if [[ -f "$model" ]]; then
+        echo "$model"
+    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}" ]]; then
+        echo "${LLAMACPP_MODELS_DIR}/${model}"
+    else
+        echo "Error: model not found: $model" >&2
+        return 1
+    fi
+}
+
+llama-start() {
+    # Start llama-server with a GGUF model
+    # Usage: llama-start [model.gguf|/full/path] [extra-llama-server-args...]
+    local model_arg="${1:-}"
+    [[ $# -gt 0 ]] && shift
+    local model_path
+    model_path=$(_llama_model_path "$model_arg") || return 1
+
+    if ! command -v "$LLAMACPP_BIN" &>/dev/null; then
+        echo "llama-server not found (tried: $LLAMACPP_BIN)" >&2
+        echo "Set LLAMACPP_BIN=/full/path/to/llama-server if it lives outside PATH" >&2
+        return 1
+    fi
+
+    printf 'Starting llama-server\n'
+    printf '  model : %s\n' "$model_path"
+    printf '  addr  : %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+    printf '  gpu   : %s layers  ctx: %s\n' "$LLAMACPP_GPU_LAYERS" "$LLAMACPP_CTX"
+
+    "$LLAMACPP_BIN" \
+        --model        "$model_path" \
+        --alias        "llama" \
+        --host         "$LLAMACPP_HOST" \
+        --port         "$LLAMACPP_PORT" \
+        --n-gpu-layers "$LLAMACPP_GPU_LAYERS" \
+        --ctx-size     "$LLAMACPP_CTX" \
+        --flash-attn   auto \
+        "$@" &>/tmp/llama-server.log &
+    disown
+    sleep 2
+    printf 'llama-server ready at http://%s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+}
+
+llama-stop() {
+    pkill -f "llama-server" 2>/dev/null || { echo "llama-server not running."; return 0; }
+    # Wait for the port to be released (up to 5 s)
+    local i
+    for i in 1 2 3 4 5; do
+        ss -tlnp | grep -q ":${LLAMACPP_PORT}" || { echo "llama-server stopped."; return 0; }
+        sleep 1
+    done
+    echo "llama-server stopped (port ${LLAMACPP_PORT} may still be in TIME_WAIT)."
+}
+
+llama-restart() {
+    llama-stop; sleep 1; llama-start "$@"
+}
+
+llama-status() {
+    printf '=== llama-server process ===\n'
+    pgrep -a "llama-server" || echo "Not running"
+    printf '\n=== Served model ===\n'
+    curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" 2>/dev/null \
+        | python3 -m json.tool 2>/dev/null \
+        || echo "Cannot reach llama-server at http://${LLAMACPP_HOST}:${LLAMACPP_PORT}"
+    printf '\n=== GPU status ===\n'
+    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
+               --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
+}
+
+llama-proxy-start() {
+    # Start the Anthropic→OpenAI proxy required by claude-llama
+    local proxy="${HOME}/.scripts/llama-anthropic-proxy.py"
+    if [[ ! -f "$proxy" ]]; then
+        echo "Proxy script not found: $proxy" >&2
+        echo "Re-stow the dotfiles: bash ~/dotfiles/dotify.sh scripts" >&2
+        return 1
+    fi
+    # Kill any stale instance holding the port before binding
+    pkill -f "llama-anthropic-proxy.py" 2>/dev/null && sleep 0.5
+    printf 'Starting Anthropic proxy on :%s → llama-server :%s\n' \
+        "$LLAMACPP_PROXY_PORT" "$LLAMACPP_PORT"
+    python3 "$proxy" \
+        --host     "$LLAMACPP_HOST" \
+        --port     "$LLAMACPP_PROXY_PORT" \
+        --backend  "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
+        --no-think \
+        &>/tmp/llama-proxy.log &
+    disown
+    sleep 1
+    printf 'Proxy ready at http://%s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PROXY_PORT"
+}
+
+llama-proxy-stop() {
+    pkill -f "llama-anthropic-proxy.py" 2>/dev/null \
+        && echo "Proxy stopped." || echo "Proxy not running."
+}
+
+llama-proxy-status() {
+    pgrep -a -f "llama-anthropic-proxy.py" || echo "Proxy not running"
+}
+
+claude-llama() {
+    # Run Claude Code via llama-server (requires llama-start + llama-proxy-start)
+    # Model name is passed to Claude Code but routing always goes to the single
+    # loaded llama-server instance — use any descriptive name you like.
+
+    # Pre-flight: verify both services are reachable before handing off to claude
+    if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}/health" &>/dev/null; then
+        printf 'Anthropic proxy not running on port %s\n' "$LLAMACPP_PROXY_PORT" >&2
+        printf 'Start it first:\n  llama-proxy-start\n' >&2
+        if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+            printf 'llama-server also not running on port %s — start both:\n' "$LLAMACPP_PORT" >&2
+            printf '  llama-start && llama-proxy-start\n' >&2
+        fi
+        return 1
+    fi
+
+    local model="${1:-llama}"
+    [[ $# -gt 0 ]] && shift
+    ANTHROPIC_AUTH_TOKEN=llama \
+    ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$model" "$@"
+}
+
+llama-start-all() {
+    # Convenience: start llama-server + proxy in one step
+    # Usage: llama-start-all [model.gguf] [extra-llama-server-args...]
+    llama-start "$@" && llama-proxy-start
 }

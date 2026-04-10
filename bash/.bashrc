@@ -74,3 +74,5 @@ export NVM_DIR="$HOME/.nvm"
 
 [[ -f "$HOME/.bash_completions/mosaic.sh" ]] && source "$HOME/.bash_completions/mosaic.sh"
 [[ -f "$HOME/.bash_completions/fobis.sh" ]] && source "$HOME/.bash_completions/fobis.sh"
+
+source '/home/stefano/.bash_completions/matisse.sh'

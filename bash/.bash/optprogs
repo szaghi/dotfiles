@@ -1,6 +1,9 @@
 # ~/.bash/optprogs
 source ~/.bash/functions
 
+# brew
+pathmunge /home/linuxbrew/.linuxbrew/bin after
+
 # openfoam
 # osource /opt/openfoam8/etc/bashrc
 
