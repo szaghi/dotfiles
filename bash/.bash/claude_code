@@ -275,15 +275,17 @@ claude-help() {
     printf '  %-28s%s\n' 'ollama-models'              'list available models'
     printf '  %-28s%s\n' 'ollama-rename <old> <new>'  'rename model with exact casing'
     printf '\n'
-    printf "  ${b}LLAMA.CPP${r}  direct GGUF inference · no Ollama needed\n"
+    printf "  ${b}LLAMA.CPP${r}  direct GGUF inference · no Ollama · native /v1/messages\n"
     printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'llama-start-all [model]'    'start llama-server + proxy in one step'
-    printf '  %-28s%s\n' 'llama-start [model.gguf]'   'start llama-server only (default: Qwen3.5-27B Q6_K)'
+    printf '  %-28s%s\n' 'llama-start [model.gguf]'   'start llama-server (default: Qwen3.5-27B Q6_K)'
     printf '  %-28s%s\n' 'llama-stop / -restart'      'stop / restart llama-server'
     printf '  %-28s%s\n' 'llama-status'               'process + served model + GPU memory'
-    printf '  %-28s%s\n' 'llama-proxy-start'          'start Anthropic↔OpenAI proxy'
-    printf '  %-28s%s\n' 'llama-proxy-stop'           'stop proxy'
-    printf '  %-28s%s\n' 'claude-llama [name]'        'run Claude Code via llama-server (checks both services)'
+    printf '  %-28s%s\n' 'claude-llama [name]'        'run Claude Code via llama-server directly'
+    printf '  %-28s%s\n' 'llama-models'               'list GGUFs in models dir + HuggingFace cache'
+    printf '  %-28s%s\n' 'llama-info [model]'         'show GGUF metadata + tensor summary'
+    printf '  %-28s%s\n' 'llama-alias <name> <path>'  'create short-name alias for a GGUF (symlink)'
+    printf '  %-28s%s\n' 'llama-alias <name>'         'remove alias'
+    printf '  %-28s%s\n' 'llama-proxy-start'          '[legacy] Anthropic↔OpenAI proxy (no longer needed)'
     printf '\n'
     printf "  ${b}LLAMA.CPP ENV OVERRIDES${r}\n"
     printf '%s\n' "$sep"
@@ -296,13 +298,11 @@ claude-help() {
 }
 
 # ── LLAMA.CPP CONFIGURATION ───────────────────────────────────────────────────
-# llama-server (Homebrew) exposes an OpenAI-compatible API only.
-# claude-llama uses a thin Python proxy (~/.scripts/llama-anthropic-proxy.py)
-# to translate Claude Code's Anthropic SDK calls into OpenAI chat completions.
+# llama-server exposes a native /v1/messages endpoint (Anthropic Messages API).
+# No proxy needed — claude-llama points ANTHROPIC_BASE_URL directly at llama-server.
 #
 # Typical workflow:
 #   llama-start [model.gguf]   # start inference server
-#   llama-proxy-start          # start Anthropic↔OpenAI translation proxy
 #   claude-llama               # run Claude Code
 
 # Prefer a locally CUDA-built binary over the Homebrew one (which has no GPU support)
@@ -327,7 +327,7 @@ LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"   # -1 = all layers on GPU
 LLAMACPP_CTX="${LLAMACPP_CTX:-32768}"
 
 _llama_model_path() {
-    # Resolve model: full/relative path, or filename relative to LLAMACPP_MODELS_DIR
+    # Resolve model: full/relative path, name in LLAMACPP_MODELS_DIR, or name without .gguf extension
     local model="${1:-$LLAMACPP_DEFAULT_MODEL}"
     if [[ -z "$model" ]]; then
         echo "Error: no model — set LLAMACPP_DEFAULT_MODEL or pass a path" >&2
@@ -337,10 +337,184 @@ _llama_model_path() {
         echo "$model"
     elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}" ]]; then
         echo "${LLAMACPP_MODELS_DIR}/${model}"
+    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}.gguf" ]]; then
+        echo "${LLAMACPP_MODELS_DIR}/${model}.gguf"
     else
         echo "Error: model not found: $model" >&2
         return 1
     fi
+}
+
+llama-info() {
+    # Show metadata for a GGUF file (or the currently loaded model if no arg given).
+    # Usage: llama-info [model-name|path]
+    local model_path
+    if [[ $# -eq 0 ]]; then
+        # No arg: if server is running show its loaded model, else use default
+        if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+            local loaded
+            loaded=$(curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" \
+                     | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id'] if d else '')" 2>/dev/null)
+            printf '=== Server: %s:%s (model: %s) ===\n' \
+                "$LLAMACPP_HOST" "$LLAMACPP_PORT" "${loaded:-unknown}"
+            curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/props" \
+                | python3 -m json.tool 2>/dev/null \
+                || printf '(props endpoint unavailable)\n'
+            printf '\n'
+        fi
+        model_path=$(_llama_model_path "") || return 1
+    else
+        model_path=$(_llama_model_path "$1") || return 1
+    fi
+
+    local gguf_py="${HOME}/llama.cpp-cuda/gguf-py"
+    if [[ ! -d "$gguf_py" ]]; then
+        printf 'gguf-py not found at %s — cannot read GGUF metadata\n' "$gguf_py" >&2
+        return 1
+    fi
+
+    printf '=== GGUF metadata: %s ===\n' "$model_path"
+    PYTHONPATH="$gguf_py" python3 - "$model_path" <<'PYEOF'
+import sys, collections
+sys.path.insert(0, sys.argv[0])  # dummy — PYTHONPATH already set
+
+from pathlib import Path
+from gguf.gguf_reader import GGUFReader
+
+path = sys.argv[1]
+r = GGUFReader(path)
+
+# ── key-value metadata ──────────────────────────────────────────────────────
+SHOW_KEYS = {
+    "general.name", "general.architecture", "general.size_label",
+    "general.quantized_by", "general.repo_url",
+}
+SKIP_LARGE = {"tokenizer.ggml.tokens", "tokenizer.ggml.merges",
+              "tokenizer.ggml.token_type", "tokenizer.chat_template",
+              "tokenizer.ggml.scores"}
+
+arch = ""
+fields_out = {}
+for key, field in r.fields.items():
+    if key in SKIP_LARGE:
+        continue
+    try:
+        from gguf.constants import GGUFValueType
+        def _decode_field(fld):
+            if not fld.types:
+                return repr(fld.parts[fld.data[0]])
+            t = fld.types[0]
+            if t == GGUFValueType.STRING:
+                return bytes(fld.parts[fld.data[0]]).decode("utf-8", errors="replace")
+            if t == GGUFValueType.ARRAY:
+                inner = fld.types[1] if len(fld.types) > 1 else None
+                if inner == GGUFValueType.STRING:
+                    return [bytes(fld.parts[i]).decode("utf-8", errors="replace")
+                            for i in fld.data]
+                raw = fld.parts[fld.data[0]]
+                return raw.tolist() if hasattr(raw, "tolist") else repr(raw)
+            raw = fld.parts[fld.data[0]]
+            if hasattr(raw, "tolist"):
+                v = raw.tolist()
+                return v[0] if isinstance(v, list) and len(v) == 1 else v
+            return repr(raw)
+        val = _decode_field(field)
+    except Exception:
+        val = "<unreadable>"
+    fields_out[key] = val
+    if key == "general.architecture" and isinstance(val, str):
+        arch = val
+
+# Print general first, then arch-specific
+general = {k: v for k, v in fields_out.items() if k.startswith("general.")}
+arch_kv  = {k: v for k, v in fields_out.items()
+            if arch and k.startswith(arch + ".") and "rope.dimension_sections" not in k}
+token_kv = {k: v for k, v in fields_out.items()
+            if k.startswith("tokenizer.") and k not in SKIP_LARGE}
+
+def section(title, d):
+    if not d:
+        return
+    print(f"\n  [{title}]")
+    w = max(len(k) for k in d)
+    for k, v in d.items():
+        print(f"  {k:{w}}  {v}")
+
+section("general", general)
+section("architecture", arch_kv)
+section("tokenizer", token_kv)
+
+has_tmpl = "tokenizer.chat_template" in r.fields
+print(f"\n  chat_template  {'yes' if has_tmpl else 'no'}")
+
+# ── tensor summary ──────────────────────────────────────────────────────────
+quant_counts = collections.Counter(t.tensor_type.name for t in r.tensors)
+print(f"\n  [{len(r.tensors)} tensors]")
+for qtype, count in sorted(quant_counts.items(), key=lambda x: -x[1]):
+    print(f"  {count:4d}  {qtype}")
+
+print(f"\n  file size  {Path(path).stat().st_size / 1e9:.2f} GB")
+PYEOF
+}
+
+llama-alias() {
+    # Create or remove a short-name alias (symlink) for a GGUF model.
+    # Usage:
+    #   llama-alias <name> <path/to/model.gguf>   — create alias
+    #   llama-alias <name>                         — remove alias
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: llama-alias <name> [path/to/model.gguf]" >&2
+        return 1
+    fi
+    local name="$1" target="${2:-}"
+    local link="${LLAMACPP_MODELS_DIR}/${name}.gguf"
+    mkdir -p "$LLAMACPP_MODELS_DIR"
+
+    if [[ -z "$target" ]]; then
+        # Remove
+        if [[ -L "$link" ]]; then
+            rm "$link" && printf 'Removed alias: %s\n' "$name"
+        else
+            printf 'No alias named "%s" found in %s\n' "$name" "$LLAMACPP_MODELS_DIR" >&2
+            return 1
+        fi
+        return 0
+    fi
+
+    # Resolve target to absolute path
+    target=$(realpath "$target" 2>/dev/null) || { echo "Error: path not found: $2" >&2; return 1; }
+    if [[ ! -f "$target" ]]; then
+        echo "Error: not a file: $target" >&2
+        return 1
+    fi
+    if [[ -L "$link" ]]; then
+        rm "$link"
+    elif [[ -e "$link" ]]; then
+        echo "Error: $link exists and is not a symlink — remove it manually" >&2
+        return 1
+    fi
+    ln -s "$target" "$link"
+    printf 'Alias created: %s → %s\n' "$name" "$target"
+    printf 'Use with: llama-start %s\n' "$name"
+}
+
+_llama_wait_ready() {
+    # Poll /health until the model is fully loaded (HTTP 200, not 503) or timeout.
+    # llama-server returns 503 while the model is still being mapped into VRAM.
+    local url="$1" label="$2" timeout="${3:-300}"
+    local i http_code
+    for i in $(seq 1 "$timeout"); do
+        http_code=$(curl -so /dev/null -w "%{http_code}" "$url" 2>/dev/null)
+        if [[ "$http_code" == "200" ]]; then
+            printf '%s ready.\n' "$label"
+            return 0
+        elif [[ "$http_code" == "503" ]]; then
+            printf '\r  loading model... %ds' "$i"
+        fi
+        sleep 1
+    done
+    printf '\nTimeout after %ds waiting for %s\n' "$timeout" "$label" >&2
+    return 1
 }
 
 llama-start() {
@@ -369,11 +543,10 @@ llama-start() {
         --port         "$LLAMACPP_PORT" \
         --n-gpu-layers "$LLAMACPP_GPU_LAYERS" \
         --ctx-size     "$LLAMACPP_CTX" \
-        --flash-attn   auto \
+        --flash-attn on \
         "$@" &>/tmp/llama-server.log &
     disown
-    sleep 2
-    printf 'llama-server ready at http://%s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+    _llama_wait_ready "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" "llama-server" 120
 }
 
 llama-stop() {
@@ -403,17 +576,63 @@ llama-status() {
                --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
 }
 
+llama-models() {
+    # List available GGUF files from LLAMACPP_MODELS_DIR and HuggingFace cache.
+    # Aliases (symlinks) are shown with their target path.
+    local hf_cache="${HF_HOME:-${HOME}/.cache/huggingface}/hub"
+    local found=0
+
+    if [[ -d "$LLAMACPP_MODELS_DIR" ]]; then
+        local files
+        files=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" 2>/dev/null | sort)
+        if [[ -n "$files" ]]; then
+            printf '\n  [%s]\n' "$LLAMACPP_MODELS_DIR"
+            while IFS= read -r f; do
+                local name="${f##*/}" size
+                size=$(du -sh "$f" 2>/dev/null | cut -f1)
+                if [[ -L "$f" ]]; then
+                    printf '  %-12s  %-40s → %s\n' "$size" "$name" "$(readlink -f "$f")"
+                else
+                    printf '  %-12s  %s\n' "$size" "$name"
+                fi
+            done <<< "$files"
+            found=1
+        fi
+    fi
+
+    if [[ -d "$hf_cache" ]]; then
+        # Exclude files already reachable via an alias in LLAMACPP_MODELS_DIR
+        local aliased
+        aliased=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" -type l 2>/dev/null \
+                  | xargs -r readlink -f | sort)
+        local files
+        files=$(find "$hf_cache" -name "*.gguf" 2>/dev/null | sort)
+        if [[ -n "$files" ]]; then
+            local printed=0
+            while IFS= read -r f; do
+                grep -qxF "$f" <<< "$aliased" && continue  # skip if already shown as alias
+                [[ $printed -eq 0 ]] && { printf '\n  [huggingface cache]\n'; printed=1; found=1; }
+                printf '  %-12s  %s\n' "$(du -sh "$f" 2>/dev/null | cut -f1)" "$f"
+            done <<< "$files"
+        fi
+    fi
+
+    if [[ $found -eq 0 ]]; then
+        printf 'No GGUFs found in %s or %s\n' "$LLAMACPP_MODELS_DIR" "$hf_cache" >&2
+    fi
+}
+
 llama-proxy-start() {
-    # Start the Anthropic→OpenAI proxy required by claude-llama
+    # Legacy: the Anthropic→OpenAI proxy is no longer needed.
+    # llama-server now exposes a native /v1/messages endpoint.
+    # This function is retained for reference only.
     local proxy="${HOME}/.scripts/llama-anthropic-proxy.py"
     if [[ ! -f "$proxy" ]]; then
         echo "Proxy script not found: $proxy" >&2
-        echo "Re-stow the dotfiles: bash ~/dotfiles/dotify.sh scripts" >&2
         return 1
     fi
-    # Kill any stale instance holding the port before binding
     pkill -f "llama-anthropic-proxy.py" 2>/dev/null && sleep 0.5
-    printf 'Starting Anthropic proxy on :%s → llama-server :%s\n' \
+    printf '[legacy] Starting Anthropic proxy on :%s → llama-server :%s\n' \
         "$LLAMACPP_PROXY_PORT" "$LLAMACPP_PORT"
     python3 "$proxy" \
         --host     "$LLAMACPP_HOST" \
@@ -422,8 +641,7 @@ llama-proxy-start() {
         --no-think \
         &>/tmp/llama-proxy.log &
     disown
-    sleep 1
-    printf 'Proxy ready at http://%s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PROXY_PORT"
+    _llama_wait_ready "http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}/health" "proxy" 30
 }
 
 llama-proxy-stop() {
@@ -436,31 +654,25 @@ llama-proxy-status() {
 }
 
 claude-llama() {
-    # Run Claude Code via llama-server (requires llama-start + llama-proxy-start)
-    # Model name is passed to Claude Code but routing always goes to the single
-    # loaded llama-server instance — use any descriptive name you like.
+    # Run Claude Code via llama-server's native /v1/messages endpoint.
+    # No proxy required — llama-server speaks the Anthropic Messages API directly.
 
-    # Pre-flight: verify both services are reachable before handing off to claude
-    if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}/health" &>/dev/null; then
-        printf 'Anthropic proxy not running on port %s\n' "$LLAMACPP_PROXY_PORT" >&2
-        printf 'Start it first:\n  llama-proxy-start\n' >&2
-        if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
-            printf 'llama-server also not running on port %s — start both:\n' "$LLAMACPP_PORT" >&2
-            printf '  llama-start && llama-proxy-start\n' >&2
-        fi
+    if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+        printf 'llama-server not running on port %s\n' "$LLAMACPP_PORT" >&2
+        printf 'Start it first:\n  llama-start\n' >&2
         return 1
     fi
 
     local model="${1:-llama}"
     [[ $# -gt 0 ]] && shift
     ANTHROPIC_AUTH_TOKEN=llama \
-    ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}" \
+    ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
     ANTHROPIC_API_KEY="" \
     claude --model "$model" "$@"
 }
 
 llama-start-all() {
-    # Convenience: start llama-server + proxy in one step
-    # Usage: llama-start-all [model.gguf] [extra-llama-server-args...]
-    llama-start "$@" && llama-proxy-start
+    # Convenience wrapper — proxy is no longer needed (llama-server has native /v1/messages).
+    # Kept for muscle memory; equivalent to llama-start.
+    llama-start "$@"
 }

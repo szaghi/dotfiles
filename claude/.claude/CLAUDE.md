@@ -229,6 +229,28 @@ Reference repos: `~/python/FoBiS/`, `~/python/mosaic/`, `~/python/MaTiSSe/` — 
 - Package management: **pyproject.toml** (no setup.py, no setup.cfg)
 - Testing: **pytest** with coverage reporting; tests live in `/tests/`
 
+**Ruff patterns — write correctly on first pass, never wait for lint to catch these:**
+
+- **B904** — always chain exceptions inside `except` blocks:
+  ```python
+  # WRONG
+  except SomeError:
+      raise typer.Exit(1)
+  # CORRECT — from None for control-flow exits, from err for re-raises
+  except SomeError as e:
+      raise typer.Exit(1) from None
+  except SomeError as e:
+      raise MyError("...") from e
+  ```
+- **B905** — always pass `strict=` to `zip()`:
+  ```python
+  zip(xs, ys, strict=True)   # lengths must match
+  zip(xs, ys, strict=False)  # truncation is intentional
+  ```
+- **S608** — dynamic `IN (?)` SQL built from `"?" * len(xs)` is safe but ruff flags it; suppress with `# noqa: S608`
+- **RUF002** — no Unicode math symbols (`×`, `·`) in docstrings; use ASCII (`*`, `.`)
+- **C408** — use dict literals, not `dict()` calls: `{"k": v}` not `dict(k=v)`
+
 **Type annotations:**
 - Always fully annotated — use `from __future__ import annotations` in every source file
 - Full return type hints; use PEP 604 union syntax (`str | None`, not `Optional[str]`)
@@ -310,7 +332,7 @@ Standard invocation:
 
 Pre-flight checks (always, in this order):
 1. Working tree is clean — no uncommitted changes
-2. On the correct branch (`develop` for GitFlow, `main` for trunk)
+2. On the correct branch (`develop` for GitFlow, `master`/`main` for trunk)
 3. Local branches up-to-date with remote — fail fast if behind
 4. `git fetch --tags` — verify tag does not already exist
 5. `git-cliff` available
@@ -340,7 +362,7 @@ git push origin "vX.Y.Z"        # triggers CI → PyPI
 ```
 
 Branch models — two patterns in use:
-- **GitFlow** (FoBiS, MaTiSSE): `develop` → `release/vX.Y.Z` → merge to `master` (no-ff) → tag → push → merge back to `develop` → delete release branch
-- **Trunk** (mosaic): stay on `main`, commit version bump, push, tag, push tag
+- **GitFlow** (FoBiS): `develop` → `release/vX.Y.Z` → merge to `master` (no-ff) → tag → push → merge back to `develop` → delete release branch
+- **Trunk** (mosaic, MaTiSSe): stay on `master`/`main`, commit version bump, tag, `git push --follow-tags`
 
 Error recovery: use stage tracking + `trap ERR` with per-stage recovery instructions (MaTiSSE pattern). Each stage sets a `STAGE` variable; the trap prints exact git commands to resume from that point.
