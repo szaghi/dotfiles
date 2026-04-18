@@ -116,6 +116,32 @@ claude-openrouter() {
     claude --model "$model" "${@:2}"
 }
 
+# ── Z.AI FUNCTIONS ───────────────────────────────────────────────────────
+# models from Z.ai (https://docs.z.ai/devpack/tool/claude)
+# API key is configured in ~/.z-ai-key
+
+ZAI_DEFAULT_MODEL="glm-5-turbo"  # Maps to ANTHROPIC_DEFAULT_SONNET_MODEL
+
+claude-zai() {
+    # Z.ai endpoint
+    # Models: glm-4.5-air (Haiku), glm-5-turbo (Sonnet), glm-5.1 (Opus)
+    local model="${1:-$ZAI_DEFAULT_MODEL}"
+    local key="${ZAI_API_KEY:-$(cat "$HOME/.z-ai-key" 2>/dev/null)}"
+    if [[ -z "$key" ]]; then
+        echo "Error: no Z.ai API key found (set ZAI_API_KEY or place it in ~/.z-ai-key)" >&2
+        return 1
+    fi
+    ANTHROPIC_AUTH_TOKEN="$key" \
+    ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic" \
+    ANTHROPIC_API_KEY="" \
+    claude --model "$model" "${@:2}"
+}
+
+# Short aliases for specific Z.ai models
+claude-zai-fast()   { claude-zai "glm-4.5-air" "$@"; } # Fastest
+claude-zai-turbo()  { claude-zai "glm-5-turbo" "$@"; } # Balanced (default)
+claude-zai-premium(){ claude-zai "glm-5.1" "$@"; }     # Highest quality
+
 # ── OLLAMA SERVICE MANAGEMENT ─────────────────────────────────────────────────
 
 ollama-start() {
@@ -257,6 +283,14 @@ claude-help() {
     printf '%s\n' "$sep"
     printf '  %-28s%s\n' 'claude-openrouter'          'qwen/qwen3.6-plus-preview:free  (default)'
     printf '  %-28s%s\n' 'claude-openrouter <model>'  'any OpenRouter model ID'
+    printf '\n'
+    printf "  ${b}Z.AI${r}  cloud API · key in ~/.z-ai-key\n"
+    printf '%s\n' "$sep"
+    printf '  %-28s%s\n' 'claude-zai'                 'glm-5-turbo  (default, balanced)'
+    printf '  %-28s%s\n' 'claude-zai-fast'            'glm-4.5-air  (fastest)'
+    printf '  %-28s%s\n' 'claude-zai-turbo'           'glm-5-turbo  (balanced, default)'
+    printf '  %-28s%s\n' 'claude-zai-premium'         'glm-5.1      (highest quality)'
+    printf '  %-28s%s\n' 'claude-zai <model>'         'any Z.AI model ID'
     printf '\n'
     printf "  ${b}MID-SESSION${r}  inside Claude Code\n"
     printf '%s\n' "$sep"
