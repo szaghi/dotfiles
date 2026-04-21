@@ -1,0 +1,35 @@
+# claude_code.local — adam (WSL2 workstation, 2x NVIDIA RTX, 64 GB RAM)
+# Sourced at the end of ~/.bash/claude_code by the base file.
+
+# ── GPU CONFIGURATION ─────────────────────────────────────────────────────────
+# Identify GPUs with: nvidia-smi -L
+export OLLAMA_GPU_UUID="GPU-63e0fc4d-bd54-cc22-532e-299518238d61"
+export OLLAMA_GPU_ID="1"
+
+# ── OLLAMA PERFORMANCE (CUDA-specific) ────────────────────────────────────────
+export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM, required for KV quant
+export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for more savings
+
+# ── MODEL DEFAULTS ────────────────────────────────────────────────────────────
+# qwen3-coder:latest — MoE 30B-A3B Q4_K_M, 18 GB, dual GPU
+#   3B active params → inference speed of a 3B dense model, quality > 30B dense.
+#   Avoid dense 30B+ models — RAM spill makes them 5-20x slower than MoE.
+OLLAMA_DEFAULT_MODEL="qwen3-coder:latest"
+OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
+OLLAMA_PLAN_MODEL="qwen3.5:27b"              # Architect: broad reasoning, designs approach
+OLLAMA_EXEC_MODEL="qwen3-coder:latest"       # Executor: coding-specialized, fast MoE inference
+
+# ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
+# Prefer the locally CUDA-built binary over any system install
+_adam_cuda_build="${HOME}/llama.cpp-cuda/build/bin/llama-server"
+[[ -x "$_adam_cuda_build" ]] && LLAMACPP_BIN="$_adam_cuda_build"
+unset _adam_cuda_build
+
+# Runtime libs for the CUDA-built binary (NVHPC 26.1 / CUDA 13.1)
+_adam_cuda_libs="/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/cuda/13.1/targets/x86_64-linux/lib:/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/math_libs/13.1/targets/x86_64-linux/lib"
+[[ ":${LD_LIBRARY_PATH}:" != *":${_adam_cuda_libs%%:*}:"* ]] && \
+    export LD_LIBRARY_PATH="${_adam_cuda_libs}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+unset _adam_cuda_libs
+
+# Default model: Qwen3.5-27B distilled (Q6_K, ~23 GB — needs both GPUs)
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/.cache/huggingface/hub/models--Jackrong--Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF/snapshots/268a860d70c80f5eafbd9c58443612334747278a/Qwen3.5-27B.Q6_K.gguf}"

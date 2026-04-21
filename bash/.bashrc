@@ -76,3 +76,7 @@ export NVM_DIR="$HOME/.nvm"
 [[ -f "$HOME/.bash_completions/fobis.sh" ]] && source "$HOME/.bash_completions/fobis.sh"
 
 source '/home/stefano/.bash_completions/matisse.sh'
+
+
+# opencode
+export PATH=/home/stefano/.opencode/bin:$PATH

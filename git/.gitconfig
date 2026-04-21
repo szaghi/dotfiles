@@ -1,7 +1,6 @@
 [user]
 	name = Stefano Zaghi
 	email = stefano.zaghi@gmail.com
-	signingkey = C6D8B6D063DA7309
 [color]
   branch = always
   diff = always
@@ -46,3 +45,7 @@
 	required = true
 [tag]
 	gpgsign = true
+
+# Machine-specific overrides (signingkey, etc.) — deployed by the machine's stow package
+[include]
+	path = ~/.gitconfig.local

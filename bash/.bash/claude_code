@@ -1,32 +1,20 @@
 #!/usr/bin/env bash
 # Claude Code Dual-Mode Setup: Local Ollama + Cloud Anthropic
-#
-# Workstation: 2x NVIDIA CUDA GPUs (12GB VRAM each) + 64GB system RAM
+# Machine-specific tuning (GPU IDs, model sizes, CUDA libs) lives in
+# ~/.bash/claude_code.local — deployed by the machine's own stow package.
 # Source from ~/.bashrc or ~/.zshrc
-
-# ── GPU CONFIGURATION ─────────────────────────────────────────────────────────
-# Identify GPUs with: nvidia-smi -L
-export OLLAMA_GPU_UUID="GPU-63e0fc4d-bd54-cc22-532e-299518238d61"
-export OLLAMA_GPU_ID="1"
 
 # ── OLLAMA SERVER SETTINGS ────────────────────────────────────────────────────
 export OLLAMA_HOST="127.0.0.1:11434"
 export OLLAMA_KEEP_ALIVE="10m"
 export OLLAMA_NUM_PARALLEL="1"
 export OLLAMA_MAX_LOADED_MODELS="1"
-export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM, required for KV quant
-export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for more savings
 
-# ── MODEL DEFAULTS ────────────────────────────────────────────────────────────
-# DEFAULT: qwen3-coder:latest — MoE 30B-A3B Q4_K_M, 18 GB, dual GPU
-#   3B active params → inference speed of a 3B dense model, quality > 30B dense.
-#   Avoid dense 30B+ models — RAM spill makes them 5-20x slower than MoE.
-OLLAMA_DEFAULT_MODEL="qwen3-coder:latest"
-OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
-
-# Plan-mode: architect (planner) + executor (implementer)
-OLLAMA_PLAN_MODEL="qwen3.5:27b"          # Architect: broad reasoning, designs approach
-OLLAMA_EXEC_MODEL="qwen3-coder:latest"   # Executor: coding-specialized, fast MoE inference
+# ── MODEL DEFAULTS (overridden per-machine in claude_code.local) ──────────────
+OLLAMA_DEFAULT_MODEL="qwen2.5-coder:7b"
+OLLAMA_LIGHT_MODEL="qwen2.5-coder:7b"
+OLLAMA_PLAN_MODEL="qwen2.5-coder:7b"
+OLLAMA_EXEC_MODEL="qwen2.5-coder:7b"
 
 # ── LOCAL CLAUDE FUNCTIONS ────────────────────────────────────────────────────
 
@@ -339,25 +327,14 @@ claude-help() {
 #   llama-start [model.gguf]   # start inference server
 #   claude-llama               # run Claude Code
 
-# Prefer a locally CUDA-built binary over the Homebrew one (which has no GPU support)
-_llamacpp_default_bin() {
-    local cuda_build="${HOME}/llama.cpp-cuda/build/bin/llama-server"
-    if [[ -x "$cuda_build" ]]; then echo "$cuda_build"
-    else echo "llama-server"
-    fi
-}
-LLAMACPP_BIN="${LLAMACPP_BIN:-$(_llamacpp_default_bin)}"
-# Runtime lib paths for the CUDA-built binary (NVHPC 26.1 CUDA 13.1)
-_llamacpp_cuda_libs="/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/cuda/13.1/targets/x86_64-linux/lib:/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/math_libs/13.1/targets/x86_64-linux/lib"
-[[ ":${LD_LIBRARY_PATH}:" != *":${_llamacpp_cuda_libs%%:*}:"* ]] && \
-    export LD_LIBRARY_PATH="${_llamacpp_cuda_libs}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# llama-server binary: overridden per-machine in claude_code.local
+LLAMACPP_BIN="${LLAMACPP_BIN:-llama-server}"
 LLAMACPP_HOST="127.0.0.1"
 LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
 LLAMACPP_PROXY_PORT="${LLAMACPP_PROXY_PORT:-4000}"
 LLAMACPP_MODELS_DIR="${LLAMACPP_MODELS_DIR:-${HOME}/models}"
-# Default: Qwen3.5-27B distilled (Q6_K, ~23 GB — needs both GPUs)
-LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/.cache/huggingface/hub/models--Jackrong--Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF/snapshots/268a860d70c80f5eafbd9c58443612334747278a/Qwen3.5-27B.Q6_K.gguf}"
-LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"   # -1 = all layers on GPU
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-}"   # set in claude_code.local
+LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"
 LLAMACPP_CTX="${LLAMACPP_CTX:-32768}"
 
 _llama_model_path() {
@@ -710,3 +687,8 @@ llama-start-all() {
     # Kept for muscle memory; equivalent to llama-start.
     llama-start "$@"
 }
+
+# ── MACHINE-SPECIFIC OVERRIDES ────────────────────────────────────────────────
+# Deployed by the machine's own stow package (e.g. bash-adam, bash-quark).
+# Overrides: GPU IDs, model sizes, LLAMACPP_BIN, CUDA lib paths, etc.
+[[ -f "${HOME}/.bash/claude_code.local" ]] && source "${HOME}/.bash/claude_code.local"

@@ -1,0 +1,4 @@
+# Machine-specific git config — adam (WSL2 workstation)
+# Included by ~/.gitconfig via [include] path = ~/.gitconfig.local
+[user]
+	signingkey = C6D8B6D063DA7309

@@ -1,0 +1,4 @@
+# Machine-specific git config — quark (Chuwi Minibook X N150)
+# Included by ~/.gitconfig via [include] path = ~/.gitconfig.local
+[user]
+	signingkey = FAD5FB98C3A2982B
