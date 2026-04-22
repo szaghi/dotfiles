@@ -5,11 +5,12 @@ vim/.vim/view/
 vim/view/
 vim/vim
 bash/.bash/private
-openrouter-ai-key
 claude/.claude/.credentials.json
 claude/.claude/.env
+scripts/.bin/hpc-login-venv
 *.gpg
 *token*
 *secret*
 *api-key*
 *api_key*
+openrouter-ai-key
