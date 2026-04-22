@@ -136,3 +136,8 @@ newtab() {
   # Open a new Windows Terminal tab in the current WSL directory
   wt.exe -w 0 new-tab wsl.exe --cd "$PWD"
 }
+
+hpc-login() {
+  # HPC login via Step CLI + headless Playwright
+  eval "$(ssh-agent -s)" && ~/.bin/hpc-login --headed "$@"
+}

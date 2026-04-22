@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""hpc-login: Terminal-native HPC login via Step CLI + headless Playwright.
+
+Drives the OIDC browser auth flow in a headless browser while collecting
+credentials and 2FA codes interactively from the terminal.
+No credentials are stored on disk.
+
+Usage:
+    hpc-login --headed                           # interactive, agent not exported
+    eval "$(hpc-login --headed --shell-export)"   # interactive, agent exported to shell
+
+Auto-creates a dedicated venv on first run (no manual setup needed).
+
+First run with --headed to inspect CINECA's pages and adjust SELECTORS.
+"""
+
+from __future__ import annotations
+
+import atexit
+import os
+import re
+import subprocess
+import sys
+import threading
+from getpass import getpass
+from pathlib import Path
+
+def log(msg: str = "") -> None:
+    print(msg, file=sys.stderr)
+
+VENV_DIR = Path(__file__).resolve().parent / "hpc-login-venv"
+VENV_PYTHON = VENV_DIR / "bin" / "python"
+VENV_MARKER = VENV_DIR / ".playwright-installed"
+
+
+def ensure_venv() -> None:
+    if sys.executable == str(VENV_PYTHON):
+        return
+    if not VENV_PYTHON.exists():
+        log("Creating venv and installing playwright...")
+        subprocess.run(
+            [sys.executable, "-m", "venv", str(VENV_DIR)], check=True
+        )
+        pip = VENV_DIR / "bin" / "pip"
+        subprocess.run(
+            [str(pip), "install", "-q", "playwright"], check=True
+        )
+        subprocess.run(
+            [str(VENV_PYTHON), "-m", "playwright", "install", "chromium"],
+            check=True,
+        )
+        VENV_MARKER.touch()
+    os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
+
+
+ensure_venv()
+
+from playwright.sync_api import sync_playwright
+
+# -- Configuration --------------------------------------------------------------
+IDENTITY = "stefano.zaghi@gmail.com"
+PROVISIONER = "cineca-hpc"
+
+# CSS selectors for the IdP login and 2FA pages (Keycloak).
+# Run with --headed --debug to inspect and adjust.
+SELECTORS = {
+    "username": 'input[name="username"]',
+    "password": 'input[name="password"]',
+    "otp":      'input#otp',
+    "submit":   'input[type="submit"]',
+}
+# -------------------------------------------------------------------------------
+
+
+def start_agent() -> dict[str, str]:
+    if os.environ.get("SSH_AUTH_SOCK"):
+        sock = os.environ["SSH_AUTH_SOCK"]
+        if os.path.exists(sock):
+            log(f"  Using existing agent: {sock}")
+            return {"SSH_AUTH_SOCK": sock}
+    log("  No running agent found, starting ssh-agent...")
+    out = subprocess.run(
+        ["ssh-agent", "-s"], capture_output=True, text=True, check=True
+    ).stdout
+    env: dict[str, str] = {}
+    for line in out.splitlines():
+        m = re.match(r"(\w+)=(.+?);", line)
+        if m:
+            env[m.group(1)] = m.group(2)
+    if "SSH_AUTH_SOCK" not in env:
+        sys.exit("ssh-agent failed to start")
+    log(f"  New agent: {env['SSH_AUTH_SOCK']}")
+    return env
+
+
+def capture_auth_url(proc: subprocess.Popen, result: dict) -> None:
+    ansi = re.compile(r"\x1b\[[0-9;]*m")
+    for raw in proc.stdout:
+        line = ansi.sub("", raw.strip())
+        result["debug"].append(line)
+        m = re.search(r"(https://\S+)", line)
+        if m:
+            result["url"] = m.group(1)
+            result["event"].set()
+            return
+
+
+def dump_forms(page) -> None:
+    inputs = page.query_selector_all("input, button, select, textarea")
+    log(f"\n  Page URL: {page.url}")
+    log(f"  Found {len(inputs)} form elements:")
+    for el in inputs:
+        tag = el.evaluate("e => e.tagName")
+        name = el.get_attribute("name") or ""
+        eltype = el.get_attribute("type") or ""
+        eid = el.get_attribute("id") or ""
+        log(f"    <{tag.lower()}> name={name!r} type={eltype!r} id={eid!r}")
+
+
+def authenticate(context, url, sel, screenshot=False, debug=False):
+    page = context.new_page()
+
+    pages = [page]
+    context.on("page", lambda p: pages.append(p))
+
+    page.goto(url, wait_until="commit")
+
+    active = pages[-1]
+    active.wait_for_selector(sel["username"], timeout=15_000)
+
+    if debug:
+        dump_forms(active)
+        active.context.browser.close()
+        return
+
+    if screenshot:
+        active.screenshot(path="hpc-login-1.png")
+        log(f"  Screenshot: hpc-login-1.png (URL: {active.url})")
+
+    active.wait_for_selector(sel["username"], timeout=15_000)
+
+    username = input("Username: ")
+    password = getpass("Password: ")
+    active.fill(sel["username"], username)
+    active.fill(sel["password"], password)
+    active.click(sel["submit"])
+
+    active = pages[-1]
+    active.wait_for_selector(sel["otp"], timeout=15_000)
+
+    if screenshot:
+        active.screenshot(path="hpc-login-2.png")
+        log("  Screenshot: hpc-login-2.png")
+
+    otp = getpass("2FA code: ")
+    active.fill(sel["otp"], otp)
+    try:
+        with active.expect_navigation(timeout=30_000, wait_until="commit"):
+            active.click(sel["submit"])
+    except Exception:
+        pass
+
+
+def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Terminal-native HPC login")
+    ap.add_argument("--headed", action="store_true", help="show browser (debug selectors)")
+    ap.add_argument("--identity", default=IDENTITY, help="SSH certificate identity")
+    ap.add_argument("--provisioner", default=PROVISIONER, help="Step CA provisioner")
+    ap.add_argument("--screenshot", action="store_true", help="save page screenshots")
+    ap.add_argument("--debug", action="store_true", help="dump page form elements and exit")
+    args = ap.parse_args()
+
+    log("Starting ssh-agent...")
+    agent_env = start_agent()
+    log(f"  SSH_AUTH_SOCK={agent_env['SSH_AUTH_SOCK']}")
+
+    env = {**os.environ, **agent_env, "BROWSER": "echo"}
+    log(f"\nLaunching step ssh login ({args.identity})...")
+    step_proc = subprocess.Popen(
+        ["step", "ssh", "login", args.identity, "--provisioner", args.provisioner],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+    )
+
+    found: dict = {"url": None, "event": threading.Event(), "debug": []}
+    threading.Thread(
+        target=capture_auth_url, args=(step_proc, found), daemon=True
+    ).start()
+
+    atexit.register(lambda: step_proc.kill() if step_proc.poll() is None else None)
+
+    if not found["event"].wait(timeout=30):
+        step_proc.kill()
+        log("Step output before timeout:")
+        for line in found["debug"]:
+            log(f"  {line}")
+        sys.exit("Timed out waiting for auth URL from step")
+
+    log("  Auth URL captured")
+
+    log("\nAuthenticating via headless browser...")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=not args.headed)
+        context = browser.new_context()
+        authenticate(context, found["url"], SELECTORS, screenshot=args.screenshot, debug=args.debug)
+        browser.close()
+
+    step_proc.wait(timeout=30)
+    rc = step_proc.returncode
+    if rc == 0:
+        log("\nSSH certificate added to agent.")
+    else:
+        sys.exit(f"\nLogin failed (step exited with code {rc})")
+
+
+if __name__ == "__main__":
+    main()

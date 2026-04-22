@@ -1,101 +1,43 @@
 #!/usr/bin/env bash
-# Claude Code Dual-Mode Setup: Local Ollama + Cloud Anthropic
-# Machine-specific tuning (GPU IDs, model sizes, CUDA libs) lives in
+# Claude Code: Cloud + Local inference setup
+# Machine-specific overrides (GPU IDs, model paths, binary locations) live in
 # ~/.bash/claude_code.local — deployed by the machine's own stow package.
 # Source from ~/.bashrc or ~/.zshrc
 
-# ── OLLAMA SERVER SETTINGS ────────────────────────────────────────────────────
+# ── OLLAMA SETTINGS ───────────────────────────────────────────────────────────
 export OLLAMA_HOST="127.0.0.1:11434"
 export OLLAMA_KEEP_ALIVE="10m"
 export OLLAMA_NUM_PARALLEL="1"
 export OLLAMA_MAX_LOADED_MODELS="1"
 
-# ── MODEL DEFAULTS (overridden per-machine in claude_code.local) ──────────────
+# ── OLLAMA MODEL DEFAULTS (override in claude_code.local) ─────────────────────
 OLLAMA_DEFAULT_MODEL="qwen2.5-coder:7b"
-OLLAMA_LIGHT_MODEL="qwen2.5-coder:7b"
-OLLAMA_PLAN_MODEL="qwen2.5-coder:7b"
-OLLAMA_EXEC_MODEL="qwen2.5-coder:7b"
 
-# ── LOCAL CLAUDE FUNCTIONS ────────────────────────────────────────────────────
+# ── LLAMA.CPP SETTINGS (override in claude_code.local) ───────────────────────
+LLAMACPP_BIN="${LLAMACPP_BIN:-llama-server}"
+LLAMACPP_HOST="127.0.0.1"
+LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
+LLAMACPP_MODELS_DIR="${LLAMACPP_MODELS_DIR:-${HOME}/models}"
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-}"
+LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"
+LLAMACPP_CTX="${LLAMACPP_CTX:-131072}"
 
-claude-local() {
-    # Local Ollama — full context, default model (requires 2 GPUs)
-    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
-    ANTHROPIC_AUTH_TOKEN=ollama \
-    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
-    ANTHROPIC_API_KEY="" \
-    CLAUDE_LOCAL_GPUS=2 \
-    claude --model "$model" "${@:2}"
-}
+# ── LOCAL BACKEND DEFAULT (override in claude_code.local) ─────────────────────
+LOCAL_DEFAULT_BACKEND="${LOCAL_DEFAULT_BACKEND:-ollama}"
 
-claude-local-light() {
-    # Local Ollama — single-GPU model (8.9 GB); use when GPU 2 is needed for HPC jobs
-    ANTHROPIC_AUTH_TOKEN=ollama \
-    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
-    ANTHROPIC_API_KEY="" \
-    CLAUDE_LOCAL_GPUS=1 \
-    claude --model "$OLLAMA_LIGHT_MODEL" "$@"
-}
-
-claude-local-plan() {
-    # Local plan mode: starts with architect for planning.
-    # When ready to implement, switch mid-session with: /model plan-executor
-    # Run ollama-plan-setup once to register the short-name aliases.
-    printf '\n=== LOCAL PLAN MODE ===\n'
-    printf '  ARCHITECT : plan-architect  (%s)\n' "$OLLAMA_PLAN_MODEL"
-    printf '  EXECUTOR  : plan-executor   (%s)\n' "$OLLAMA_EXEC_MODEL"
-    printf '\nSwitch to executor when ready:\n'
-    printf '  /model plan-executor\n\n'
-    ANTHROPIC_AUTH_TOKEN=ollama \
-    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
-    ANTHROPIC_API_KEY="" \
-    CLAUDE_LOCAL_GPUS=2 \
-    claude --model "plan-architect" "$@"
-}
-
-ollama-plan-setup() {
-    # Register short-name aliases for plan-mode models (run once after ollama-start)
-    local tmpfile
-    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
-
-    printf 'FROM %s\n' "$OLLAMA_PLAN_MODEL" > "$tmpfile"
-    ollama create plan-architect -f "$tmpfile" \
-        && printf 'Created: plan-architect → %s\n' "$OLLAMA_PLAN_MODEL"
-
-    printf 'FROM %s\n' "$OLLAMA_EXEC_MODEL" > "$tmpfile"
-    ollama create plan-executor -f "$tmpfile" \
-        && printf 'Created: plan-executor  → %s\n' "$OLLAMA_EXEC_MODEL"
-
-    rm -f "$tmpfile"
-    printf '\nUse /model plan-executor inside a session to switch.\n'
-}
-
-claude-local-exec() {
-    # Local executor only — skips planning, jumps straight to implementer model
-    ANTHROPIC_AUTH_TOKEN=ollama \
-    ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
-    ANTHROPIC_API_KEY="" \
-    CLAUDE_LOCAL_GPUS=2 \
-    claude --model "$OLLAMA_EXEC_MODEL" "$@"
-}
-
-# ── CLOUD CLAUDE FUNCTIONS ────────────────────────────────────────────────────
+# ── CLOUD FUNCTIONS ───────────────────────────────────────────────────────────
 
 claude-sonnet() { claude --model "sonnet" "$@"; }
-claude-opus()   { claude --model "opus" "$@"; }
-claude-plan()   { claude --permission-mode plan --model "opusplan" "$@"; }  # read-only plan (Opus) → auto-switch to Sonnet on execute
-
-# ── OPENROUTER FUNCTIONS ──────────────────────────────────────────────────────
-# Requires OPENROUTER_API_KEY in the environment (set in ~/.bash/exports or ~/.env)
+claude-opus()   { claude --model "opus"   "$@"; }
+claude-plan()   { claude --permission-mode plan --model "opusplan" "$@"; }
 
 OPENROUTER_DEFAULT_MODEL="qwen/qwen3.6-plus-preview:free"
 
 claude-openrouter() {
-    # OpenRouter cloud API — Anthropic-compatible endpoint, free-tier models
     local model="${1:-$OPENROUTER_DEFAULT_MODEL}"
     local key="${OPENROUTER_API_KEY:-$(cat "$HOME/.openrouter-ai-key" 2>/dev/null)}"
     if [[ -z "$key" ]]; then
-        echo "Error: no OpenRouter API key found (set OPENROUTER_API_KEY or place it in ~/.openrouter-ai-key)" >&2
+        printf 'Error: no OpenRouter API key (set OPENROUTER_API_KEY or ~/.openrouter-ai-key)\n' >&2
         return 1
     fi
     ANTHROPIC_AUTH_TOKEN="$key" \
@@ -104,19 +46,13 @@ claude-openrouter() {
     claude --model "$model" "${@:2}"
 }
 
-# ── Z.AI FUNCTIONS ───────────────────────────────────────────────────────
-# models from Z.ai (https://docs.z.ai/devpack/tool/claude)
-# API key is configured in ~/.z-ai-key
-
-ZAI_DEFAULT_MODEL="glm-5-turbo"  # Maps to ANTHROPIC_DEFAULT_SONNET_MODEL
+ZAI_DEFAULT_MODEL="glm-5-turbo"
 
 claude-zai() {
-    # Z.ai endpoint
-    # Models: glm-4.5-air (Haiku), glm-5-turbo (Sonnet), glm-5.1 (Opus)
     local model="${1:-$ZAI_DEFAULT_MODEL}"
     local key="${ZAI_API_KEY:-$(cat "$HOME/.z-ai-key" 2>/dev/null)}"
     if [[ -z "$key" ]]; then
-        echo "Error: no Z.ai API key found (set ZAI_API_KEY or place it in ~/.z-ai-key)" >&2
+        printf 'Error: no Z.ai API key (set ZAI_API_KEY or ~/.z-ai-key)\n' >&2
         return 1
     fi
     ANTHROPIC_AUTH_TOKEN="$key" \
@@ -125,427 +61,243 @@ claude-zai() {
     claude --model "$model" "${@:2}"
 }
 
-# Short aliases for specific Z.ai models
-claude-zai-fast()   { claude-zai "glm-4.5-air" "$@"; } # Fastest
-claude-zai-turbo()  { claude-zai "glm-5-turbo" "$@"; } # Balanced (default)
-claude-zai-premium(){ claude-zai "glm-5.1" "$@"; }     # Highest quality
+claude-zai-fast()    { claude-zai "glm-4.5-air" "$@"; }
+claude-zai-turbo()   { claude-zai "glm-5-turbo" "$@"; }
+claude-zai-premium() { claude-zai "glm-5.1"     "$@"; }
 
-# ── OLLAMA SERVICE MANAGEMENT ─────────────────────────────────────────────────
+# ── LOCAL INFERENCE ENTRY POINT ───────────────────────────────────────────────
+#
+# claude-local [OPTIONS] [-- CLAUDE_ARGS...]
+#
+#   --backend ollama|llama   inference engine  (default: $LOCAL_DEFAULT_BACKEND)
+#   --model   NAME           model name or GGUF path/alias
+#   --ctx     TOKENS|32k|64k|128k   context window (default: per-backend default)
+#   --gpus    1|2|all        GPU count for Ollama (default: all)
+#   --no-autostart           do not start the server if not running
+#   --no-autostop            do not stop the server when Claude exits
+#
+# By default claude-local auto-starts the correct backend before launching Claude
+# and auto-stops it after Claude exits. If a different backend is already running
+# it is stopped first.
 
-ollama-start() {
-    # Start Ollama pinned to a specific GPU (defaults to OLLAMA_GPU_UUID)
-    local gpu="${OLLAMA_GPU_UUID:-${1:-$OLLAMA_GPU_ID}}"
-    echo "Starting Ollama on GPU: $gpu"
-    CUDA_VISIBLE_DEVICES="$gpu" ollama serve &
-    disown
-    sleep 2
-    echo "Ollama running at http://${OLLAMA_HOST}"
-}
+claude-local() {
+    local backend="$LOCAL_DEFAULT_BACKEND"
+    local model="" ctx="" gpus="all"
+    local autostart=1 autostop=1
+    local -a claude_args=()
 
-ollama-start-multi() {
-    # Start Ollama on ALL GPUs (needed for models > 12GB like qwen3.5:latest)
-    echo "Starting Ollama on ALL GPUs — do not run HPC jobs concurrently"
-    ollama serve &
-    disown
-    sleep 2
-    echo "Ollama running at http://${OLLAMA_HOST}"
-}
-
-ollama-stop() {
-    pkill -f "ollama serve" 2>/dev/null && echo "Ollama stopped." || echo "Ollama not running."
-}
-
-ollama-restart() {
-    ollama-stop
-    sleep 1
-    ollama-start "$@"
-}
-
-ollama-status() {
-    echo "=== Ollama Process ==="
-    pgrep -a "ollama" || echo "Not running"
-    echo ""
-    echo "=== Loaded Models ==="
-    curl -s "http://${OLLAMA_HOST}/api/ps" 2>/dev/null | python3 -m json.tool 2>/dev/null || echo "Cannot reach Ollama"
-    echo ""
-    echo "=== GPU Status ==="
-    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
-               --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
-}
-
-# ── MODEL HELPERS ─────────────────────────────────────────────────────────────
-
-ollama-pull() {
-    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
-    echo "Pulling: $model"
-    ollama pull "$model"
-}
-
-ollama-create-64k() {
-    # Create a 64K-capped variant — predictable RAM when running HPC jobs in parallel
-    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
-    local variant="${model}-64k"
-    local tmpfile
-    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
-    cat > "$tmpfile" <<EOF
-FROM $model
-PARAMETER num_ctx 65536
-EOF
-    ollama create "$variant" -f "$tmpfile"
-    rm -f "$tmpfile"
-    echo "Created: $variant  (use with: claude-local $variant)"
-}
-
-ollama-models() {
-    local output
-    output=$(ollama list 2>/dev/null) || { echo "Ollama not running. Start with: ollama-start"; return 1; }
-
-    local header lines
-    header=$(printf '%s\n' "$output" | head -1)
-    lines=$(printf '%s\n' "$output" | tail -n +2)
-    [[ -z "$lines" ]] && { printf '%s\n' "$header"; echo "(no models)"; return 0; }
-
-    printf '%s\n' "$header"
-    local cat matched
-    for cat in cloud embedding plan exec; do
-        matched=$(printf '%s\n' "$lines" | awk -v c="$cat" '$1 ~ "[-:]"c"$"')
-        [[ -n "$matched" ]] && printf '\n  [%s]\n%s\n' "$cat" "$matched"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --backend)        backend="$2";    shift 2 ;;
+            --model)          model="$2";      shift 2 ;;
+            --ctx)            ctx="$2";        shift 2 ;;
+            --gpus)           gpus="$2";       shift 2 ;;
+            --no-autostart)   autostart=0;     shift   ;;
+            --no-autostop)    autostop=0;      shift   ;;
+            --)               shift; claude_args+=("$@"); break ;;
+            *)                claude_args+=("$1"); shift ;;
+        esac
     done
 
-    matched=$(printf '%s\n' "$lines" | awk '$1 !~ "[-:](cloud|embedding|plan|exec)$"')
-    [[ -n "$matched" ]] && printf '\n  [misc]\n%s\n' "$matched"
+    # Validate backend
+    case "$backend" in
+        ollama|llama) ;;
+        *) printf 'Error: unknown backend "%s" (ollama|llama)\n' "$backend" >&2; return 1 ;;
+    esac
+
+    if (( autostart )); then
+        _local_autostart "$backend" "$model" "$ctx" "$gpus" || return 1
+    fi
+
+    local rc=0
+    case "$backend" in
+        ollama)
+            local m="${model:-$OLLAMA_DEFAULT_MODEL}"
+            ANTHROPIC_AUTH_TOKEN=ollama \
+            ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
+            ANTHROPIC_API_KEY="" \
+            claude --model "$m" "${claude_args[@]}"
+            rc=$?
+            ;;
+        llama)
+            if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+                printf 'llama-server not reachable at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT" >&2
+                return 1
+            fi
+            local m="${model:-llama}"
+            ANTHROPIC_AUTH_TOKEN=llama \
+            ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
+            ANTHROPIC_API_KEY="" \
+            claude --model "$m" "${claude_args[@]}"
+            rc=$?
+            ;;
+    esac
+
+    if (( autostop )); then
+        llm-local-server stop --backend "$backend"
+    fi
+
+    return $rc
 }
 
-ollama-rename() {
-    # Rename an Ollama model with exact casing, bypassing ollama cp inheritance quirk.
-    # Uses the existing modelfile (with its blob SHA) so local-only models work too.
-    # Usage: ollama-rename <old-name> <new-name>
-    if [[ $# -ne 2 ]]; then
-        echo "Usage: ollama-rename <old-name> <new-name>" >&2
-        return 1
-    fi
-    local old="$1" new="$2"
-    local tmpfile
-    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
-    if ! ollama show "$old" --modelfile > "$tmpfile" 2>/dev/null && \
-       ! ollama show --modelfile "$old" > "$tmpfile" 2>/dev/null; then
-        echo "Error: model '$old' not found. Available models:" >&2
-        ollama list >&2
-        rm -f "$tmpfile"
-        return 1
-    fi
-    if ollama create "$new" -f "$tmpfile"; then
-        ollama rm "$old"
-    else
-        echo "Error: failed to create '$new' — '$old' was not removed." >&2
-        rm -f "$tmpfile"
-        return 1
-    fi
-    rm -f "$tmpfile"
+# Internal: ensure the right backend is up, stopping the wrong one if needed.
+_local_autostart() {
+    local backend="$1" model="$2" ctx="$3" gpus="$4"
+
+    local ollama_up=0 llama_up=0
+    curl -sf "http://${OLLAMA_HOST}/api/tags"              &>/dev/null && ollama_up=1
+    curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null && llama_up=1
+
+    case "$backend" in
+        ollama)
+            if (( llama_up )); then
+                printf 'llama-server is running — stopping it before starting Ollama\n'
+                llm-local-server stop --backend llama
+            fi
+            if (( ! ollama_up )); then
+                llm-local-server start --backend ollama --gpus "$gpus" \
+                    ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
+            fi
+            ;;
+        llama)
+            if (( ollama_up )); then
+                printf 'Ollama is running — stopping it before starting llama-server\n'
+                llm-local-server stop --backend ollama
+            fi
+            if (( ! llama_up )); then
+                llm-local-server start --backend llama \
+                    ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
+            fi
+            ;;
+    esac
 }
 
-# ── QUICK REFERENCE ───────────────────────────────────────────────────────────
-
-claude-help() {
-    local b=$'\033[1m' r=$'\033[0m' dim=$'\033[2m'
-    local sep="${dim}  ──────────────────────────────────────────────────────${r}"
-    printf '\n'
-    printf "  ${b}claude${r} — dual-mode quick reference\n"
-    printf '\n'
-    printf "  ${b}LOCAL${r}  Ollama · privacy-first\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'claude-local'               'qwen3-coder MoE 30B-A3B  dual GPU · default'
-    printf '  %-28s%s\n' 'claude-local <model>'       'override model'
-    printf '  %-28s%s\n' 'claude-local-light'         'deepseek-coder-v2 16B  single GPU · HPC-safe'
-    printf '  %-28s%s\n' 'claude-local-plan'          'plan-architect → /model plan-executor to switch'
-    printf '  %-28s%s\n' 'claude-local-exec'          'skip planning, run executor directly'
-    printf '\n'
-    printf "  ${b}CLOUD${r}  Anthropic API\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'claude'                     'subscription default'
-    printf '  %-28s%s\n' 'claude-sonnet'              'force Sonnet'
-    printf '  %-28s%s\n' 'claude-opus'                'force Opus'
-    printf '  %-28s%s\n' 'claude-plan'                'read-only plan (Opus) → auto-switch to Sonnet'
-    printf '\n'
-    printf "  ${b}OPENROUTER${r}  cloud free-tier · key from ~/.openrouter-ai-key\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'claude-openrouter'          'qwen/qwen3.6-plus-preview:free  (default)'
-    printf '  %-28s%s\n' 'claude-openrouter <model>'  'any OpenRouter model ID'
-    printf '\n'
-    printf "  ${b}Z.AI${r}  cloud API · key in ~/.z-ai-key\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'claude-zai'                 'glm-5-turbo  (default, balanced)'
-    printf '  %-28s%s\n' 'claude-zai-fast'            'glm-4.5-air  (fastest)'
-    printf '  %-28s%s\n' 'claude-zai-turbo'           'glm-5-turbo  (balanced, default)'
-    printf '  %-28s%s\n' 'claude-zai-premium'         'glm-5.1      (highest quality)'
-    printf '  %-28s%s\n' 'claude-zai <model>'         'any Z.AI model ID'
-    printf '\n'
-    printf "  ${b}MID-SESSION${r}  inside Claude Code\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' '/model plan-executor'       'switch to executor (local plan mode)'
-    printf '  %-28s%s\n' '/model sonnet'              'switch to Sonnet'
-    printf '\n'
-    printf "  ${b}OLLAMA${r}  service management\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'ollama-start'               'start on dedicated GPU'
-    printf '  %-28s%s\n' 'ollama-start-multi'         'start on all GPUs'
-    printf '  %-28s%s\n' 'ollama-stop / -restart'     'stop / restart'
-    printf '  %-28s%s\n' 'ollama-status'              'GPU + loaded model status'
-    printf '  %-28s%s\n' 'ollama-pull [model]'        'pull a model'
-    printf '  %-28s%s\n' 'ollama-create-64k [model]'  'create 64K-capped variant'
-    printf '  %-28s%s\n' 'ollama-plan-setup'          'register plan-architect / plan-executor aliases'
-    printf '  %-28s%s\n' 'ollama-models'              'list available models'
-    printf '  %-28s%s\n' 'ollama-rename <old> <new>'  'rename model with exact casing'
-    printf '\n'
-    printf "  ${b}LLAMA.CPP${r}  direct GGUF inference · no Ollama · native /v1/messages\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'llama-start [model.gguf]'   'start llama-server (default: Qwen3.5-27B Q6_K)'
-    printf '  %-28s%s\n' 'llama-stop / -restart'      'stop / restart llama-server'
-    printf '  %-28s%s\n' 'llama-status'               'process + served model + GPU memory'
-    printf '  %-28s%s\n' 'claude-llama [name]'        'run Claude Code via llama-server directly'
-    printf '  %-28s%s\n' 'llama-models'               'list GGUFs in models dir + HuggingFace cache'
-    printf '  %-28s%s\n' 'llama-info [model]'         'show GGUF metadata + tensor summary'
-    printf '  %-28s%s\n' 'llama-alias <name> <path>'  'create short-name alias for a GGUF (symlink)'
-    printf '  %-28s%s\n' 'llama-alias <name>'         'remove alias'
-    printf '  %-28s%s\n' 'llama-proxy-start'          '[legacy] Anthropic↔OpenAI proxy (no longer needed)'
-    printf '\n'
-    printf "  ${b}LLAMA.CPP ENV OVERRIDES${r}\n"
-    printf '%s\n' "$sep"
-    printf '  %-28s%s\n' 'LLAMACPP_DEFAULT_MODEL'     'full path to GGUF (default: Qwen3.5-27B Q6_K)'
-    printf '  %-28s%s\n' 'LLAMACPP_GPU_LAYERS'        'layers on GPU (-1 = all, default: -1)'
-    printf '  %-28s%s\n' 'LLAMACPP_CTX'               'context size in tokens (default: 32768)'
-    printf '  %-28s%s\n' 'LLAMACPP_PORT'              'llama-server port (default: 8080)'
-    printf '  %-28s%s\n' 'LLAMACPP_PROXY_PORT'        'proxy port (default: 4000)'
-    printf '\n'
-}
-
-# ── LLAMA.CPP CONFIGURATION ───────────────────────────────────────────────────
-# llama-server exposes a native /v1/messages endpoint (Anthropic Messages API).
-# No proxy needed — claude-llama points ANTHROPIC_BASE_URL directly at llama-server.
+# ── LLM LOCAL SERVER ──────────────────────────────────────────────────────────
 #
-# Typical workflow:
-#   llama-start [model.gguf]   # start inference server
-#   claude-llama               # run Claude Code
+# llm-local-server COMMAND [OPTIONS]
+#
+# Commands: start | stop | restart | status
+#
+# start options:
+#   --backend ollama|llama   (default: $LOCAL_DEFAULT_BACKEND)
+#   --model   NAME|PATH      model name (ollama) or GGUF path/alias (llama)
+#   --ctx     TOKENS|32k|64k|128k
+#   --gpus    1|2|all        Ollama only — GPU count (default: all)
+#   [extra...]               passed through to the backend binary
+#
+# stop/restart/status options:
+#   --backend ollama|llama   (default: $LOCAL_DEFAULT_BACKEND)
 
-# llama-server binary: overridden per-machine in claude_code.local
-LLAMACPP_BIN="${LLAMACPP_BIN:-llama-server}"
-LLAMACPP_HOST="127.0.0.1"
-LLAMACPP_PORT="${LLAMACPP_PORT:-8080}"
-LLAMACPP_PROXY_PORT="${LLAMACPP_PROXY_PORT:-4000}"
-LLAMACPP_MODELS_DIR="${LLAMACPP_MODELS_DIR:-${HOME}/models}"
-LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-}"   # set in claude_code.local
-LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"
-LLAMACPP_CTX="${LLAMACPP_CTX:-32768}"
-
-_llama_model_path() {
-    # Resolve model: full/relative path, name in LLAMACPP_MODELS_DIR, or name without .gguf extension
-    local model="${1:-$LLAMACPP_DEFAULT_MODEL}"
-    if [[ -z "$model" ]]; then
-        echo "Error: no model — set LLAMACPP_DEFAULT_MODEL or pass a path" >&2
-        return 1
-    fi
-    if [[ -f "$model" ]]; then
-        echo "$model"
-    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}" ]]; then
-        echo "${LLAMACPP_MODELS_DIR}/${model}"
-    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}.gguf" ]]; then
-        echo "${LLAMACPP_MODELS_DIR}/${model}.gguf"
-    else
-        echo "Error: model not found: $model" >&2
-        return 1
-    fi
-}
-
-llama-info() {
-    # Show metadata for a GGUF file (or the currently loaded model if no arg given).
-    # Usage: llama-info [model-name|path]
-    local model_path
-    if [[ $# -eq 0 ]]; then
-        # No arg: if server is running show its loaded model, else use default
-        if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
-            local loaded
-            loaded=$(curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" \
-                     | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id'] if d else '')" 2>/dev/null)
-            printf '=== Server: %s:%s (model: %s) ===\n' \
-                "$LLAMACPP_HOST" "$LLAMACPP_PORT" "${loaded:-unknown}"
-            curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/props" \
-                | python3 -m json.tool 2>/dev/null \
-                || printf '(props endpoint unavailable)\n'
-            printf '\n'
-        fi
-        model_path=$(_llama_model_path "") || return 1
-    else
-        model_path=$(_llama_model_path "$1") || return 1
-    fi
-
-    local gguf_py="${HOME}/llama.cpp-cuda/gguf-py"
-    if [[ ! -d "$gguf_py" ]]; then
-        printf 'gguf-py not found at %s — cannot read GGUF metadata\n' "$gguf_py" >&2
-        return 1
-    fi
-
-    printf '=== GGUF metadata: %s ===\n' "$model_path"
-    PYTHONPATH="$gguf_py" python3 - "$model_path" <<'PYEOF'
-import sys, collections
-sys.path.insert(0, sys.argv[0])  # dummy — PYTHONPATH already set
-
-from pathlib import Path
-from gguf.gguf_reader import GGUFReader
-
-path = sys.argv[1]
-r = GGUFReader(path)
-
-# ── key-value metadata ──────────────────────────────────────────────────────
-SHOW_KEYS = {
-    "general.name", "general.architecture", "general.size_label",
-    "general.quantized_by", "general.repo_url",
-}
-SKIP_LARGE = {"tokenizer.ggml.tokens", "tokenizer.ggml.merges",
-              "tokenizer.ggml.token_type", "tokenizer.chat_template",
-              "tokenizer.ggml.scores"}
-
-arch = ""
-fields_out = {}
-for key, field in r.fields.items():
-    if key in SKIP_LARGE:
-        continue
-    try:
-        from gguf.constants import GGUFValueType
-        def _decode_field(fld):
-            if not fld.types:
-                return repr(fld.parts[fld.data[0]])
-            t = fld.types[0]
-            if t == GGUFValueType.STRING:
-                return bytes(fld.parts[fld.data[0]]).decode("utf-8", errors="replace")
-            if t == GGUFValueType.ARRAY:
-                inner = fld.types[1] if len(fld.types) > 1 else None
-                if inner == GGUFValueType.STRING:
-                    return [bytes(fld.parts[i]).decode("utf-8", errors="replace")
-                            for i in fld.data]
-                raw = fld.parts[fld.data[0]]
-                return raw.tolist() if hasattr(raw, "tolist") else repr(raw)
-            raw = fld.parts[fld.data[0]]
-            if hasattr(raw, "tolist"):
-                v = raw.tolist()
-                return v[0] if isinstance(v, list) and len(v) == 1 else v
-            return repr(raw)
-        val = _decode_field(field)
-    except Exception:
-        val = "<unreadable>"
-    fields_out[key] = val
-    if key == "general.architecture" and isinstance(val, str):
-        arch = val
-
-# Print general first, then arch-specific
-general = {k: v for k, v in fields_out.items() if k.startswith("general.")}
-arch_kv  = {k: v for k, v in fields_out.items()
-            if arch and k.startswith(arch + ".") and "rope.dimension_sections" not in k}
-token_kv = {k: v for k, v in fields_out.items()
-            if k.startswith("tokenizer.") and k not in SKIP_LARGE}
-
-def section(title, d):
-    if not d:
-        return
-    print(f"\n  [{title}]")
-    w = max(len(k) for k in d)
-    for k, v in d.items():
-        print(f"  {k:{w}}  {v}")
-
-section("general", general)
-section("architecture", arch_kv)
-section("tokenizer", token_kv)
-
-has_tmpl = "tokenizer.chat_template" in r.fields
-print(f"\n  chat_template  {'yes' if has_tmpl else 'no'}")
-
-# ── tensor summary ──────────────────────────────────────────────────────────
-quant_counts = collections.Counter(t.tensor_type.name for t in r.tensors)
-print(f"\n  [{len(r.tensors)} tensors]")
-for qtype, count in sorted(quant_counts.items(), key=lambda x: -x[1]):
-    print(f"  {count:4d}  {qtype}")
-
-print(f"\n  file size  {Path(path).stat().st_size / 1e9:.2f} GB")
-PYEOF
-}
-
-llama-alias() {
-    # Create or remove a short-name alias (symlink) for a GGUF model.
-    # Usage:
-    #   llama-alias <name> <path/to/model.gguf>   — create alias
-    #   llama-alias <name>                         — remove alias
-    if [[ $# -eq 0 ]]; then
-        echo "Usage: llama-alias <name> [path/to/model.gguf]" >&2
-        return 1
-    fi
-    local name="$1" target="${2:-}"
-    local link="${LLAMACPP_MODELS_DIR}/${name}.gguf"
-    mkdir -p "$LLAMACPP_MODELS_DIR"
-
-    if [[ -z "$target" ]]; then
-        # Remove
-        if [[ -L "$link" ]]; then
-            rm "$link" && printf 'Removed alias: %s\n' "$name"
-        else
-            printf 'No alias named "%s" found in %s\n' "$name" "$LLAMACPP_MODELS_DIR" >&2
+llm-local-server() {
+    local cmd="${1:-}"; shift || true
+    case "$cmd" in
+        start)   _lls_start   "$@" ;;
+        stop)    _lls_stop    "$@" ;;
+        restart) _lls_restart "$@" ;;
+        status)  _lls_status  "$@" ;;
+        *)
+            printf 'Usage: llm-local-server start|stop|restart|status [--backend ollama|llama] [options]\n' >&2
             return 1
-        fi
+            ;;
+    esac
+}
+
+_lls_parse_backend() {
+    # Writes into caller's $backend and $extra_args locals.
+    # backend defaults to LOCAL_DEFAULT_BACKEND if not set by caller.
+    [[ -z "${backend:-}" ]] && backend="$LOCAL_DEFAULT_BACKEND"
+    extra_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --backend) backend="$2"; shift 2 ;;
+            *)         extra_args+=("$1"); shift ;;
+        esac
+    done
+}
+
+_lls_start() {
+    local backend model="" ctx="" gpus="all"
+    local -a extra_args=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --backend) backend="$2"; shift 2 ;;
+            --model)   model="$2";   shift 2 ;;
+            --ctx)     ctx="$2";     shift 2 ;;
+            --gpus)    gpus="$2";    shift 2 ;;
+            --)        shift; extra_args+=("$@"); break ;;
+            *)         extra_args+=("$1"); shift ;;
+        esac
+    done
+    backend="${backend:-$LOCAL_DEFAULT_BACKEND}"
+
+    case "$backend" in
+        ollama) _lls_start_ollama "$model" "$gpus" "${extra_args[@]}" ;;
+        llama)  _lls_start_llama  "$model" "$ctx"  "${extra_args[@]}" ;;
+        *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
+    esac
+}
+
+_lls_start_ollama() {
+    local model="$1" gpus="$2"; shift 2
+    local -a extra_args=("$@")
+
+    if curl -sf "http://${OLLAMA_HOST}/api/tags" &>/dev/null; then
+        printf 'Ollama already running at http://%s\n' "$OLLAMA_HOST"
         return 0
     fi
 
-    # Resolve target to absolute path
-    target=$(realpath "$target" 2>/dev/null) || { echo "Error: path not found: $2" >&2; return 1; }
-    if [[ ! -f "$target" ]]; then
-        echo "Error: not a file: $target" >&2
-        return 1
+    printf 'Starting Ollama'
+    case "$gpus" in
+        all|2|"")
+            printf ' on all GPUs\n'
+            ollama serve "${extra_args[@]}" &>/tmp/ollama.log &
+            ;;
+        1)
+            local gpu="${OLLAMA_GPU_UUID:-${OLLAMA_GPU_ID:-0}}"
+            printf ' on GPU %s\n' "$gpu"
+            CUDA_VISIBLE_DEVICES="$gpu" ollama serve "${extra_args[@]}" &>/tmp/ollama.log &
+            ;;
+        *)
+            printf ' on GPU(s) %s\n' "$gpus"
+            CUDA_VISIBLE_DEVICES="$gpus" ollama serve "${extra_args[@]}" &>/tmp/ollama.log &
+            ;;
+    esac
+    disown
+
+    _lls_wait_http "http://${OLLAMA_HOST}/api/tags" "Ollama" 60 || return 1
+
+    if [[ -n "$model" ]]; then
+        printf 'Pre-loading model: %s\n' "$model"
+        ollama run "$model" --keepalive 0 <<< '' &>/dev/null || true
     fi
-    if [[ -L "$link" ]]; then
-        rm "$link"
-    elif [[ -e "$link" ]]; then
-        echo "Error: $link exists and is not a symlink — remove it manually" >&2
-        return 1
-    fi
-    ln -s "$target" "$link"
-    printf 'Alias created: %s → %s\n' "$name" "$target"
-    printf 'Use with: llama-start %s\n' "$name"
 }
 
-_llama_wait_ready() {
-    # Poll /health until the model is fully loaded (HTTP 200, not 503) or timeout.
-    # llama-server returns 503 while the model is still being mapped into VRAM.
-    local url="$1" label="$2" timeout="${3:-300}"
-    local i http_code
-    for i in $(seq 1 "$timeout"); do
-        http_code=$(curl -so /dev/null -w "%{http_code}" "$url" 2>/dev/null)
-        if [[ "$http_code" == "200" ]]; then
-            printf '%s ready.\n' "$label"
-            return 0
-        elif [[ "$http_code" == "503" ]]; then
-            printf '\r  loading model... %ds' "$i"
-        fi
-        sleep 1
-    done
-    printf '\nTimeout after %ds waiting for %s\n' "$timeout" "$label" >&2
-    return 1
-}
+_lls_start_llama() {
+    local model_arg="$1" ctx="$2"; shift 2
+    local -a extra_args=("$@")
 
-llama-start() {
-    # Start llama-server with a GGUF model
-    # Usage: llama-start [model.gguf|/full/path] [extra-llama-server-args...]
-    local model_arg="${1:-}"
-    [[ $# -gt 0 ]] && shift
-    local model_path
-    model_path=$(_llama_model_path "$model_arg") || return 1
+    if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+        printf 'llama-server already running at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+        return 0
+    fi
 
     if ! command -v "$LLAMACPP_BIN" &>/dev/null; then
-        echo "llama-server not found (tried: $LLAMACPP_BIN)" >&2
-        echo "Set LLAMACPP_BIN=/full/path/to/llama-server if it lives outside PATH" >&2
+        printf 'Error: llama-server not found (tried: %s)\n' "$LLAMACPP_BIN" >&2
+        printf 'Set LLAMACPP_BIN=/full/path/to/llama-server in claude_code.local\n' >&2
         return 1
     fi
+
+    local model_path
+    model_path=$(_llama_resolve_model "$model_arg") || return 1
+
+    local resolved_ctx
+    resolved_ctx=$(_parse_ctx "${ctx:-$LLAMACPP_CTX}")
 
     printf 'Starting llama-server\n'
     printf '  model : %s\n' "$model_path"
     printf '  addr  : %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
-    printf '  gpu   : %s layers  ctx: %s\n' "$LLAMACPP_GPU_LAYERS" "$LLAMACPP_CTX"
+    printf '  gpu   : %s layers  ctx: %s\n' "$LLAMACPP_GPU_LAYERS" "$resolved_ctx"
 
     "$LLAMACPP_BIN" \
         --model        "$model_path" \
@@ -553,46 +305,152 @@ llama-start() {
         --host         "$LLAMACPP_HOST" \
         --port         "$LLAMACPP_PORT" \
         --n-gpu-layers "$LLAMACPP_GPU_LAYERS" \
-        --ctx-size     "$LLAMACPP_CTX" \
+        --ctx-size     "$resolved_ctx" \
         --flash-attn on \
-        "$@" &>/tmp/llama-server.log &
+        "${extra_args[@]}" &>/tmp/llama-server.log &
     disown
-    _llama_wait_ready "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" "llama-server" 120
+
+    _lls_wait_http "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" "llama-server" 120
 }
 
-llama-stop() {
-    pkill -f "llama-server" 2>/dev/null || { echo "llama-server not running."; return 0; }
-    # Wait for the port to be released (up to 5 s)
-    local i
-    for i in 1 2 3 4 5; do
-        ss -tlnp | grep -q ":${LLAMACPP_PORT}" || { echo "llama-server stopped."; return 0; }
-        sleep 1
-    done
-    echo "llama-server stopped (port ${LLAMACPP_PORT} may still be in TIME_WAIT)."
+_lls_stop() {
+    local backend extra_args=()
+    _lls_parse_backend "$@"
+
+    case "$backend" in
+        ollama)
+            pkill -f "ollama serve" 2>/dev/null \
+                && printf 'Ollama stopped.\n' \
+                || printf 'Ollama not running.\n'
+            ;;
+        llama)
+            pkill -f "llama-server" 2>/dev/null || { printf 'llama-server not running.\n'; return 0; }
+            local i
+            for i in 1 2 3 4 5; do
+                ss -tlnp 2>/dev/null | grep -q ":${LLAMACPP_PORT}" || {
+                    printf 'llama-server stopped.\n'; return 0
+                }
+                sleep 1
+            done
+            printf 'llama-server stopped (port %s may still be in TIME_WAIT).\n' "$LLAMACPP_PORT"
+            ;;
+        *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
+    esac
 }
 
-llama-restart() {
-    llama-stop; sleep 1; llama-start "$@"
+_lls_restart() {
+    local backend extra_args=()
+    _lls_parse_backend "$@"
+    _lls_stop --backend "$backend"
+    sleep 1
+    _lls_start --backend "$backend" "${extra_args[@]}"
 }
 
-llama-status() {
-    printf '=== llama-server process ===\n'
-    pgrep -a "llama-server" || echo "Not running"
-    printf '\n=== Served model ===\n'
-    curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" 2>/dev/null \
-        | python3 -m json.tool 2>/dev/null \
-        || echo "Cannot reach llama-server at http://${LLAMACPP_HOST}:${LLAMACPP_PORT}"
+_lls_status() {
+    local backend extra_args=()
+    _lls_parse_backend "$@"
+
+    case "$backend" in
+        ollama)
+            printf '=== Ollama process ===\n'
+            pgrep -a "ollama" || printf 'Not running\n'
+            printf '\n=== Loaded models ===\n'
+            curl -s "http://${OLLAMA_HOST}/api/ps" 2>/dev/null \
+                | python3 -m json.tool 2>/dev/null \
+                || printf 'Cannot reach Ollama at http://%s\n' "$OLLAMA_HOST"
+            ;;
+        llama)
+            printf '=== llama-server process ===\n'
+            pgrep -a "llama-server" || printf 'Not running\n'
+            printf '\n=== Served model ===\n'
+            curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" 2>/dev/null \
+                | python3 -m json.tool 2>/dev/null \
+                || printf 'Cannot reach llama-server at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+            ;;
+        *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
+    esac
+
     printf '\n=== GPU status ===\n'
     nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
-               --format=csv,noheader,nounits 2>/dev/null || echo "nvidia-smi not available"
+               --format=csv,noheader,nounits 2>/dev/null || printf 'nvidia-smi not available\n'
 }
 
+# ── OLLAMA MODEL UTILITIES ────────────────────────────────────────────────────
+
+ollama-pull() {
+    local model="${1:-$OLLAMA_DEFAULT_MODEL}"
+    printf 'Pulling: %s\n' "$model"
+    ollama pull "$model"
+}
+
+ollama-create() {
+    # Create a context-capped variant: ollama-create [--ctx 32k|64k|128k|N] [model]
+    local ctx=65536 model=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --ctx) ctx=$(_parse_ctx "$2"); shift 2 ;;
+            *)     model="$1"; shift ;;
+        esac
+    done
+    model="${model:-$OLLAMA_DEFAULT_MODEL}"
+    local label
+    if   (( ctx <= 32768  )); then label="32k"
+    elif (( ctx <= 65536  )); then label="64k"
+    elif (( ctx <= 131072 )); then label="128k"
+    else                           label="${ctx}"
+    fi
+    local variant="${model}-${label}"
+    local tmpfile
+    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
+    printf 'FROM %s\nPARAMETER num_ctx %s\n' "$model" "$ctx" > "$tmpfile"
+    ollama create "$variant" -f "$tmpfile"
+    rm -f "$tmpfile"
+    printf 'Created: %s  (use with: claude-local --model %s)\n' "$variant" "$variant"
+}
+
+ollama-models() {
+    local output
+    output=$(ollama list 2>/dev/null) || { printf 'Ollama not running.\n' >&2; return 1; }
+    local header lines
+    header=$(printf '%s\n' "$output" | head -1)
+    lines=$(printf '%s\n' "$output" | tail -n +2)
+    [[ -z "$lines" ]] && { printf '%s\n' "$header"; printf '(no models)\n'; return 0; }
+    printf '%s\n' "$header"
+    local cat matched
+    for cat in cloud embedding plan exec; do
+        matched=$(printf '%s\n' "$lines" | awk -v c="$cat" '$1 ~ "[-:]"c"$"')
+        [[ -n "$matched" ]] && printf '\n  [%s]\n%s\n' "$cat" "$matched"
+    done
+    matched=$(printf '%s\n' "$lines" | awk '$1 !~ "[-:](cloud|embedding|plan|exec)$"')
+    [[ -n "$matched" ]] && printf '\n  [misc]\n%s\n' "$matched"
+}
+
+ollama-rename() {
+    # Rename an Ollama model, bypassing the ollama cp inheritance quirk.
+    if [[ $# -ne 2 ]]; then
+        printf 'Usage: ollama-rename <old-name> <new-name>\n' >&2; return 1
+    fi
+    local old="$1" new="$2" tmpfile
+    tmpfile=$(mktemp /tmp/Modelfile.XXXXXX)
+    if ! ollama show "$old" --modelfile > "$tmpfile" 2>/dev/null && \
+       ! ollama show --modelfile "$old"  > "$tmpfile" 2>/dev/null; then
+        printf "Error: model '%s' not found\n" "$old" >&2
+        ollama list >&2; rm -f "$tmpfile"; return 1
+    fi
+    if ollama create "$new" -f "$tmpfile"; then
+        ollama rm "$old"
+    else
+        printf "Error: failed to create '%s' — '%s' was not removed.\n" "$new" "$old" >&2
+        rm -f "$tmpfile"; return 1
+    fi
+    rm -f "$tmpfile"
+}
+
+# ── LLAMA.CPP MODEL UTILITIES ─────────────────────────────────────────────────
+
 llama-models() {
-    # List available GGUF files from LLAMACPP_MODELS_DIR and HuggingFace cache.
-    # Aliases (symlinks) are shown with their target path.
     local hf_cache="${HF_HOME:-${HOME}/.cache/huggingface}/hub"
     local found=0
-
     if [[ -d "$LLAMACPP_MODELS_DIR" ]]; then
         local files
         files=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" 2>/dev/null | sort)
@@ -610,9 +468,7 @@ llama-models() {
             found=1
         fi
     fi
-
     if [[ -d "$hf_cache" ]]; then
-        # Exclude files already reachable via an alias in LLAMACPP_MODELS_DIR
         local aliased
         aliased=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" -type l 2>/dev/null \
                   | xargs -r readlink -f | sort)
@@ -621,74 +477,248 @@ llama-models() {
         if [[ -n "$files" ]]; then
             local printed=0
             while IFS= read -r f; do
-                grep -qxF "$f" <<< "$aliased" && continue  # skip if already shown as alias
+                grep -qxF "$f" <<< "$aliased" && continue
                 [[ $printed -eq 0 ]] && { printf '\n  [huggingface cache]\n'; printed=1; found=1; }
                 printf '  %-12s  %s\n' "$(du -sh "$f" 2>/dev/null | cut -f1)" "$f"
             done <<< "$files"
         fi
     fi
+    (( found )) || printf 'No GGUFs found in %s or huggingface cache\n' "$LLAMACPP_MODELS_DIR" >&2
+}
 
-    if [[ $found -eq 0 ]]; then
-        printf 'No GGUFs found in %s or %s\n' "$LLAMACPP_MODELS_DIR" "$hf_cache" >&2
+llama-alias() {
+    # llama-alias <name> <path>   — create symlink alias
+    # llama-alias <name>          — remove alias
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: llama-alias <name> [path/to/model.gguf]\n' >&2; return 1
+    fi
+    local name="$1" target="${2:-}"
+    local link="${LLAMACPP_MODELS_DIR}/${name}.gguf"
+    mkdir -p "$LLAMACPP_MODELS_DIR"
+    if [[ -z "$target" ]]; then
+        [[ -L "$link" ]] && rm "$link" && printf 'Removed alias: %s\n' "$name" && return 0
+        printf 'No alias "%s" in %s\n' "$name" "$LLAMACPP_MODELS_DIR" >&2; return 1
+    fi
+    target=$(realpath "$target" 2>/dev/null) || { printf 'Error: path not found: %s\n' "$2" >&2; return 1; }
+    [[ -f "$target" ]] || { printf 'Error: not a file: %s\n' "$target" >&2; return 1; }
+    [[ -L "$link" ]] && rm "$link"
+    [[ -e "$link" ]] && { printf 'Error: %s exists and is not a symlink\n' "$link" >&2; return 1; }
+    ln -s "$target" "$link"
+    printf 'Alias created: %s → %s\n' "$name" "$target"
+    printf 'Use with: claude-local --backend llama --model %s\n' "$name"
+}
+
+llama-info() {
+    # Show GGUF metadata. No arg = currently loaded model (or default).
+    local model_path
+    if [[ $# -eq 0 ]]; then
+        if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+            local loaded
+            loaded=$(curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" \
+                     | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id'] if d else '')" 2>/dev/null)
+            printf '=== Server: %s:%s (model: %s) ===\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT" "${loaded:-unknown}"
+            curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/props" \
+                | python3 -m json.tool 2>/dev/null \
+                || printf '(props endpoint unavailable)\n'
+            printf '\n'
+        fi
+        model_path=$(_llama_resolve_model "") || return 1
+    else
+        model_path=$(_llama_resolve_model "$1") || return 1
+    fi
+
+    local gguf_py="${HOME}/llama.cpp-cuda/gguf-py"
+    if [[ ! -d "$gguf_py" ]]; then
+        printf 'gguf-py not found at %s\n' "$gguf_py" >&2; return 1
+    fi
+
+    printf '=== GGUF metadata: %s ===\n' "$model_path"
+    PYTHONPATH="$gguf_py" python3 - "$model_path" <<'PYEOF'
+import sys, collections
+from pathlib import Path
+from gguf.gguf_reader import GGUFReader
+from gguf.constants import GGUFValueType
+
+path = sys.argv[1]
+r = GGUFReader(path)
+
+SKIP_LARGE = {"tokenizer.ggml.tokens", "tokenizer.ggml.merges",
+              "tokenizer.ggml.token_type", "tokenizer.chat_template",
+              "tokenizer.ggml.scores"}
+
+def _decode_field(fld):
+    if not fld.types:
+        return repr(fld.parts[fld.data[0]])
+    t = fld.types[0]
+    if t == GGUFValueType.STRING:
+        return bytes(fld.parts[fld.data[0]]).decode("utf-8", errors="replace")
+    if t == GGUFValueType.ARRAY:
+        inner = fld.types[1] if len(fld.types) > 1 else None
+        if inner == GGUFValueType.STRING:
+            return [bytes(fld.parts[i]).decode("utf-8", errors="replace") for i in fld.data]
+        raw = fld.parts[fld.data[0]]
+        return raw.tolist() if hasattr(raw, "tolist") else repr(raw)
+    raw = fld.parts[fld.data[0]]
+    if hasattr(raw, "tolist"):
+        v = raw.tolist()
+        return v[0] if isinstance(v, list) and len(v) == 1 else v
+    return repr(raw)
+
+arch = ""
+fields_out = {}
+for key, field in r.fields.items():
+    if key in SKIP_LARGE:
+        continue
+    try:
+        val = _decode_field(field)
+    except Exception:
+        val = "<unreadable>"
+    fields_out[key] = val
+    if key == "general.architecture" and isinstance(val, str):
+        arch = val
+
+general  = {k: v for k, v in fields_out.items() if k.startswith("general.")}
+arch_kv  = {k: v for k, v in fields_out.items()
+            if arch and k.startswith(arch + ".") and "rope.dimension_sections" not in k}
+token_kv = {k: v for k, v in fields_out.items()
+            if k.startswith("tokenizer.") and k not in SKIP_LARGE}
+
+def section(title, d):
+    if not d: return
+    print(f"\n  [{title}]")
+    w = max(len(k) for k in d)
+    for k, v in d.items():
+        print(f"  {k:{w}}  {v}")
+
+section("general", general)
+section("architecture", arch_kv)
+section("tokenizer", token_kv)
+print(f"\n  chat_template  {'yes' if 'tokenizer.chat_template' in r.fields else 'no'}")
+
+quant_counts = collections.Counter(t.tensor_type.name for t in r.tensors)
+print(f"\n  [{len(r.tensors)} tensors]")
+for qtype, count in sorted(quant_counts.items(), key=lambda x: -x[1]):
+    print(f"  {count:4d}  {qtype}")
+print(f"\n  file size  {Path(path).stat().st_size / 1e9:.2f} GB")
+PYEOF
+}
+
+# ── INTERNAL HELPERS ──────────────────────────────────────────────────────────
+
+_parse_ctx() {
+    case "$1" in
+        32k)  printf '32768'  ;;
+        64k)  printf '65536'  ;;
+        128k) printf '131072' ;;
+        *)    printf '%s' "$1" ;;
+    esac
+}
+
+_llama_resolve_model() {
+    local model="${1:-$LLAMACPP_DEFAULT_MODEL}"
+    if [[ -z "$model" ]]; then
+        printf 'Error: no model — set LLAMACPP_DEFAULT_MODEL or pass --model\n' >&2; return 1
+    fi
+    if   [[ -f "$model" ]];                                  then printf '%s' "$model"
+    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}" ]];         then printf '%s' "${LLAMACPP_MODELS_DIR}/${model}"
+    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}.gguf" ]];    then printf '%s' "${LLAMACPP_MODELS_DIR}/${model}.gguf"
+    else
+        printf 'Error: model not found: %s\n' "$model" >&2; return 1
     fi
 }
 
-llama-proxy-start() {
-    # Legacy: the Anthropic→OpenAI proxy is no longer needed.
-    # llama-server now exposes a native /v1/messages endpoint.
-    # This function is retained for reference only.
-    local proxy="${HOME}/.scripts/llama-anthropic-proxy.py"
-    if [[ ! -f "$proxy" ]]; then
-        echo "Proxy script not found: $proxy" >&2
-        return 1
-    fi
-    pkill -f "llama-anthropic-proxy.py" 2>/dev/null && sleep 0.5
-    printf '[legacy] Starting Anthropic proxy on :%s → llama-server :%s\n' \
-        "$LLAMACPP_PROXY_PORT" "$LLAMACPP_PORT"
-    python3 "$proxy" \
-        --host     "$LLAMACPP_HOST" \
-        --port     "$LLAMACPP_PROXY_PORT" \
-        --backend  "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
-        --no-think \
-        &>/tmp/llama-proxy.log &
-    disown
-    _llama_wait_ready "http://${LLAMACPP_HOST}:${LLAMACPP_PROXY_PORT}/health" "proxy" 30
+_lls_wait_http() {
+    local url="$1" label="$2" timeout="${3:-60}"
+    local i http_code
+    for i in $(seq 1 "$timeout"); do
+        http_code=$(curl -so /dev/null -w "%{http_code}" "$url" 2>/dev/null)
+        [[ "$http_code" == "200" ]] && { printf '%s ready.\n' "$label"; return 0; }
+        [[ "$http_code" == "503" ]] && printf '\r  loading model... %ds' "$i"
+        sleep 1
+    done
+    printf '\nTimeout after %ds waiting for %s\n' "$timeout" "$label" >&2
+    return 1
 }
 
-llama-proxy-stop() {
-    pkill -f "llama-anthropic-proxy.py" 2>/dev/null \
-        && echo "Proxy stopped." || echo "Proxy not running."
-}
+# ── QUICK REFERENCE ───────────────────────────────────────────────────────────
 
-llama-proxy-status() {
-    pgrep -a -f "llama-anthropic-proxy.py" || echo "Proxy not running"
-}
+claude-help() {
+    local b=$'\033[1m' r=$'\033[0m' dim=$'\033[2m'
+    local sep="${dim}  ──────────────────────────────────────────────────────${r}"
+    printf '\n'
+    printf "  ${b}claude${r} — quick reference\n"
 
-claude-llama() {
-    # Run Claude Code via llama-server's native /v1/messages endpoint.
-    # No proxy required — llama-server speaks the Anthropic Messages API directly.
+    printf '\n'
+    printf "  ${b}CLOUD${r}  Anthropic API\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude'                          'subscription default'
+    printf '  %-36s%s\n' 'claude-sonnet'                   'force Sonnet'
+    printf '  %-36s%s\n' 'claude-opus'                     'force Opus'
+    printf '  %-36s%s\n' 'claude-plan'                     'read-only plan (Opus) → auto-switch to Sonnet'
+    printf '\n'
+    printf "  ${b}OPENROUTER${r}  cloud free-tier · key: ~/.openrouter-ai-key\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-openrouter [model]'       'default: qwen3.6-plus-preview:free'
+    printf '\n'
+    printf "  ${b}Z.AI${r}  cloud API · key: ~/.z-ai-key\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-zai [model]'              'default: glm-5-turbo'
+    printf '  %-36s%s\n' 'claude-zai-fast'                 'glm-4.5-air'
+    printf '  %-36s%s\n' 'claude-zai-turbo'                'glm-5-turbo'
+    printf '  %-36s%s\n' 'claude-zai-premium'              'glm-5.1'
 
-    if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
-        printf 'llama-server not running on port %s\n' "$LLAMACPP_PORT" >&2
-        printf 'Start it first:\n  llama-start\n' >&2
-        return 1
-    fi
+    printf '\n'
+    printf "  ${b}LOCAL${r}  privacy-first · auto-starts/stops backend\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-local'                    'run via default backend (ollama)'
+    printf '  %-36s%s\n' 'claude-local --backend llama'    'use llama-server instead'
+    printf '  %-36s%s\n' 'claude-local --model NAME'       'override model'
+    printf '  %-36s%s\n' 'claude-local --ctx 128k'         'override context window'
+    printf '  %-36s%s\n' 'claude-local --gpus 1'           'Ollama: single GPU (HPC-safe)'
+    printf '  %-36s%s\n' 'claude-local --no-autostart'     'skip server start (must be running)'
+    printf '  %-36s%s\n' 'claude-local --no-autostop'      'keep server running after exit'
+    printf '  %-36s%s\n' 'claude-local -- [CLAUDE_ARGS]'   'pass args directly to claude'
 
-    local model="${1:-llama}"
-    [[ $# -gt 0 ]] && shift
-    ANTHROPIC_AUTH_TOKEN=llama \
-    ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
-    ANTHROPIC_API_KEY="" \
-    claude --model "$model" "$@"
-}
+    printf '\n'
+    printf "  ${b}LLM-LOCAL-SERVER${r}  service management\n"
+    printf '%s\n' "$sep"
+    printf '  %-52s%s\n' 'llm-local-server start'                        'start default backend'
+    printf '  %-52s%s\n' 'llm-local-server start --backend llama --ctx 128k'  'llama-server with ctx'
+    printf '  %-52s%s\n' 'llm-local-server stop'                         'stop default backend'
+    printf '  %-52s%s\n' 'llm-local-server stop --backend llama'         'stop specific backend'
+    printf '  %-52s%s\n' 'llm-local-server restart [opts]'               'stop + start'
+    printf '  %-52s%s\n' 'llm-local-server status'                       'process + model + GPU'
 
-llama-start-all() {
-    # Convenience wrapper — proxy is no longer needed (llama-server has native /v1/messages).
-    # Kept for muscle memory; equivalent to llama-start.
-    llama-start "$@"
+    printf '\n'
+    printf "  ${b}OLLAMA UTILITIES${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'ollama-pull [model]'             'pull a model'
+    printf '  %-36s%s\n' 'ollama-create [--ctx N] [model]' 'create context-capped variant'
+    printf '  %-36s%s\n' 'ollama-models'                   'list models grouped by type'
+    printf '  %-36s%s\n' 'ollama-rename <old> <new>'       'rename model (exact casing)'
+
+    printf '\n'
+    printf "  ${b}LLAMA.CPP UTILITIES${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'llama-models'                    'list GGUFs in models dir + HF cache'
+    printf '  %-36s%s\n' 'llama-alias <name> <path>'       'create short-name alias (symlink)'
+    printf '  %-36s%s\n' 'llama-alias <name>'              'remove alias'
+    printf '  %-36s%s\n' 'llama-info [model]'              'GGUF metadata + tensor summary'
+
+    printf '\n'
+    printf "  ${b}ENV OVERRIDES${r}\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'LOCAL_DEFAULT_BACKEND'           'ollama|llama  (default: ollama)'
+    printf '  %-36s%s\n' 'OLLAMA_DEFAULT_MODEL'            'default Ollama model'
+    printf '  %-36s%s\n' 'LLAMACPP_DEFAULT_MODEL'          'default GGUF path/alias'
+    printf '  %-36s%s\n' 'LLAMACPP_CTX'                    'default context size (default: 131072)'
+    printf '  %-36s%s\n' 'LLAMACPP_GPU_LAYERS'             'GPU layers (-1 = all, default: -1)'
+    printf '  %-36s%s\n' 'LLAMACPP_BIN'                    'llama-server binary path'
+    printf '  %-36s%s\n' 'LLAMACPP_PORT'                   'llama-server port (default: 8080)'
+    printf '\n'
 }
 
 # ── MACHINE-SPECIFIC OVERRIDES ────────────────────────────────────────────────
 # Deployed by the machine's own stow package (e.g. bash-adam, bash-quark).
-# Overrides: GPU IDs, model sizes, LLAMACPP_BIN, CUDA lib paths, etc.
+# Overrides: GPU IDs, model defaults, LLAMACPP_BIN, CUDA lib paths, etc.
 [[ -f "${HOME}/.bash/claude_code.local" ]] && source "${HOME}/.bash/claude_code.local"
