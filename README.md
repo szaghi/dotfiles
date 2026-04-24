@@ -45,6 +45,20 @@
   - [git](#git)
   - [modules — HPC environments](#modules--hpc-environments)
   - [claude](#claude)
+    - [Layout](#layout)
+    - [Global configuration (CLAUDE.md, settings.json)](#global-configuration-claudemd-settingsjson)
+    - [Status line](#status-line)
+    - [Slash commands](#slash-commands)
+    - [Claude CLI wrappers — overview](#claude-cli-wrappers--overview)
+    - [Cloud: Anthropic](#cloud-anthropic)
+    - [Cloud: OpenRouter](#cloud-openrouter)
+    - [Cloud: Z.ai](#cloud-zai)
+    - [Local: three backends (ollama, llama.cpp, ik\_llama.cpp)](#local-three-backends-ollama-llamacpp-ik_llamacpp)
+    - [Local server management (llm-local-server)](#local-server-management-llm-local-server)
+    - [Ollama utilities](#ollama-utilities)
+    - [llama.cpp utilities](#llamacpp-utilities)
+    - [Machine-specific overrides](#machine-specific-overrides)
+    - [Environment reference](#environment-reference)
   - [scripts](#scripts)
 - [Extending the dotfiles](#extending-the-dotfiles)
   - [Adding a file to an existing package](#adding-a-file-to-an-existing-package)
@@ -715,50 +729,313 @@ Because `~/.modules` is a stow symlink pointing into the repo, the new file is
 
 ### claude
 
-`claude/` holds configuration for [Claude Code](https://claude.ai/code),
-deployed to `~/.claude/`:
+Configuration and wrappers for [Claude Code](https://claude.ai/code), a CLI
+coding agent. The setup provides a single mental model over three cloud
+providers (Anthropic, OpenRouter, Z.ai) and three local inference backends
+(Ollama, llama.cpp, ik\_llama.cpp), plus project-aware context, persona
+instructions and a custom Solarized status line.
+
+Everything is driven by one command — `claude-help` — which prints the
+live quick-reference. If a detail here ever drifts from reality, trust
+`claude-help` and open a PR against this section.
+
+#### Layout
+
+`claude/` is a stow package deployed to `~/.claude/`:
 
 | File | Purpose |
 |---|---|
-| `CLAUDE.md` | Global instructions for Claude Code |
-| `settings.json` | Permissions and tool settings |
+| `CLAUDE.md` | Global persona and project rules (loaded into every session) |
+| `settings.json` | Permissions, model default, status-line binding, enabled plugins, marketplaces |
 | `settings.local.json` | Machine-specific overrides — **gitignored** |
-| `statusline-command.sh` | Custom status line command |
+| `statusline-command.sh` | Custom status line (Python-backed JSON parser, Solarized palette) |
 | `commands/semantic-commit.md` | `/semantic-commit` slash command |
 
-**Three-mode Claude Code** (`bash/claude_code`):
+The shell wrappers live in a separate package: `bash/.bash/claude_code`
+(≈820 LOC, sourced from `~/.bashrc`). Machine-specific knobs (GPU IDs,
+binary paths, model defaults) go into `~/.bash/claude_code.local` —
+loaded automatically at the end of `claude_code` if present.
 
-```bash
-# Local — Ollama, privacy-first (requires 2× NVIDIA GPU unless noted)
-claude-local                  # qwen3-coder:latest — MoE 30B-A3B, 18 GB (default)
-claude-local-light            # deepseek-coder-v2:16b, 8.9 GB — single GPU, HPC-safe
-claude-local-plan             # architect: plan-architect → /model plan-executor to switch
-claude-local-exec             # jump straight to executor (qwen3-coder:latest)
+#### Global configuration (CLAUDE.md, settings.json)
 
-# Cloud — Anthropic API
-claude                        # subscription default
-claude-sonnet                 # force Sonnet
-claude-opus                   # force Opus
-claude-plan                   # read-only plan (Opus) → auto-switch to Sonnet on execute
+**`CLAUDE.md`** is the system-prompt overlay, loaded into every Claude
+session. It encodes:
 
-# OpenRouter — cloud API, free-tier models
-claude-openrouter             # qwen/qwen3.6-plus-preview:free (default)
-claude-openrouter <model-id>  # any OpenRouter model ID (e.g. google/gemma-3-27b-it:free)
+- **Persona** — analytic peer, not service assistant; unvarnished honesty;
+  challenge premises; steel-man before dismantling; Socratic questioning
+  on evaluative disagreements.
+- **Repo layout rules** — `~/fortran/` for Fortran, `~/python/` for Python;
+  verify paths before using them.
+- **Build system rules** — FoBiS.py is primary; no make/cmake substitutions;
+  dependency management via `FoBiS.py fetch`, not submodules.
+- **Fortran conventions** — `.F90` uppercase, `implicit none` everywhere,
+  `allocatable` over `pointer`, column-major loop ordering, kind
+  specifications via `iso_fortran_env`, `iso_c_binding` for C interop,
+  strict `implicit SAVE` trap guard, OpenMP `default(none)`.
+- **GPU/OpenACC rules** — `parallel loop` with explicit `gang`/`vector`,
+  `!$acc declare` discipline, atomic-ops red-flag, reproducibility
+  caveats.
+- **Python conventions** — Ruff patterns (B904 chained exceptions, B905
+  `strict=` on zip, RUF002 no Unicode math symbols), PEP 604 union syntax,
+  NumPy-style docstrings for scientific code, Makefile as standard dev
+  interface, `.venv` always, `git-cliff` for changelogs.
+- **Commit rules** — Conventional Commits; never `Co-authored-by` lines
+  for AI; never auto-commit; GPG signing disabled (no TTY).
 
-# Ollama management
-ollama-start-multi            # start on all GPUs (large models)
-ollama-plan-setup             # register plan-architect / plan-executor aliases (run once)
-ollama-status                 # GPU + loaded model status
-claude-help                   # full quick-reference
+**`settings.json`** configures the runtime:
+
+| Key | Value | Purpose |
+|---|---|---|
+| `permissions.allow` | `Read/Write/Edit` on `~/fortran/**` and `~/python/**` | Frictionless tool use inside my project trees |
+| `model` | `opus` | Default cloud model |
+| `statusLine.command` | `bash /home/stefano/.claude/statusline-command.sh` | Custom status line |
+| `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything` | Pre-enabled plugins |
+| `extraKnownMarketplaces` | `anthropic-agent-skills`, `cli-anything` | Extra plugin sources |
+| `alwaysThinkingEnabled` | `false` | Thinking is opt-in per request |
+| `effortLevel` | `high` | Max reasoning effort by default |
+| `skipDangerousModePermissionPrompt` | `true` | Skip the `--dangerously-skip-permissions` warning |
+| `agentPushNotifEnabled` | `true` | Push notifications when background agents finish |
+
+#### Status line
+
+`statusline-command.sh` reads the Claude Code statusLine JSON from stdin,
+parses it with a one-shot inline `python3` call, and renders a Solarized-dark
+status line:
+
+```
+<model>·<GPUs>×GPU │ <cwd-basename> │ <branch>[<dirty>↑n↓m] │ ctx:N% │ 5h:N%(Xh) │ 7d:N%(Xd)
 ```
 
-`ollama-plan-setup` must be run once after each fresh Ollama start to register the
-`plan-architect` and `plan-executor` short-name aliases. Re-run it if `OLLAMA_PLAN_MODEL`
-or `OLLAMA_EXEC_MODEL` are changed.
+- **Model** — from the JSON `display_name`. On local backends, appended
+  with `<N>×GPU` when `CLAUDE_LOCAL_GPUS` is exported.
+- **Git** — branch, `+` staged, `!` unstaged, `?` untracked, `$` stashed,
+  `↑N↓M` ahead/behind upstream.
+- **Context %** — percentage of context window used. Colour-graded green
+  → yellow → orange → red at 50/80/95%.
+- **Rate limits** — 5-hour and 7-day usage percentages with countdown to
+  reset. Same colour ladder.
 
-The OpenRouter API key is read from `~/.openrouter-ai-key` (not tracked in git).
-`OPENROUTER_API_KEY` env var overrides it if set. Uses OpenRouter's Anthropic-compatible
-endpoint (`https://openrouter.ai/api`) — note: the SDK appends `/v1/messages` automatically.
+Requires `python3` (used once per render) and works on any terminal with
+256-colour support.
+
+#### Slash commands
+
+| Command | Purpose |
+|---|---|
+| `/semantic-commit` | Analyze staged diff + recent commit style, emit a Conventional Commits-formatted message (no auto-commit) |
+
+Slash commands are markdown files with a YAML front-matter declaring
+allowed Bash tools; see `commands/semantic-commit.md` for the template.
+
+#### Claude CLI wrappers — overview
+
+All wrappers in `bash/.bash/claude_code` call the real `claude` binary
+with a curated set of env vars and CLI flags. None replace the binary —
+they're small convenience functions.
+
+Overall flow:
+
+```
+                         ┌────────────────────┐
+                         │    claude-help     │ full quick-reference
+                         └────────────────────┘
+                                   │
+     ┌─────────────────────────────┼─────────────────────────────┐
+     │                             │                             │
+  CLOUD                          LOCAL                       UTILITIES
+  claude                     claude-local                 llm-local-server
+  claude-sonnet              (ollama|llama|ikllama)       ollama-{pull,create,…}
+  claude-opus                                             llama-{models,alias,info}
+  claude-plan
+  claude-openrouter
+  claude-zai[-fast|-turbo|-premium]
+```
+
+`claude-local` auto-starts the requested backend and auto-stops any
+*other* local backend currently running — only one of ollama/llama/ikllama
+is live at a time. `llm-local-server` is the lower-level management verb.
+
+#### Cloud: Anthropic
+
+Uses your standard Anthropic subscription (no extra key file).
+
+| Command | What it does |
+|---|---|
+| `claude` | Subscription default (model from `settings.json` → `opus`) |
+| `claude-sonnet` | Force Sonnet (`claude --model sonnet`) |
+| `claude-opus` | Force Opus (`claude --model opus`) |
+| `claude-plan` | Read-only plan mode (Opus) → auto-switches to Sonnet on execute (`--permission-mode plan --model opusplan`) |
+
+#### Cloud: OpenRouter
+
+Routes through [OpenRouter](https://openrouter.ai/), giving access to
+100+ models including free tiers.
+
+```bash
+claude-openrouter                           # default model
+claude-openrouter google/gemma-3-27b-it:free
+claude-openrouter anthropic/claude-3.5-sonnet
+```
+
+- API key: `~/.openrouter-ai-key` (gitignored) or `OPENROUTER_API_KEY` env override
+- Endpoint: `https://openrouter.ai/api` (the Anthropic SDK appends `/v1/messages`)
+- Default model: `$OPENROUTER_DEFAULT_MODEL` (currently `qwen/qwen3.6-plus-preview:free`)
+
+#### Cloud: Z.ai
+
+Routes through [Z.ai](https://z.ai/)'s Anthropic-compatible endpoint for
+the GLM model family.
+
+| Command | Model |
+|---|---|
+| `claude-zai [model]` | default: `glm-5-turbo`, or any GLM model by ID |
+| `claude-zai-fast` | `glm-4.5-air` |
+| `claude-zai-turbo` | `glm-5-turbo` |
+| `claude-zai-premium` | `glm-5.1` |
+
+- API key: `~/.z-ai-key` (gitignored) or `ZAI_API_KEY` env override
+- Endpoint: `https://api.z.ai/api/anthropic`
+
+#### Local: three backends (ollama, llama.cpp, ik\_llama.cpp)
+
+`claude-local` is a single entry point over three local inference servers.
+It auto-starts the requested backend, stops any other local backend
+currently running, and routes `claude` at the right port.
+
+| Backend | Port | Why |
+|---|---|---|
+| **ollama** | 11434 | Easy model management (`ollama pull`), stable default |
+| **llama.cpp** | 8080 | Direct GGUF loading, latest architectures first, fine-grained GPU offload |
+| **ik\_llama.cpp** | 8081 | [Fork of llama.cpp](https://github.com/ikawrakow/ik_llama.cpp) with aggressive CPU/hybrid kernels and new quant types (IQ4\_KS, IQ2\_KS); faster for MoE models that spill to system RAM |
+
+Usage:
+
+```bash
+# default backend (from LOCAL_DEFAULT_BACKEND, default: ollama)
+claude-local
+
+# explicit backend
+claude-local --backend llama
+claude-local --backend ikllama
+
+# override model
+claude-local --model qwen2.5-coder:14b
+claude-local --backend llama --model /path/to/model.gguf
+
+# override context (llama/ikllama only; Ollama requires ollama-create)
+claude-local --backend llama --ctx 128k
+
+# GPU topology (Ollama only; HPC-safe single-GPU mode)
+claude-local --gpus 1
+
+# do not auto-start / auto-stop
+claude-local --no-autostart             # server must already be running
+claude-local --no-autostop              # keep server alive after exit
+
+# pass-through args to the claude binary
+claude-local -- --verbose some prompt
+```
+
+The `-- [CLAUDE_ARGS]` form separates wrapper flags from the real `claude`
+invocation — anything after `--` goes straight to `claude`.
+
+#### Local server management (llm-local-server)
+
+`llm-local-server` is the lower-level control verb. `claude-local` calls
+it implicitly, but use it directly when you want the server up or down
+independent of Claude.
+
+```bash
+llm-local-server start                                  # start default backend
+llm-local-server start --backend llama --ctx 128k       # start llama-server with custom ctx
+llm-local-server stop                                   # stop default backend
+llm-local-server stop --backend llama                   # stop specific backend
+llm-local-server restart [opts]                         # stop + start
+llm-local-server status                                 # process + loaded model + GPU usage
+```
+
+`status` shows the PID, the bound port, and `nvidia-smi` GPU memory/utilization.
+
+#### Ollama utilities
+
+```bash
+ollama-pull [model]               # pull a model (wraps `ollama pull`)
+ollama-create [--ctx N] [model]   # create a context-capped variant (context window in Ollama is per-model)
+ollama-models                     # list models grouped by type (coder, chat, embedding…)
+ollama-rename <old> <new>         # rename a model (preserves exact casing)
+```
+
+**`ollama-create --ctx N`** is the workaround for Ollama's static context.
+It clones a model with a `PARAMETER num_ctx N` override so you can pin a
+specific context length per session.
+
+#### llama.cpp utilities
+
+```bash
+llama-models                      # list all GGUFs in $LLAMACPP_MODELS_DIR + HF cache
+llama-alias <name> <path>         # create short-name alias (symlink) in models dir
+llama-alias <name>                # remove alias
+llama-info [model]                # dump GGUF metadata (arch, params, quant) + tensor summary
+```
+
+**Aliases** let you invoke heavy GGUF paths via a short name:
+
+```bash
+llama-alias qwen3-32b ~/models/Qwen3-32B-Instruct-Q4_K_M.gguf
+claude-local --backend llama --model qwen3-32b
+```
+
+**`llama-info`** reads the GGUF header and prints architecture (llama/qwen/
+mixtral/…), total parameters, quantization, tensor count, and context
+window — useful when auditing a model before loading.
+
+#### Machine-specific overrides
+
+`~/.bash/claude_code.local` is loaded at the end of the main `claude_code`
+file. Use it for anything that differs per machine:
+
+```bash
+# Example ~/.bash/claude_code.local
+export LOCAL_DEFAULT_BACKEND="llama"
+export LLAMACPP_BIN="/opt/llama.cpp/build/bin/llama-server"
+export IKLLAMA_BIN="/opt/ik_llama.cpp/build/bin/llama-server"
+export LLAMACPP_MODELS_DIR="$HOME/models"
+export LLAMACPP_DEFAULT_MODEL="qwen3-coder-30b"
+export LLAMACPP_CTX=262144
+export LLAMACPP_GPU_LAYERS=-1
+export CUDA_VISIBLE_DEVICES="0,1"
+```
+
+Deploy it via its own machine-specific stow package (e.g.
+`bash-adam/` listed in `machines/adam`) — see
+[Machine-specific packages](#machine-specific-packages).
+
+#### Environment reference
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LOCAL_DEFAULT_BACKEND` | `ollama` | Backend used when `claude-local` runs without `--backend` |
+| `OLLAMA_HOST` | `127.0.0.1:11434` | Ollama server bind |
+| `OLLAMA_KEEP_ALIVE` | `10m` | Keep model in VRAM after last request |
+| `OLLAMA_NUM_PARALLEL` | `1` | Concurrent request slots |
+| `OLLAMA_MAX_LOADED_MODELS` | `1` | Prevent VRAM thrashing |
+| `OLLAMA_DEFAULT_MODEL` | `qwen2.5-coder:7b` | Default model for `claude-local --backend ollama` |
+| `LLAMACPP_BIN` | `llama-server` | llama.cpp server binary |
+| `LLAMACPP_HOST` / `LLAMACPP_PORT` | `127.0.0.1` / `8080` | Bind address |
+| `LLAMACPP_MODELS_DIR` | `~/models` | Where `llama-models` / `llama-alias` operate |
+| `LLAMACPP_DEFAULT_MODEL` | *(unset)* | Default GGUF path or alias |
+| `LLAMACPP_GPU_LAYERS` | `-1` | GPU offload layers (`-1` = all) |
+| `LLAMACPP_CTX` | `131072` | Default context window |
+| `IKLLAMA_BIN` | `llama-server` | ik\_llama.cpp server binary |
+| `IKLLAMA_HOST` / `IKLLAMA_PORT` | `127.0.0.1` / `8081` | Bind address (distinct from mainline) |
+| `IKLLAMA_GPU_LAYERS` | `99` | GPU layers (ik\_llama.cpp treats `-1` as 0, so a large sentinel is used) |
+| `IKLLAMA_CTX` | `131072` | Default context window |
+| `IKLLAMA_DEFAULT_MODEL` / `IKLLAMA_MODELS_DIR` | fall back to `LLAMACPP_*` | Resolved lazily at call time |
+| `OPENROUTER_API_KEY` / `~/.openrouter-ai-key` | *(required)* | OpenRouter auth |
+| `ZAI_API_KEY` / `~/.z-ai-key` | *(required)* | Z.ai auth |
+| `CLAUDE_LOCAL_GPUS` | *(optional)* | Shown in status line (`<N>×GPU`) when set by `claude-local --gpus N` |
+
+Run `claude-help` at any time for the live version of this reference.
 
 ---
 
