@@ -17,57 +17,33 @@ Plug 'myusuf3/numbers.vim'
 " buffers and files
 Plug 'majutsushi/tagbar'
 Plug 'moll/vim-bbye'
-Plug 'jeetsukumaran/vim-filebeagle'
-" Plug 'preservim/nerdtree'
+Plug 'justinmk/vim-dirvish'
 
 " selection
-" Plug 'terryma/vim-multiple-cursors'
 Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
-" Plug 'chrisbra/NrrwRgn'
-" Plug 'Konfekt/FastFold'
-" Plug 'ferranpm/vim-isolate'
-" Plug 'unblevable/quick-scope'
-" Plug 'junegunn/vim-slash'
 
 " spell check and languages
 Plug 'lervag/vimtex', { 'for': 'tex' }
 Plug 'iamcco/markdown-preview.nvim', { 'do': { -> mkdp#util#install() }, 'for': ['markdown', 'vim-plug']}
-
-" Plug 'scrooloose/syntastic', { 'for':  ['python'] }
-" Plug 'https://github.com/nvie/vim-flake8', { 'for':  'python' }
-" Plug 'jiangxincode/mpi.vim', { 'for':  ['fortran', 'c'] }
-" Plug 'tomedunn/vim.fortran'
-" Plug 'rhysd/vim-grammarous'
-" Plug 'beloglazov/vim-online-thesaurus', { 'on': ['OnlineThesaurusCurrentWord','Thesaurus'] }
-" Plug 'maksimr/vim-translator', { 'on': 'Translate' }
-" Plug 'reedes/vim-wordy', { 'on': 'Wordy'}
-" Plug 'danprince/vimsaurus'
-" Plug 'vim-pandoc/vim-pandoc'
-" Plug 'vim-pandoc/vim-pandoc-syntax'
 Plug 'vim-python/python-syntax'
-" Plug 'dense-analysis/ale'
-" Plug 'vim-syntastic/syntastic'
+
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
-" Plug 'yaroot/vissort'
 Plug 'tpope/vim-commentary'
-Plug 'csexton/trailertrash.vim'
 Plug 'godlygeek/tabular'
 Plug 'junegunn/vim-easy-align'
 Plug 'mattn/vim-maketable'
 Plug 'cohama/lexima.vim'
-Plug 'pechorin/any-jump.vim'
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
 " git & github
 Plug 'airblade/vim-gitgutter'
 
 " utilities
-Plug 'Z1MM32M4N/vim-superman'
 Plug 'jamessan/vim-gnupg'
 Plug 'sk1418/HowMuch', { 'on': 'HowMuch' }
 Plug 'niboan/plugconf'
-" Plug 'puremourning/vimspector'
 
 call plug#end()
 call plugconf#load()
@@ -88,9 +64,11 @@ endif
 " cursor style
 let &t_SI = "\e[6 q"
 let &t_EI = "\e[2 q"
+" enable :Man command (bundled, not loaded by default)
+runtime ftplugin/man.vim
 " }}}
 
-" lighline tabline setting {{{
+" lightline tabline setting {{{
 let g:lightline = {
       \ 'colorscheme': 'solarized',
       \ 'active': {
@@ -110,11 +88,6 @@ let g:lightline = {
 let g:lightline#bufferline#show_number  = 1
 let g:lightline#bufferline#shorten_path = 0
 let g:lightline#bufferline#unnamed      = '[No Name]'
-
-let g:lightline                  = {}
-let g:lightline.tabline          = {'left': [['buffers']], 'right': [['close']]}
-let g:lightline.component_expand = {'buffers': 'lightline#bufferline#buffers'}
-let g:lightline.component_type   = {'buffers': 'tabsel'}
 " }}}
 
 " Editing behaviour {{{
@@ -140,11 +113,9 @@ set virtualedit=all                                                      " allow
 set hlsearch                                                             " highlight search terms
 set incsearch                                                            " show search matches as you type
 set nolist                                                               " don't show invisible characters by default,
-set mouse=r                                                              " enable using the mouse if terminal emulator supports it (xterm does)
+set mouse=a                                                              " enable using the mouse if terminal emulator supports it (xterm does)
 set formatoptions+=1                                                     " When wrapping paragraphs, don't end lines with 1-letter words (looks stupid)
 set encoding=utf-8                                                       " file encoding
-" set lazyredraw                                                           " don't update the display while executing macros
-set redrawtime=10000                                                     " take as long as needed to calculate syntax
 set laststatus=2                                                         " tell VIM to always put a status line in, even if there is only one window
 set cmdheight=2                                                          " use a status bar that is 2 rows high
 let g:buftabs_only_basename = 1                                          " show only basename in tabs title
@@ -162,9 +133,8 @@ set wildmode=list:full                                                   " show 
 set title                                                                " change the terminal's title
 set noerrorbells                                                         " don't beep
 set showcmd                                                              " show (partial) command in the last line of the screen
-set nomodeline                                                           " disable mode lines (security measure)
+set modeline                                                             " honor per-file mode lines (e.g. vim: ts=4 sw=4)
 set diffopt+=iwhite                                                      " ignoring trailing white spaces when doing diff
-set iskeyword+=:                                                         " turn on the search of keyword
 set foldenable                                                           " enable folding
 set foldcolumn=1                                                         " add a fold column
 set foldmethod=marker                                                    " detect triple-{ style fold markers
@@ -174,14 +144,6 @@ set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·                           " c
 set fileformats="unix,dos,mac"                                           " file formats
 set termencoding=utf-8                                                   " file encoding
 set showtabline=2                                                        " show tabline
-" }}}
-
-" Filetype specific handling {{{
-source ~/.vim/fortranrc.vim
-source ~/.vim/fobosrc.vim
-source ~/.vim/latexrc.vim
-source ~/.vim/markdownrc.vim
-source ~/.vim/pythonrc.vim
 " }}}
 
 " Autocommands {{{
@@ -202,18 +164,6 @@ if has("autocmd")
     autocmd FileType sh,bash let sh_fold_enabled=1
     autocmd FileType xml let xml_syntax_folding=1
   augroup END
-
-  " " NERDTree
-  " augroup folding
-  "   autocmd!
-  "   " Start NERDTree and put the cursor back in the other window.
-  "   autocmd VimEnter * NERDTree | wincmd p
-  "   " Exit Vim if NERDTree is the only window remaining in the only tab.
-  "   autocmd BufEnter * if tabpagenr('$') == 1 && winnr('$') == 1 && exists('b:NERDTree') && b:NERDTree.isTabTree() | quit | endif
-  "   " If another buffer tries to replace NERDTree, put it in the other window, and bring back NERDTree.
-  "   autocmd BufEnter * if bufname('#') =~ 'NERD_tree_\d\+' && bufname('%') !~ 'NERD_tree_\d\+' && winnr('$') > 1 |
-  "   \ let buf=bufnr() | buffer# | execute "normal! \<C-W>w" | execute 'buffer'.buf | endif
-  " augroup END
 
   " programming tips {{{
   augroup programming
@@ -270,4 +220,11 @@ nnoremap <NL> i<CR><ESC>
 xnoremap <expr> v
             \ (mode() ==# 'v' ? "\<C-V>"
             \ : mode() ==# 'V' ? 'v' : 'V')
+" fzf.vim fuzzy finders (leader = ,)
+nnoremap <leader>f :Files<CR>
+nnoremap <leader>b :Buffers<CR>
+nnoremap <leader>r :Rg<Space>
+nnoremap <leader>t :Tags<CR>
+nnoremap <leader>h :History<CR>
+nnoremap <leader>/ :Lines<CR>
 " }}}

@@ -1,6 +1,3 @@
-if has("autocmd")
-  autocmd BufNewFile,BufRead *.md set filetype=markdown
-endif
 " set to 1, nvim will open the preview window after entering the markdown buffer
 " default: 0
 let g:mkdp_auto_start = 0
