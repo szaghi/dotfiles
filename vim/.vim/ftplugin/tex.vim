@@ -8,4 +8,4 @@ setlocal formatoptions-=l
 setlocal synmaxcol=0
 
 let g:vimtex_view_general_viewer = 'evince'
-let maplocalleader = ","
+" maplocalleader is set in .vimrc BEFORE plug#begin — setting it here is too late for vimtex.

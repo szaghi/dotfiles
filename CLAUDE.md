@@ -167,5 +167,5 @@ Add the package name to `machines/<hostname>` (one name per line).
 - **Plugins**: vim-plug (`~/.vim/plugged/`); update with `:PlugUpdate`
 - **Color scheme**: Solarized dark
 - **Tabs**: 3 spaces, expanded
-- **Notable mappings**: `<C-Right>`/`<C-Left>` for buffer navigation, `qq` to close buffer (Bdelete), `<C-e>` for CtrlP, `<F2>` toggle wrap
+- **Notable mappings**: `<C-Right>`/`<C-Left>` for buffer navigation, `qq` to close buffer (Bdelete), `<leader>f` for fzf file finder, `<F2>` toggle wrap
 - Trailing whitespace and multiple blank lines are auto-stripped on save for most filetypes

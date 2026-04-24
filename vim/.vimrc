@@ -5,6 +5,14 @@
 " This must be first, because it changes other options as a side effect.
 set nocompatible
 
+" Ensure filetype detection, plugins and indent are active.
+" plug#end() enables this too, but stating it explicitly avoids breakage
+" if the plug block is ever reordered or disabled.
+filetype plugin indent on
+
+" Set localleader BEFORE plug#begin — plugins (e.g. vimtex) read it at load time.
+let maplocalleader = ","
+
 " Plugins handling with vim-plug and plugconf {{{
 call plug#begin('~/.vim/plugged')
 " apparence
@@ -57,10 +65,6 @@ set background=dark
 colorscheme solarized
 hi clear SpellBad
 hi SpellBad cterm=underline
-if &diff
-  " colorscheme apprentice
-  " colorscheme base16-default-dark
-endif
 " cursor style
 let &t_SI = "\e[6 q"
 let &t_EI = "\e[2 q"
@@ -100,8 +104,7 @@ set expandtab                                                            " expan
 set shiftwidth=3                                                         " number of spaces to use for autoindenting
 set shiftround                                                           " use multiple of shiftwidth when indenting with '<' and '>'
 set backspace=indent,eol,start                                           " allow backspacing over everything in insert mode
-" set autoindent                                                           " always set autoindenting on
-set smartindent                                                          " always set smartindenting on
+set autoindent                                                           " rely on filetype indent plugins; smartindent is harmful
 set copyindent                                                           " copy the previous indentation on autoindenting
 set number                                                               " always show line numbers
 set showmatch                                                            " set show matching parenthesis
@@ -109,46 +112,48 @@ set ignorecase                                                           " ignor
 set smartcase                                                            " ignore case if search pattern is all lowercase, case-sensitive otherwise
 set smarttab                                                             " insert tabs on the start of a line according to shiftwidth, not tabstop
 set scrolloff=4                                                          " keep 4 lines off the edges of the screen when scrolling
+set sidescrolloff=8                                                      " horizontal scroll padding (relevant with nowrap)
 set virtualedit=all                                                      " allow the cursor to go in to "invalid" places
 set hlsearch                                                             " highlight search terms
 set incsearch                                                            " show search matches as you type
 set nolist                                                               " don't show invisible characters by default,
+set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·                           " characters shown when :set list is active
 set mouse=a                                                              " enable using the mouse if terminal emulator supports it (xterm does)
 set formatoptions+=1                                                     " When wrapping paragraphs, don't end lines with 1-letter words (looks stupid)
 set encoding=utf-8                                                       " file encoding
 set laststatus=2                                                         " tell VIM to always put a status line in, even if there is only one window
-set cmdheight=2                                                          " use a status bar that is 2 rows high
-let g:buftabs_only_basename = 1                                          " show only basename in tabs title
-let g:buftabs_marker_modified = "+"                                      " tabs marker
+set cmdheight=1                                                          " default cmdline height
+set signcolumn=yes                                                       " always show signcolumn to avoid gitgutter flicker
 set hidden                                                               " hide buffers instead of closing them this
 set switchbuf=useopen                                                    " reveal already opened files from the quickfix window instead of opening new buffers
 set nobackup                                                             " do not keep backup files, it's 70's style cluttering
 set noswapfile                                                           " do not write annoying intermediate swap files
-" set viminfo='10,\"100,:20,n~/.viminfo                                    " read/write a .viminfo file, 10 marks, 100 lines of registers, 20 lines of command line
+set undofile                                                             " persistent undo across sessions
+set undodir=~/.vim/undo//                                                " dedicated undo dir (trailing // = full-path-encoded names)
 set wildmenu                                                             " make tab completion for files/buffers act like bash
 set wildmode=list:full                                                   " show a list when pressing tab and complete first full match
-" set esckeys                                                              " allow cursor keys in insert mode
-" set ttyfast                                                              " optimize for fast terminal connections
-" set lcs=tab:▸\ ,trail:·,eol:¬,nbsp:_                                     " show “invisible” characters
 set title                                                                " change the terminal's title
 set noerrorbells                                                         " don't beep
 set showcmd                                                              " show (partial) command in the last line of the screen
 set modeline                                                             " honor per-file mode lines (e.g. vim: ts=4 sw=4)
+set modelines=1                                                          " only scan the first line — reduces historical modeline CVE surface
 set diffopt+=iwhite                                                      " ignoring trailing white spaces when doing diff
 set foldenable                                                           " enable folding
 set foldcolumn=1                                                         " add a fold column
 set foldmethod=marker                                                    " detect triple-{ style fold markers
 set foldlevelstart=0                                                     " start out with everything folded
 set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo " which commands trigger auto-unfold
-set listchars=tab:▸\ ,trail:·,extends:#,nbsp:·                           " characters are not displayed on long lines
 set fileformats="unix,dos,mac"                                           " file formats
 set termencoding=utf-8                                                   " file encoding
 set showtabline=2                                                        " show tabline
+" Ensure undodir exists (silent on re-run).
+if !isdirectory(expand('~/.vim/undo'))
+  call mkdir(expand('~/.vim/undo'), 'p', 0700)
+endif
 " }}}
 
 " Autocommands {{{
 if has("autocmd")
-  " autocmd FileType * set list!
   " let terminal resize scale the internal windows
   autocmd VimResized * :wincmd =
 
@@ -160,7 +165,7 @@ if has("autocmd")
   augroup folding
     autocmd!
     autocmd InsertEnter * let w:last_fdm=&foldmethod | setlocal foldmethod=manual
-    autocmd InsertLeave * let &l:foldmethod=w:last_fdm
+    autocmd InsertLeave * if exists('w:last_fdm') | let &l:foldmethod=w:last_fdm | endif
     autocmd FileType sh,bash let sh_fold_enabled=1
     autocmd FileType xml let xml_syntax_folding=1
   augroup END
@@ -203,7 +208,7 @@ nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
 " Buffer close
 nnoremap qq :Bdelete<CR>
-" Cursor movements limited or not
+" Cursor movements limited or not — moved off <C-C> so Ctrl-C keeps its default meaning
 function! ToggleVirtualedit()
   if &virtualedit != ""
     set virtualedit&
@@ -213,7 +218,7 @@ function! ToggleVirtualedit()
     echo "Cursor movements unlimited"
   endif
 endfunction
-noremap <C-C> :call ToggleVirtualedit()<CR>
+nnoremap <leader>v :call ToggleVirtualedit()<CR>
 " Maps Ctrl-J to insert line break (like the opposite of J)
 nnoremap <NL> i<CR><ESC>
 " cycle through visual modes: visual -> visual-block -> visual-line -> visual
