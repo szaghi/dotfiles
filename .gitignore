@@ -3,6 +3,7 @@ vim/.vim/plugged/
 vim/.vim/.netrwhist
 vim/.vim/view/
 vim/view/
+vim/.vim/undo/
 vim/vim
 bash/.bash/private
 claude/.claude/.credentials.json
