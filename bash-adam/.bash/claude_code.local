@@ -33,3 +33,18 @@ unset _adam_cuda_libs
 
 # Default model: Qwen3.5-27B distilled (Q6_K, ~23 GB — needs both GPUs)
 LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/.cache/huggingface/hub/models--Jackrong--Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF/snapshots/268a860d70c80f5eafbd9c58443612334747278a/Qwen3.5-27B.Q6_K.gguf}"
+
+# ── IK_LLAMA.CPP ──────────────────────────────────────────────────────────────
+# Fork of llama.cpp with aggressive CPU/hybrid optimizations and new quant
+# types (IQ4_KS, IQ2_KS). Build with:
+#   cmake -B build -DGGML_CUDA=ON && cmake --build build --config Release -j
+_adam_ikllama_build="${HOME}/ik_llama.cpp/build/bin/llama-server"
+[[ -x "$_adam_ikllama_build" ]] && IKLLAMA_BIN="$_adam_ikllama_build"
+unset _adam_ikllama_build
+
+# Qwen2.5-Coder-14B Q5_K_M: dense transformer (~10.5 GB), fits on a single
+# 4070 with room for a 32k KV cache. Avoid Qwen3.5 hybrid SSM models — their
+# Mamba layers have no CUDA kernel in ik_llama.cpp and silently fall back to CPU.
+IKLLAMA_MODELS_DIR="${HOME}/models"
+IKLLAMA_DEFAULT_MODEL="${HOME}/models/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf"
+IKLLAMA_CTX=32768

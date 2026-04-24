@@ -57,16 +57,17 @@ Types: `feat`, `fix`, `build`, `ci`, `test`, `docs`, `refactor`, `perf`, `style`
 
 ## Claude Code / Ollama Setup (`bash/.bash/claude_code`)
 
-This file (sourced by `~/.bashrc`) configures dual-mode Claude Code operation:
+This file (sourced by `~/.bashrc`) configures Claude Code over three local backends plus cloud:
 
-- **`claude-local [model]`** — Run Claude via local Ollama (privacy-first, 2× GPU)
-- **`claude-fast`** — Local mode with lighter model (`qwen3-coder`, single GPU)
-- **`claude-cloud`** / `claude-sonnet` / `claude-opus` / `claude-plan` — Cloud Anthropic API
-- **`ollama-start [gpu]`** / **`ollama-start-multi`** — Start Ollama on 1 or both GPUs
-- **`ollama-status`** — Show running models + GPU memory
-- **`claude-help`** — Print the full quick-reference
+- **`claude-local`** — default backend (Ollama). Override with `--backend llama` or `--backend ikllama`.
+- **`claude-local --backend llama`** — mainline llama.cpp server (port 8080).
+- **`claude-local --backend ikllama`** — ik_llama.cpp fork (port 8081); aggressive CPU/hybrid optimizations and newer quant types (IQ4_KS, IQ2_KS), faster on MoE models that spill to RAM.
+- **`claude-sonnet`** / **`claude-opus`** / **`claude-plan`** — Cloud Anthropic API
+- **`claude-openrouter`** / **`claude-zai`** — Other cloud providers (OpenRouter, Z.ai)
+- **`llm-local-server start|stop|restart|status --backend <name>`** — manage a specific server
+- **`claude-help`** — print the full quick-reference
 
-Default local model: `qwen3-coder-next` (~52GB Q4_K_M MoE, needs both GPUs). Fast fallback: `qwen3-coder` (~19GB, fits in 2×12GB VRAM).
+`claude-local` auto-starts the requested backend and stops any other local backend that's running, so only one of ollama/llama/ikllama is live at a time. Shared state lives in `~/.bash/claude_code`; machine-specific overrides (GPU IDs, binary paths, model defaults) in `~/.bash/claude_code.local`.
 
 ## HPC Lmod Environments
 

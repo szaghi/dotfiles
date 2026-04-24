@@ -22,6 +22,19 @@ LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-}"
 LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:--1}"
 LLAMACPP_CTX="${LLAMACPP_CTX:-131072}"
 
+# ── IK_LLAMA.CPP SETTINGS (override in claude_code.local) ────────────────────
+# ik_llama.cpp is a llama.cpp fork with aggressive CPU/hybrid optimizations
+# and new quant types (IQ4_KS, IQ2_KS). CLI is compatible with mainline.
+# Runs on a distinct port (8081) so both servers can coexist if needed.
+IKLLAMA_BIN="${IKLLAMA_BIN:-llama-server}"
+IKLLAMA_HOST="127.0.0.1"
+IKLLAMA_PORT="${IKLLAMA_PORT:-8081}"
+IKLLAMA_GPU_LAYERS="${IKLLAMA_GPU_LAYERS:-99}"  # ik_llama.cpp parses -1 as 0 layers; use a large sentinel
+IKLLAMA_CTX="${IKLLAMA_CTX:-131072}"
+# IKLLAMA_MODELS_DIR and IKLLAMA_DEFAULT_MODEL fall back to LLAMACPP_* lazily
+# at call time (see _lls_start_llama_generic) so overrides set in claude_code.local
+# after this file are picked up correctly.
+
 # ── LOCAL BACKEND DEFAULT (override in claude_code.local) ─────────────────────
 LOCAL_DEFAULT_BACKEND="${LOCAL_DEFAULT_BACKEND:-ollama}"
 
@@ -101,33 +114,48 @@ claude-local() {
 
     # Validate backend
     case "$backend" in
-        ollama|llama) ;;
-        *) printf 'Error: unknown backend "%s" (ollama|llama)\n' "$backend" >&2; return 1 ;;
+        ollama|llama|ikllama) ;;
+        *) printf 'Error: unknown backend "%s" (ollama|llama|ikllama)\n' "$backend" >&2; return 1 ;;
     esac
 
     if (( autostart )); then
         _local_autostart "$backend" "$model" "$ctx" "$gpus" || return 1
     fi
 
+    local n_gpus
+    case "$gpus" in
+        all|2|"") n_gpus=2 ;;
+        *)        n_gpus="$gpus" ;;
+    esac
+
     local rc=0
     case "$backend" in
         ollama)
             local m="${model:-$OLLAMA_DEFAULT_MODEL}"
-            ANTHROPIC_AUTH_TOKEN=ollama \
             ANTHROPIC_BASE_URL="http://${OLLAMA_HOST}" \
-            ANTHROPIC_API_KEY="" \
+            CLAUDE_LOCAL_GPUS="$n_gpus" \
             claude --model "$m" "${claude_args[@]}"
             rc=$?
             ;;
         llama)
-            if ! curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+            if ! curl -sf --max-time 2 "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
                 printf 'llama-server not reachable at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT" >&2
                 return 1
             fi
             local m="${model:-llama}"
-            ANTHROPIC_AUTH_TOKEN=llama \
             ANTHROPIC_BASE_URL="http://${LLAMACPP_HOST}:${LLAMACPP_PORT}" \
-            ANTHROPIC_API_KEY="" \
+            CLAUDE_LOCAL_GPUS="$n_gpus" \
+            claude --model "$m" "${claude_args[@]}"
+            rc=$?
+            ;;
+        ikllama)
+            if ! curl -sf --max-time 2 "http://${IKLLAMA_HOST}:${IKLLAMA_PORT}/health" &>/dev/null; then
+                printf 'ik_llama-server not reachable at %s:%s\n' "$IKLLAMA_HOST" "$IKLLAMA_PORT" >&2
+                return 1
+            fi
+            local m="${model:-ikllama}"
+            ANTHROPIC_BASE_URL="http://${IKLLAMA_HOST}:${IKLLAMA_PORT}" \
+            CLAUDE_LOCAL_GPUS="$n_gpus" \
             claude --model "$m" "${claude_args[@]}"
             rc=$?
             ;;
@@ -140,32 +168,50 @@ claude-local() {
     return $rc
 }
 
-# Internal: ensure the right backend is up, stopping the wrong one if needed.
+# Internal: ensure the right backend is up, stopping the others if needed.
 _local_autostart() {
     local backend="$1" model="$2" ctx="$3" gpus="$4"
 
-    local ollama_up=0 llama_up=0
-    curl -sf "http://${OLLAMA_HOST}/api/tags"              &>/dev/null && ollama_up=1
-    curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null && llama_up=1
+    local ollama_up=0 llama_up=0 ikllama_up=0
+    curl -sf --max-time 2 "http://${OLLAMA_HOST}/api/tags"                  &>/dev/null && ollama_up=1
+    curl -sf --max-time 2 "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null && llama_up=1
+    curl -sf --max-time 2 "http://${IKLLAMA_HOST}:${IKLLAMA_PORT}/health"   &>/dev/null && ikllama_up=1
+
+    _stop_other() {
+        local self="$1"
+        if [[ "$self" != "ollama"  ]] && (( ollama_up  )); then
+            printf 'Ollama is running — stopping it\n'
+            llm-local-server stop --backend ollama
+        fi
+        if [[ "$self" != "llama"   ]] && (( llama_up   )); then
+            printf 'llama-server is running — stopping it\n'
+            llm-local-server stop --backend llama
+        fi
+        if [[ "$self" != "ikllama" ]] && (( ikllama_up )); then
+            printf 'ik_llama-server is running — stopping it\n'
+            llm-local-server stop --backend ikllama
+        fi
+    }
 
     case "$backend" in
         ollama)
-            if (( llama_up )); then
-                printf 'llama-server is running — stopping it before starting Ollama\n'
-                llm-local-server stop --backend llama
-            fi
+            _stop_other ollama
             if (( ! ollama_up )); then
                 llm-local-server start --backend ollama --gpus "$gpus" \
-                    ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
+                    ${model:+--model "$model"} || return 1
             fi
             ;;
         llama)
-            if (( ollama_up )); then
-                printf 'Ollama is running — stopping it before starting llama-server\n'
-                llm-local-server stop --backend ollama
-            fi
+            _stop_other llama
             if (( ! llama_up )); then
                 llm-local-server start --backend llama \
+                    ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
+            fi
+            ;;
+        ikllama)
+            _stop_other ikllama
+            if (( ! ikllama_up )); then
+                llm-local-server start --backend ikllama \
                     ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
             fi
             ;;
@@ -232,8 +278,9 @@ _lls_start() {
     backend="${backend:-$LOCAL_DEFAULT_BACKEND}"
 
     case "$backend" in
-        ollama) _lls_start_ollama "$model" "$gpus" "${extra_args[@]}" ;;
-        llama)  _lls_start_llama  "$model" "$ctx"  "${extra_args[@]}" ;;
+        ollama)  _lls_start_ollama  "$model" "$gpus" "${extra_args[@]}" ;;
+        llama)   _lls_start_llama   "$model" "$ctx"  "${extra_args[@]}" ;;
+        ikllama) _lls_start_ikllama "$model" "$ctx"  "${extra_args[@]}" ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
 }
@@ -242,7 +289,7 @@ _lls_start_ollama() {
     local model="$1" gpus="$2"; shift 2
     local -a extra_args=("$@")
 
-    if curl -sf "http://${OLLAMA_HOST}/api/tags" &>/dev/null; then
+    if curl -sf --max-time 2 "http://${OLLAMA_HOST}/api/tags" &>/dev/null; then
         printf 'Ollama already running at http://%s\n' "$OLLAMA_HOST"
         return 0
     fi
@@ -267,50 +314,73 @@ _lls_start_ollama() {
 
     _lls_wait_http "http://${OLLAMA_HOST}/api/tags" "Ollama" 60 || return 1
 
-    if [[ -n "$model" ]]; then
-        printf 'Pre-loading model: %s\n' "$model"
-        ollama run "$model" --keepalive 0 <<< '' &>/dev/null || true
-    fi
 }
 
-_lls_start_llama() {
-    local model_arg="$1" ctx="$2"; shift 2
+_lls_start_llama()   { _lls_start_llama_generic "llama"   "$@"; }
+_lls_start_ikllama() { _lls_start_llama_generic "ikllama" "$@"; }
+
+# Generic llama.cpp-family server starter. Drives both mainline llama.cpp and
+# ik_llama.cpp (CLI-compatible fork). Flavor picks the env-var prefix:
+#   llama   → LLAMACPP_BIN / LLAMACPP_HOST / LLAMACPP_PORT / ...
+#   ikllama → IKLLAMA_BIN  / IKLLAMA_HOST  / IKLLAMA_PORT  / ...
+_lls_start_llama_generic() {
+    local flavor="$1" model_arg="$2" ctx="$3"; shift 3
     local -a extra_args=("$@")
 
-    if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
-        printf 'llama-server already running at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
+    local bin host port gpu_layers default_ctx models_dir default_model label logfile
+    case "$flavor" in
+        llama)
+            bin="$LLAMACPP_BIN"        host="$LLAMACPP_HOST"    port="$LLAMACPP_PORT"
+            gpu_layers="$LLAMACPP_GPU_LAYERS"   default_ctx="$LLAMACPP_CTX"
+            models_dir="$LLAMACPP_MODELS_DIR"   default_model="$LLAMACPP_DEFAULT_MODEL"
+            label="llama-server"                logfile="/tmp/llama-server.log"
+            ;;
+        ikllama)
+            bin="$IKLLAMA_BIN"         host="$IKLLAMA_HOST"     port="$IKLLAMA_PORT"
+            gpu_layers="$IKLLAMA_GPU_LAYERS"    default_ctx="$IKLLAMA_CTX"
+            models_dir="${IKLLAMA_MODELS_DIR:-$LLAMACPP_MODELS_DIR}"
+            default_model="${IKLLAMA_DEFAULT_MODEL:-$LLAMACPP_DEFAULT_MODEL}"
+            label="ik_llama-server"             logfile="/tmp/ikllama-server.log"
+            ;;
+        *) printf 'Error: unknown flavor "%s"\n' "$flavor" >&2; return 1 ;;
+    esac
+
+    if curl -sf --max-time 2 "http://${host}:${port}/health" &>/dev/null; then
+        printf '%s already running at %s:%s\n' "$label" "$host" "$port"
         return 0
     fi
 
-    if ! command -v "$LLAMACPP_BIN" &>/dev/null; then
-        printf 'Error: llama-server not found (tried: %s)\n' "$LLAMACPP_BIN" >&2
-        printf 'Set LLAMACPP_BIN=/full/path/to/llama-server in claude_code.local\n' >&2
+    if ! command -v "$bin" &>/dev/null && [[ ! -x "$bin" ]]; then
+        printf 'Error: %s binary not found (tried: %s)\n' "$label" "$bin" >&2
+        printf 'Set %s_BIN=/full/path/to/llama-server in claude_code.local\n' \
+            "$(printf '%s' "$flavor" | tr '[:lower:]' '[:upper:]' | sed 's/ikllama/IKLLAMA/;s/llama/LLAMACPP/')" >&2
         return 1
     fi
 
     local model_path
-    model_path=$(_llama_resolve_model "$model_arg") || return 1
+    model_path=$(_llama_resolve_model_in "$model_arg" "$models_dir" "$default_model") || return 1
 
     local resolved_ctx
-    resolved_ctx=$(_parse_ctx "${ctx:-$LLAMACPP_CTX}")
+    resolved_ctx=$(_parse_ctx "${ctx:-$default_ctx}")
 
-    printf 'Starting llama-server\n'
+    printf 'Starting %s\n' "$label"
     printf '  model : %s\n' "$model_path"
-    printf '  addr  : %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
-    printf '  gpu   : %s layers  ctx: %s\n' "$LLAMACPP_GPU_LAYERS" "$resolved_ctx"
+    printf '  addr  : %s:%s\n' "$host" "$port"
+    printf '  gpu   : %s layers  ctx: %s\n' "$gpu_layers" "$resolved_ctx"
 
-    "$LLAMACPP_BIN" \
+    "$bin" \
         --model        "$model_path" \
-        --alias        "llama" \
-        --host         "$LLAMACPP_HOST" \
-        --port         "$LLAMACPP_PORT" \
-        --n-gpu-layers "$LLAMACPP_GPU_LAYERS" \
+        --alias        "$flavor" \
+        --host         "$host" \
+        --port         "$port" \
+        --n-gpu-layers "$gpu_layers" \
         --ctx-size     "$resolved_ctx" \
         --flash-attn on \
-        "${extra_args[@]}" &>/tmp/llama-server.log &
+        --jinja \
+        "${extra_args[@]}" &>"$logfile" &
     disown
 
-    _lls_wait_http "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" "llama-server" 120
+    _lls_wait_http "http://${host}:${port}/health" "$label" 120
 }
 
 _lls_stop() {
@@ -323,19 +393,41 @@ _lls_stop() {
                 && printf 'Ollama stopped.\n' \
                 || printf 'Ollama not running.\n'
             ;;
-        llama)
-            pkill -f "llama-server" 2>/dev/null || { printf 'llama-server not running.\n'; return 0; }
-            local i
-            for i in 1 2 3 4 5; do
-                ss -tlnp 2>/dev/null | grep -q ":${LLAMACPP_PORT}" || {
-                    printf 'llama-server stopped.\n'; return 0
-                }
-                sleep 1
-            done
-            printf 'llama-server stopped (port %s may still be in TIME_WAIT).\n' "$LLAMACPP_PORT"
-            ;;
+        llama)   _lls_stop_llama_generic "llama"   "$LLAMACPP_PORT" ;;
+        ikllama) _lls_stop_llama_generic "ikllama" "$IKLLAMA_PORT"  ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
+}
+
+# Both llama.cpp and ik_llama.cpp ship a binary called "llama-server" — we
+# distinguish them by the --alias flag (llama vs ikllama) set at start, so
+# pkill targets the exact process even when both are running.
+_lls_stop_llama_generic() {
+    local flavor="$1" port="$2"
+    local label
+    [[ "$flavor" == "ikllama" ]] && label="ik_llama-server" || label="llama-server"
+
+    pkill -f "llama-server .*--alias ${flavor}( |$)" 2>/dev/null \
+        || { printf '%s not running.\n' "$label"; return 0; }
+
+    local i
+    for i in 1 2 3 4 5; do
+        ss -tlnp 2>/dev/null | grep -q ":${port}" || {
+            printf '%s stopped.\n' "$label"; return 0
+        }
+        sleep 1
+    done
+    printf '%s stopped (port %s may still be in TIME_WAIT).\n' "$label" "$port"
+}
+
+_lls_status_llama_generic() {
+    local flavor="$1" host="$2" port="$3" label="$4"
+    printf '=== %s process ===\n' "$label"
+    pgrep -af "llama-server .*--alias ${flavor}( |$)" || printf 'Not running\n'
+    printf '\n=== Served model ===\n'
+    curl -s "http://${host}:${port}/v1/models" 2>/dev/null \
+        | python3 -m json.tool 2>/dev/null \
+        || printf 'Cannot reach %s at %s:%s\n' "$label" "$host" "$port"
 }
 
 _lls_restart() {
@@ -359,14 +451,8 @@ _lls_status() {
                 | python3 -m json.tool 2>/dev/null \
                 || printf 'Cannot reach Ollama at http://%s\n' "$OLLAMA_HOST"
             ;;
-        llama)
-            printf '=== llama-server process ===\n'
-            pgrep -a "llama-server" || printf 'Not running\n'
-            printf '\n=== Served model ===\n'
-            curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" 2>/dev/null \
-                | python3 -m json.tool 2>/dev/null \
-                || printf 'Cannot reach llama-server at %s:%s\n' "$LLAMACPP_HOST" "$LLAMACPP_PORT"
-            ;;
+        llama)   _lls_status_llama_generic "llama"   "$LLAMACPP_HOST" "$LLAMACPP_PORT" "llama-server"    ;;
+        ikllama) _lls_status_llama_generic "ikllama" "$IKLLAMA_HOST"  "$IKLLAMA_PORT"  "ik_llama-server" ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
 
@@ -512,7 +598,7 @@ llama-info() {
     # Show GGUF metadata. No arg = currently loaded model (or default).
     local model_path
     if [[ $# -eq 0 ]]; then
-        if curl -sf "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
+        if curl -sf --max-time 2 "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/health" &>/dev/null; then
             local loaded
             loaded=$(curl -s "http://${LLAMACPP_HOST}:${LLAMACPP_PORT}/v1/models" \
                      | python3 -c "import sys,json; d=json.load(sys.stdin)['data']; print(d[0]['id'] if d else '')" 2>/dev/null)
@@ -615,13 +701,17 @@ _parse_ctx() {
 }
 
 _llama_resolve_model() {
-    local model="${1:-$LLAMACPP_DEFAULT_MODEL}"
+    _llama_resolve_model_in "$1" "$LLAMACPP_MODELS_DIR" "$LLAMACPP_DEFAULT_MODEL"
+}
+
+_llama_resolve_model_in() {
+    local model="${1:-$3}" models_dir="$2"
     if [[ -z "$model" ]]; then
-        printf 'Error: no model — set LLAMACPP_DEFAULT_MODEL or pass --model\n' >&2; return 1
+        printf 'Error: no model — set default in claude_code.local or pass --model\n' >&2; return 1
     fi
-    if   [[ -f "$model" ]];                                  then printf '%s' "$model"
-    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}" ]];         then printf '%s' "${LLAMACPP_MODELS_DIR}/${model}"
-    elif [[ -f "${LLAMACPP_MODELS_DIR}/${model}.gguf" ]];    then printf '%s' "${LLAMACPP_MODELS_DIR}/${model}.gguf"
+    if   [[ -f "$model" ]];                             then printf '%s' "$model"
+    elif [[ -f "${models_dir}/${model}" ]];             then printf '%s' "${models_dir}/${model}"
+    elif [[ -f "${models_dir}/${model}.gguf" ]];        then printf '%s' "${models_dir}/${model}.gguf"
     else
         printf 'Error: model not found: %s\n' "$model" >&2; return 1
     fi
@@ -631,7 +721,7 @@ _lls_wait_http() {
     local url="$1" label="$2" timeout="${3:-60}"
     local i http_code
     for i in $(seq 1 "$timeout"); do
-        http_code=$(curl -so /dev/null -w "%{http_code}" "$url" 2>/dev/null)
+        http_code=$(curl -so /dev/null --max-time 2 -w "%{http_code}" "$url" 2>/dev/null)
         [[ "$http_code" == "200" ]] && { printf '%s ready.\n' "$label"; return 0; }
         [[ "$http_code" == "503" ]] && printf '\r  loading model... %ds' "$i"
         sleep 1
@@ -672,8 +762,9 @@ claude-help() {
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'claude-local'                    'run via default backend (ollama)'
     printf '  %-36s%s\n' 'claude-local --backend llama'    'use llama-server instead'
+    printf '  %-36s%s\n' 'claude-local --backend ikllama'  'use ik_llama.cpp (fork — faster MoE/hybrid)'
     printf '  %-36s%s\n' 'claude-local --model NAME'       'override model'
-    printf '  %-36s%s\n' 'claude-local --ctx 128k'         'override context window'
+    printf '  %-36s%s\n' 'claude-local --ctx 128k'         'override context (llama backend only; Ollama: use ollama-create)'
     printf '  %-36s%s\n' 'claude-local --gpus 1'           'Ollama: single GPU (HPC-safe)'
     printf '  %-36s%s\n' 'claude-local --no-autostart'     'skip server start (must be running)'
     printf '  %-36s%s\n' 'claude-local --no-autostop'      'keep server running after exit'
@@ -708,13 +799,18 @@ claude-help() {
     printf '\n'
     printf "  ${b}ENV OVERRIDES${r}\n"
     printf '%s\n' "$sep"
-    printf '  %-36s%s\n' 'LOCAL_DEFAULT_BACKEND'           'ollama|llama  (default: ollama)'
+    printf '  %-36s%s\n' 'LOCAL_DEFAULT_BACKEND'           'ollama|llama|ikllama  (default: ollama)'
     printf '  %-36s%s\n' 'OLLAMA_DEFAULT_MODEL'            'default Ollama model'
     printf '  %-36s%s\n' 'LLAMACPP_DEFAULT_MODEL'          'default GGUF path/alias'
     printf '  %-36s%s\n' 'LLAMACPP_CTX'                    'default context size (default: 131072)'
     printf '  %-36s%s\n' 'LLAMACPP_GPU_LAYERS'             'GPU layers (-1 = all, default: -1)'
     printf '  %-36s%s\n' 'LLAMACPP_BIN'                    'llama-server binary path'
     printf '  %-36s%s\n' 'LLAMACPP_PORT'                   'llama-server port (default: 8080)'
+    printf '  %-36s%s\n' 'IKLLAMA_BIN'                     'ik_llama.cpp server binary path'
+    printf '  %-36s%s\n' 'IKLLAMA_PORT'                    'ik_llama.cpp port (default: 8081)'
+    printf '  %-36s%s\n' 'IKLLAMA_DEFAULT_MODEL'           'default GGUF (falls back to LLAMACPP_*)'
+    printf '  %-36s%s\n' 'IKLLAMA_CTX'                     'default context (default: 131072)'
+    printf '  %-36s%s\n' 'IKLLAMA_GPU_LAYERS'              'GPU layers (-1 = all, default: -1)'
     printf '\n'
 }
 
