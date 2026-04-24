@@ -166,6 +166,11 @@ Add the package name to `machines/<hostname>` (one name per line).
 - **Leader**: `,`
 - **Plugins**: vim-plug (`~/.vim/plugged/`); update with `:PlugUpdate`
 - **Color scheme**: Solarized dark
-- **Tabs**: 3 spaces, expanded
-- **Notable mappings**: `<C-Right>`/`<C-Left>` for buffer navigation, `qq` to close buffer (Bdelete), `<leader>f` for fzf file finder, `<F2>` toggle wrap
+- **Tabs**: 3 spaces, expanded (4 for Python, per ftplugin)
+- **Navigation**: `<C-Right>`/`<C-Left>` next/prev buffer · `qq` close buffer (Bdelete) · `<F2>` toggle wrap · `<leader><leader>{s,w,j,k,h,l}` easymotion jumps
+- **Finders (fzf.vim)**: `<leader>f` files · `<leader>b` buffers · `<leader>r` ripgrep · `<leader>t` tags · `<leader>h` history · `<leader>/` lines
+- **LSP (yegappan/lsp)**: `gd` goto-def · `gr` refs · `K` hover · `<leader>rn` rename · `<leader>la` code-action · `<leader>lf` format · `[d`/`]d` prev/next diagnostic · `<Tab>` completion
+- **Git (fugitive)**: `<leader>gs` status · `<leader>gb` blame · `<leader>gd` diff · `<leader>gl` log · `<leader>gc` commit · `<leader>gp` push
+- **LSP servers**: `fortls` (Fortran), `basedpyright` (Python), `texlab` (LaTeX), `bash-language-server` (bash). Install via `~/.scripts/install-vim-lsp.sh`.
+- **ALE** handles linting (ruff, gfortran, shellcheck) and formats Python on save via `ruff_format`. LSP diagnostics are separate (`let g:ale_disable_lsp = 1`).
 - Trailing whitespace and multiple blank lines are auto-stripped on save for most filetypes

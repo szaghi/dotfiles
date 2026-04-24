@@ -20,7 +20,6 @@ Plug 'altercation/vim-colors-solarized'
 Plug 'junegunn/rainbow_parentheses.vim'
 Plug 'itchyny/lightline.vim'
 Plug 'mengelbrecht/lightline-bufferline'
-Plug 'myusuf3/numbers.vim'
 
 " buffers and files
 Plug 'majutsushi/tagbar'
@@ -38,6 +37,10 @@ Plug 'vim-python/python-syntax'
 " text utilities
 Plug 'vim-scripts/VisIncr', { 'on': ['I','II','IB','IIB','IO','IIO','IX','IIX','IYMD','IMDY','IDMY','IA','ID','IM','IPOW','IIPOW'] }
 Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-surround'
+Plug 'tpope/vim-repeat'
+Plug 'tpope/vim-unimpaired'
+Plug 'easymotion/vim-easymotion'
 Plug 'godlygeek/tabular'
 Plug 'junegunn/vim-easy-align'
 Plug 'mattn/vim-maketable'
@@ -45,7 +48,12 @@ Plug 'cohama/lexima.vim'
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
+" LSP & linting
+Plug 'yegappan/lsp'
+Plug 'dense-analysis/ale'
+
 " git & github
+Plug 'tpope/vim-fugitive'
 Plug 'airblade/vim-gitgutter'
 
 " utilities
@@ -107,6 +115,7 @@ set backspace=indent,eol,start                                           " allow
 set autoindent                                                           " rely on filetype indent plugins; smartindent is harmful
 set copyindent                                                           " copy the previous indentation on autoindenting
 set number                                                               " always show line numbers
+set relativenumber                                                       " relative numbers (native replacement for numbers.vim)
 set showmatch                                                            " set show matching parenthesis
 set ignorecase                                                           " ignore case when searching
 set smartcase                                                            " ignore case if search pattern is all lowercase, case-sensitive otherwise
@@ -170,6 +179,13 @@ if has("autocmd")
     autocmd FileType xml let xml_syntax_folding=1
   augroup END
 
+  " relative numbers only in the focused normal-mode buffer
+  augroup relnum_toggle
+    autocmd!
+    autocmd BufEnter,FocusGained,InsertLeave,WinEnter * if &number | setlocal relativenumber   | endif
+    autocmd BufLeave,FocusLost,InsertEnter,WinLeave   * if &number | setlocal norelativenumber | endif
+  augroup END
+
   " programming tips {{{
   augroup programming
     autocmd!
@@ -208,6 +224,8 @@ nnoremap <C-Right> :bnext<CR>
 nnoremap <C-Left> :bprevious<CR>
 " Buffer close
 nnoremap qq :Bdelete<CR>
+" Toggle relative line numbers (replaces numbers.vim's :NumbersToggle)
+nnoremap <silent> <C-N> :setlocal relativenumber!<CR>
 " Cursor movements limited or not — moved off <C-C> so Ctrl-C keeps its default meaning
 function! ToggleVirtualedit()
   if &virtualedit != ""
