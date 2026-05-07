@@ -80,3 +80,5 @@ source '/home/stefano/.bash_completions/matisse.sh'
 
 # opencode
 export PATH=/home/stefano/.opencode/bin:$PATH
+
+source '/home/stefano/.bash_completions/fobis.sh'

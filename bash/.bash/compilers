@@ -5,10 +5,6 @@ source ~/.bash/functions
 # source /opt/intel/bin/compilervars.sh intel64 > /dev/null 2>&1
 # source /opt/intel/oneapi/setvars.sh #> /dev/null 2>&1
 
-# OpenMP
-OMP_NUM_THREADS=8
-export OMP_NUM_THREADS
-
 # mpi
 # MPIDIR=/opt/arch/mpi/bin/mpich/3.2.0/gnu/6.2.1
 # PATH=$MPIDIR/bin:$PATH

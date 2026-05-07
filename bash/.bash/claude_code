@@ -26,6 +26,12 @@ LLAMACPP_CTX="${LLAMACPP_CTX:-131072}"
 # ik_llama.cpp is a llama.cpp fork with aggressive CPU/hybrid optimizations
 # and new quant types (IQ4_KS, IQ2_KS). CLI is compatible with mainline.
 # Runs on a distinct port (8081) so both servers can coexist if needed.
+#
+# Where it WINS: MoE models that spill to RAM, CPU/hybrid inference.
+# Where it LOSES: dense models with sliding-window attention (Gemma 3/4) at
+# tight VRAM — mainline llama.cpp has iSWA KV-cache + auto layer-fit across
+# GPUs that ik_llama lacks, so the same GGUF can fit on mainline and OOM on
+# ik_llama. For Gemma-class models on 2×12GB, prefer the llama backend.
 IKLLAMA_BIN="${IKLLAMA_BIN:-llama-server}"
 IKLLAMA_HOST="127.0.0.1"
 IKLLAMA_PORT="${IKLLAMA_PORT:-8081}"
@@ -312,7 +318,7 @@ _lls_start_ollama() {
     esac
     disown
 
-    _lls_wait_http "http://${OLLAMA_HOST}/api/tags" "Ollama" 60 || return 1
+    _lls_wait_http "http://${OLLAMA_HOST}/api/tags" "Ollama" 60 "/tmp/ollama.log" || return 1
 
 }
 
@@ -357,6 +363,12 @@ _lls_start_llama_generic() {
         return 1
     fi
 
+    # No --model passed and we're on a TTY → pick interactively. The default
+    # (if any) is shown as the Enter-to-accept choice.
+    if [[ -z "$model_arg" ]] && [[ -t 0 && -t 1 ]]; then
+        model_arg=$(_llama_pick_model "$models_dir" "$default_model") || return 1
+    fi
+
     local model_path
     model_path=$(_llama_resolve_model_in "$model_arg" "$models_dir" "$default_model") || return 1
 
@@ -380,7 +392,7 @@ _lls_start_llama_generic() {
         "${extra_args[@]}" &>"$logfile" &
     disown
 
-    _lls_wait_http "http://${host}:${port}/health" "$label" 120
+    _lls_wait_http "http://${host}:${port}/health" "$label" 120 "$logfile"
 }
 
 _lls_stop() {
@@ -425,9 +437,14 @@ _lls_status_llama_generic() {
     printf '=== %s process ===\n' "$label"
     pgrep -af "llama-server .*--alias ${flavor}( |$)" || printf 'Not running\n'
     printf '\n=== Served model ===\n'
-    curl -s "http://${host}:${port}/v1/models" 2>/dev/null \
-        | python3 -m json.tool 2>/dev/null \
-        || printf 'Cannot reach %s at %s:%s\n' "$label" "$host" "$port"
+    local models_json
+    if models_json=$(curl -sf --max-time 2 "http://${host}:${port}/v1/models" 2>/dev/null) \
+            && [[ -n "$models_json" ]]; then
+        printf '%s\n' "$models_json" | python3 -m json.tool 2>/dev/null \
+            || printf '%s\n' "$models_json"
+    else
+        printf 'Cannot reach %s at %s:%s\n' "$label" "$host" "$port"
+    fi
 }
 
 _lls_restart() {
@@ -439,26 +456,47 @@ _lls_restart() {
 }
 
 _lls_status() {
-    local backend extra_args=()
-    _lls_parse_backend "$@"
+    # If --backend is passed, narrow to that one; otherwise report all three.
+    local explicit_backend="" arg
+    for arg in "$@"; do [[ "$arg" == "--backend" ]] && explicit_backend=1; done
 
+    if [[ -n "$explicit_backend" ]]; then
+        local backend extra_args=()
+        _lls_parse_backend "$@"
+        _lls_status_one "$backend" || return 1
+    else
+        _lls_status_one ollama
+        printf '\n'
+        _lls_status_one llama
+        printf '\n'
+        _lls_status_one ikllama
+    fi
+
+    printf '\n=== GPU status ===\n'
+    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
+               --format=csv,noheader,nounits 2>/dev/null || printf 'nvidia-smi not available\n'
+}
+
+_lls_status_one() {
+    local backend="$1"
     case "$backend" in
         ollama)
             printf '=== Ollama process ===\n'
             pgrep -a "ollama" || printf 'Not running\n'
             printf '\n=== Loaded models ===\n'
-            curl -s "http://${OLLAMA_HOST}/api/ps" 2>/dev/null \
-                | python3 -m json.tool 2>/dev/null \
-                || printf 'Cannot reach Ollama at http://%s\n' "$OLLAMA_HOST"
+            local ps_json
+            if ps_json=$(curl -sf --max-time 2 "http://${OLLAMA_HOST}/api/ps" 2>/dev/null) \
+                    && [[ -n "$ps_json" ]]; then
+                printf '%s\n' "$ps_json" | python3 -m json.tool 2>/dev/null \
+                    || printf '%s\n' "$ps_json"
+            else
+                printf 'Cannot reach Ollama at http://%s\n' "$OLLAMA_HOST"
+            fi
             ;;
         llama)   _lls_status_llama_generic "llama"   "$LLAMACPP_HOST" "$LLAMACPP_PORT" "llama-server"    ;;
         ikllama) _lls_status_llama_generic "ikllama" "$IKLLAMA_HOST"  "$IKLLAMA_PORT"  "ik_llama-server" ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
-
-    printf '\n=== GPU status ===\n'
-    nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu \
-               --format=csv,noheader,nounits 2>/dev/null || printf 'nvidia-smi not available\n'
 }
 
 # ── OLLAMA MODEL UTILITIES ────────────────────────────────────────────────────
@@ -511,6 +549,36 @@ ollama-models() {
     [[ -n "$matched" ]] && printf '\n  [misc]\n%s\n' "$matched"
 }
 
+ollama-rm() {
+    # Remove one or more Ollama models. Asks for confirmation when >1 model
+    # is targeted, since `ollama rm` has no built-in safety.
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: ollama-rm <model> [model ...]\n' >&2; return 1
+    fi
+    local m missing=()
+    for m in "$@"; do
+        ollama show "$m" &>/dev/null || missing+=("$m")
+    done
+    if (( ${#missing[@]} )); then
+        printf "Error: model(s) not found: %s\n" "${missing[*]}" >&2
+        printf 'Available:\n' >&2
+        ollama list >&2
+        return 1
+    fi
+    if (( $# > 1 )); then
+        printf 'About to remove %d models:\n' "$#"
+        printf '  %s\n' "$@"
+        local reply
+        read -r -p 'Proceed? [y/N] ' reply
+        [[ "$reply" =~ ^[Yy]$ ]] || { printf 'Aborted.\n'; return 1; }
+    fi
+    local rc=0
+    for m in "$@"; do
+        ollama rm "$m" || rc=$?
+    done
+    return $rc
+}
+
 ollama-rename() {
     # Rename an Ollama model, bypassing the ollama cp inheritance quirk.
     if [[ $# -ne 2 ]]; then
@@ -535,63 +603,347 @@ ollama-rename() {
 # ── LLAMA.CPP MODEL UTILITIES ─────────────────────────────────────────────────
 
 llama-models() {
+    local mode="grouped"
+    case "${1:-}" in
+        --paths) mode="paths"; shift ;;
+        --raw)   mode="raw";   shift ;;
+        -h|--help)
+            printf 'Usage: llama-models [--paths|--raw]\n' >&2
+            printf '  default   grouped by model basename, sorted by quant precision\n' >&2
+            printf '  --paths   one full path per line (use with grep / xargs / llama-alias)\n' >&2
+            printf '  --raw     TSV: location\\tfilename\\tsize\\tfullpath\\tlinktarget\n' >&2
+            return 0 ;;
+    esac
+
     local hf_cache="${HF_HOME:-${HOME}/.cache/huggingface}/hub"
     local found=0
-    if [[ -d "$LLAMACPP_MODELS_DIR" ]]; then
-        local files
-        files=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" 2>/dev/null | sort)
-        if [[ -n "$files" ]]; then
-            printf '\n  [%s]\n' "$LLAMACPP_MODELS_DIR"
-            while IFS= read -r f; do
-                local name="${f##*/}" size
-                size=$(du -sh "$f" 2>/dev/null | cut -f1)
-                if [[ -L "$f" ]]; then
-                    printf '  %-12s  %-40s → %s\n' "$size" "$name" "$(readlink -f "$f")"
-                else
-                    printf '  %-12s  %s\n' "$size" "$name"
-                fi
-            done <<< "$files"
-            found=1
+
+    # Build a TSV stream: location<TAB>filename<TAB>size_bytes<TAB>fullpath<TAB>linktarget
+    # Then group/sort with one awk pass for both locations.
+    local stream
+    stream=$(
+        if [[ -d "$LLAMACPP_MODELS_DIR" ]]; then
+            find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" 2>/dev/null \
+                | while IFS= read -r f; do
+                    local name="${f##*/}" link=""
+                    [[ -L "$f" ]] && link=$(readlink -f "$f")
+                    printf 'models\t%s\t%s\t%s\t%s\n' "$name" "$(stat -L -c %s "$f" 2>/dev/null)" "$f" "$link"
+                done
         fi
-    fi
-    if [[ -d "$hf_cache" ]]; then
-        local aliased
-        aliased=$(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" -type l 2>/dev/null \
-                  | xargs -r readlink -f | sort)
-        local files
-        files=$(find "$hf_cache" -name "*.gguf" 2>/dev/null | sort)
-        if [[ -n "$files" ]]; then
-            local printed=0
+        if [[ -d "$hf_cache" ]]; then
+            # Build a set of resolved alias targets so we can dedup cache entries
+            # that already appear as aliases. Using an assoc array avoids the
+            # bash 5.2 herestring nesting bug where grep <<< "$x" inside a
+            # while read <<< "$y" loop terminates the outer loop after iter 1.
+            local -A aliased_set=()
+            local atarget
+            while IFS= read -r atarget; do
+                [[ -n "$atarget" ]] && aliased_set["$atarget"]=1
+            done < <(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" -type l 2>/dev/null \
+                     | xargs -r readlink -f)
+            local f target
             while IFS= read -r f; do
-                grep -qxF "$f" <<< "$aliased" && continue
-                [[ $printed -eq 0 ]] && { printf '\n  [huggingface cache]\n'; printed=1; found=1; }
-                printf '  %-12s  %s\n' "$(du -sh "$f" 2>/dev/null | cut -f1)" "$f"
-            done <<< "$files"
+                target=$(readlink -f "$f")
+                [[ -v aliased_set["$target"] ]] && continue
+                printf 'cache\t%s\t%s\t%s\t\n' "${f##*/}" "$(stat -L -c %s "$f" 2>/dev/null)" "$f"
+            done < <(find "$hf_cache" -name "*.gguf" 2>/dev/null)
         fi
-    fi
-    (( found )) || printf 'No GGUFs found in %s or huggingface cache\n' "$LLAMACPP_MODELS_DIR" >&2
+    )
+
+    [[ -z "$stream" ]] && {
+        printf 'No GGUFs found in %s or huggingface cache\n' "$LLAMACPP_MODELS_DIR" >&2
+        return 1
+    }
+    found=1
+
+    case "$mode" in
+        raw)
+            printf '%s\n' "$stream"
+            return 0 ;;
+        paths)
+            printf '%s\n' "$stream" | awk -F'\t' '{ print $4 }' | sort -u
+            return 0 ;;
+    esac
+
+    printf '%s\n' "$stream" | awk -F'\t' -v models_dir="$LLAMACPP_MODELS_DIR" '
+        function human(b,    u, i) {
+            u = "BKMGT"; i = 1
+            while (b >= 1024 && i < length(u)) { b /= 1024; i++ }
+            return sprintf("%.1f%s", b, substr(u, i, 1))
+        }
+        function basename_of(name,    n, q) {
+            n = name
+            sub(/\.gguf$/, "", n)
+            # strip a trailing quant token: -Q4_K_M, -IQ4_XS, -BF16, -F16, -Q8_0, .Q4_K_M, etc.
+            if (match(n, /[-.](Q[0-9]+(_[0-9A-Z]+)*|IQ[0-9]+(_[0-9A-Z]+)*|BF16|F16|F32|MXFP4(_[A-Z]+)?|NVFP4)$/)) {
+                n = substr(n, 1, RSTART - 1)
+            }
+            return n
+        }
+        function quant_of(name,    n) {
+            n = name; sub(/\.gguf$/, "", n)
+            if (match(n, /[-.](Q[0-9]+(_[0-9A-Z]+)*|IQ[0-9]+(_[0-9A-Z]+)*|BF16|F16|F32|MXFP4(_[A-Z]+)?|NVFP4)$/)) {
+                return substr(n, RSTART + 1)
+            }
+            return "(unknown)"
+        }
+        function quant_rank(q) {
+            if (q ~ /^F32/)  return 1
+            if (q ~ /^F16/)  return 2
+            if (q ~ /^BF16/) return 3
+            if (q ~ /^Q8/)   return 4
+            if (q ~ /^Q6/)   return 5
+            if (q ~ /^Q5/)   return 6
+            if (q ~ /^Q4/)   return 7
+            if (q ~ /^IQ4/)  return 8
+            if (q ~ /^Q3/)   return 9
+            if (q ~ /^IQ3/)  return 10
+            if (q ~ /^Q2/)   return 11
+            if (q ~ /^IQ2/)  return 12
+            if (q ~ /^MXFP4/) return 13
+            if (q ~ /^NVFP4/) return 14
+            return 99
+        }
+        {
+            loc = $1; name = $2; size = $3; path = $4; link = $5
+            base = basename_of(name)
+            quant = quant_of(name)
+            key = loc "\t" base
+            n = ++count[key]
+            rows[key, n] = quant "\t" human(size + 0) "\t" name "\t" path "\t" link
+            ranks[key, n] = quant_rank(quant) "\t" quant
+            seen[key] = 1
+        }
+        END {
+            order["models"] = 1; order["cache"] = 2
+            label["models"] = models_dir
+            label["cache"] = "huggingface cache"
+            for (k in seen) {
+                split(k, p, "\t")
+                # primary sort: location (models before cache); secondary: basename
+                pri = (p[1] == "models") ? "1" : "2"
+                ord_keys[pri "\t" sprintf("%-100s", p[2]) "\t" k] = k
+            }
+            n = asorti(ord_keys, sk)
+            cur_loc = ""
+            for (i = 1; i <= n; i++) {
+                k = ord_keys[sk[i]]
+                split(k, p, "\t"); loc = p[1]; base = p[2]
+                if (loc != cur_loc) {
+                    printf "\n  [%s]\n", label[loc]; cur_loc = loc
+                }
+                printf "  %s\n", base
+                # sort this group by quant_rank
+                m = count[k]
+                for (j = 1; j <= m; j++) idx[j] = j
+                for (a = 1; a < m; a++) for (b = a + 1; b <= m; b++) {
+                    split(ranks[k, idx[a]], ra, "\t"); split(ranks[k, idx[b]], rb, "\t")
+                    if ((ra[1] + 0) > (rb[1] + 0) || ((ra[1] + 0) == (rb[1] + 0) && ra[2] > rb[2])) {
+                        t = idx[a]; idx[a] = idx[b]; idx[b] = t
+                    }
+                }
+                for (j = 1; j <= m; j++) {
+                    split(rows[k, idx[j]], r, "\t")
+                    if (r[5] != "")
+                        printf "      %-14s %-10s %s → %s\n", r[1], r[2], r[3], r[5]
+                    else
+                        printf "      %-14s %-10s %s\n", r[1], r[2], r[3]
+                }
+                delete idx
+            }
+        }
+    '
 }
 
 llama-alias() {
-    # llama-alias <name> <path>   — create symlink alias
-    # llama-alias <name>          — remove alias
+    # llama-alias <name>                    — remove alias
+    # llama-alias <name> <path>             — alias to explicit path
+    # llama-alias <name> <substring>        — fuzzy: pick the unique GGUF whose
+    #                                         path matches all substrings (case-insensitive)
+    # Examples:
+    #   llama-alias coder Qwen2.5-Coder-14B-Instruct-Q5_K_M
+    #   llama-alias qwen3 Qwen3.5-27B Q6_K
     if [[ $# -eq 0 ]]; then
-        printf 'Usage: llama-alias <name> [path/to/model.gguf]\n' >&2; return 1
+        printf 'Usage:\n' >&2
+        printf '  llama-alias <name>                  remove alias\n' >&2
+        printf '  llama-alias <name> <path|gguf>      alias to explicit path\n' >&2
+        printf '  llama-alias <name> <substr>...      fuzzy resolve via llama-models\n' >&2
+        return 1
     fi
-    local name="$1" target="${2:-}"
+    local name="$1"; shift
     local link="${LLAMACPP_MODELS_DIR}/${name}.gguf"
     mkdir -p "$LLAMACPP_MODELS_DIR"
-    if [[ -z "$target" ]]; then
+
+    if [[ $# -eq 0 ]]; then
         [[ -L "$link" ]] && rm "$link" && printf 'Removed alias: %s\n' "$name" && return 0
         printf 'No alias "%s" in %s\n' "$name" "$LLAMACPP_MODELS_DIR" >&2; return 1
     fi
-    target=$(realpath "$target" 2>/dev/null) || { printf 'Error: path not found: %s\n' "$2" >&2; return 1; }
+
+    local target
+    # If the first arg is an existing file, treat all args as a single explicit path.
+    if [[ -f "$1" ]]; then
+        target=$(realpath "$1" 2>/dev/null) || { printf 'Error: path not found: %s\n' "$1" >&2; return 1; }
+    else
+        # Fuzzy: every arg must appear (case-insensitive) in the candidate path.
+        local -a candidates=()
+        local p
+        while IFS= read -r p; do candidates+=("$p"); done < <(llama-models --paths 2>/dev/null)
+        if (( ${#candidates[@]} == 0 )); then
+            printf 'Error: no GGUFs found via llama-models --paths\n' >&2; return 1
+        fi
+        local arg matched=()
+        for p in "${candidates[@]}"; do
+            local ok=1
+            for arg in "$@"; do
+                grep -qiF -- "$arg" <<< "$p" || { ok=0; break; }
+            done
+            (( ok )) && matched+=("$p")
+        done
+        case ${#matched[@]} in
+            0) printf 'Error: no GGUF matches: %s\n' "$*" >&2
+               printf 'Try: llama-models --paths | grep -i <substr>\n' >&2
+               return 1 ;;
+            1) target="${matched[0]}" ;;
+            *) printf 'Error: %d GGUFs match — refine the substring(s):\n' "${#matched[@]}" >&2
+               printf '  %s\n' "${matched[@]}" >&2
+               return 1 ;;
+        esac
+    fi
+
     [[ -f "$target" ]] || { printf 'Error: not a file: %s\n' "$target" >&2; return 1; }
     [[ -L "$link" ]] && rm "$link"
     [[ -e "$link" ]] && { printf 'Error: %s exists and is not a symlink\n' "$link" >&2; return 1; }
     ln -s "$target" "$link"
     printf 'Alias created: %s → %s\n' "$name" "$target"
     printf 'Use with: claude-local --backend llama --model %s\n' "$name"
+}
+
+llama-rm() {
+    # llama-rm <substr>...        — fuzzy match against every GGUF llama-models
+    #                               can see (LLAMACPP_MODELS_DIR + HF cache)
+    # llama-rm <path>             — explicit GGUF path
+    #
+    # Files under $LLAMACPP_MODELS_DIR are removed directly; any alias symlink
+    # pointing at the deleted file is also removed.
+    #
+    # Files inside the HuggingFace cache cannot be removed individually — the
+    # HF CLI deletes by repo+revision. We resolve the GGUF up to its
+    # models--<org>--<name>/ root and dispatch to `hf cache rm model/<org>/<name>`,
+    # which deletes the WHOLE repo revision (siblings included).
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage:\n' >&2
+        printf '  llama-rm <path>            remove explicit GGUF\n' >&2
+        printf '  llama-rm <substr>...       fuzzy resolve via llama-models\n' >&2
+        printf '\nHF cache entries are removed by whole repo revision, not single file.\n' >&2
+        return 1
+    fi
+
+    local target
+    if [[ $# -eq 1 && -f "$1" ]]; then
+        target=$(realpath "$1" 2>/dev/null) \
+            || { printf 'Error: path not found: %s\n' "$1" >&2; return 1; }
+    else
+        local -a candidates=()
+        local p
+        # Skip alias symlinks (they'll be cleaned up automatically when their
+        # target is deleted) but include everything else.
+        while IFS= read -r p; do
+            [[ -L "$p" ]] && continue
+            candidates+=("$p")
+        done < <(llama-models --paths 2>/dev/null)
+        if (( ${#candidates[@]} == 0 )); then
+            printf 'Error: no removable GGUFs found\n' >&2
+            return 1
+        fi
+        local arg matched=()
+        for p in "${candidates[@]}"; do
+            local ok=1
+            for arg in "$@"; do
+                grep -qiF -- "$arg" <<< "$p" || { ok=0; break; }
+            done
+            (( ok )) && matched+=("$p")
+        done
+        case ${#matched[@]} in
+            0) printf 'Error: no GGUF matches: %s\n' "$*" >&2
+               printf 'Try: llama-models --paths | grep -i <substr>\n' >&2
+               return 1 ;;
+            1) target="${matched[0]}" ;;
+            *) printf 'Error: %d GGUFs match — refine the substring(s):\n' "${#matched[@]}" >&2
+               printf '  %s\n' "${matched[@]}" >&2
+               return 1 ;;
+        esac
+    fi
+
+    [[ -f "$target" ]] || { printf 'Error: not a file: %s\n' "$target" >&2; return 1; }
+
+    local size_h
+    size_h=$(stat -L -c %s "$target" 2>/dev/null \
+             | awk '{ s=$1; u="BKMGT"; i=1
+                      while (s>=1024 && i<length(u)) { s/=1024; i++ }
+                      printf "%.1f%s", s, substr(u,i,1) }')
+
+    if [[ "$target" == "$LLAMACPP_MODELS_DIR"/* ]]; then
+        # Find aliases (symlinks in models dir) that resolve to this target.
+        local -a aliases=()
+        local link link_target
+        while IFS= read -r link; do
+            link_target=$(readlink -f "$link" 2>/dev/null)
+            [[ "$link_target" == "$target" ]] && aliases+=("$link")
+        done < <(find "$LLAMACPP_MODELS_DIR" -maxdepth 2 -name "*.gguf" -type l 2>/dev/null)
+
+        printf 'About to remove:\n'
+        printf '  %s  (%s)\n' "$target" "$size_h"
+        if (( ${#aliases[@]} )); then
+            printf 'And %d alias symlink(s) pointing to it:\n' "${#aliases[@]}"
+            printf '  %s\n' "${aliases[@]}"
+        fi
+        local reply
+        read -r -p 'Proceed? [y/N] ' reply
+        [[ "$reply" =~ ^[Yy]$ ]] || { printf 'Aborted.\n'; return 1; }
+
+        rm -f -- "$target" || return 1
+        printf 'Removed: %s\n' "$target"
+        local a
+        for a in "${aliases[@]}"; do
+            rm -f -- "$a" && printf 'Removed alias: %s\n' "$a"
+        done
+        return 0
+    fi
+
+    # HuggingFace cache path — extract repo ID from .../models--<org>--<name>/...
+    local hf_root="${HF_HOME:-${HOME}/.cache/huggingface}/hub"
+    if [[ "$target" != "$hf_root"/* ]]; then
+        printf 'Error: file is neither in %s nor in the HuggingFace cache (%s)\n' \
+            "$LLAMACPP_MODELS_DIR" "$hf_root" >&2
+        printf '  target: %s\n' "$target" >&2
+        return 1
+    fi
+    _hf_check_cli || return 1
+
+    local rel="${target#"$hf_root"/}"
+    local repo_dir="${rel%%/*}"     # models--Jackrong--Qwen3.5-27B-Claude-...
+    local repo_id="${repo_dir#models--}"
+    if [[ "$repo_id" == "$repo_dir" ]] || [[ "$repo_id" != *--* ]]; then
+        printf 'Error: cannot derive HF repo id from path: %s\n' "$target" >&2
+        return 1
+    fi
+    repo_id="${repo_id//--/\/}"     # Jackrong/Qwen3.5-27B-Claude-...
+    local repo_target="model/${repo_id}"
+    local repo_full="${hf_root}/${repo_dir}"
+    local repo_size_h
+    repo_size_h=$(du -sh "$repo_full" 2>/dev/null | awk '{print $1}')
+
+    printf 'File lives in HuggingFace cache:\n'
+    printf '  %s  (%s)\n' "$target" "$size_h"
+    printf '\nThe HF CLI cannot delete a single file — it removes a whole repo revision.\n'
+    printf 'About to delete the entire cached repo:\n'
+    printf '  %s  (~%s)\n' "$repo_target" "${repo_size_h:-?}"
+    printf '  path: %s\n' "$repo_full"
+    local reply
+    read -r -p 'Proceed? [y/N] ' reply
+    [[ "$reply" =~ ^[Yy]$ ]] || { printf 'Aborted.\n'; return 1; }
+
+    hf cache rm "$repo_target" --yes
 }
 
 llama-info() {
@@ -689,6 +1041,297 @@ print(f"\n  file size  {Path(path).stat().st_size / 1e9:.2f} GB")
 PYEOF
 }
 
+# ── HUGGINGFACE UTILITIES ─────────────────────────────────────────────────────
+#
+# Thin wrappers around the new `hf` CLI (huggingface_hub >= 0.34). Files land
+# under $LLAMACPP_MODELS_DIR so llama-models / llama-alias / llama-info pick
+# them up automatically.
+#
+# hf-pull   REPO [FILE...]   download a HF repo (or specific files) into models dir
+# hf-search QUERY            search HF for matching repos (GGUF-filtered by default)
+# hf-test   REPO [FILE]      pull → alias → start ikllama → smoke-test → stop
+
+hf-pull() {
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: hf-pull <repo> [file ...]\n' >&2
+        printf '  repo        e.g. bartowski/Qwen2.5-Coder-7B-Instruct-GGUF\n' >&2
+        printf '  file(s)     specific file(s) within the repo (optional)\n' >&2
+        return 1
+    fi
+    _hf_check_cli || return 1
+
+    local repo="$1"; shift
+    local -a files=("$@")
+    mkdir -p "$LLAMACPP_MODELS_DIR"
+
+    local target
+    if (( ${#files[@]} == 1 )) && [[ "${files[0]}" == *.gguf ]]; then
+        # Single GGUF → land it directly in models dir, flat.
+        target="$LLAMACPP_MODELS_DIR"
+        printf 'Pulling %s :: %s → %s\n' "$repo" "${files[0]}" "$target"
+        hf download "$repo" "${files[0]}" --local-dir "$target" || return 1
+        printf '\nDone. Try: llama-models | grep %s\n' "${files[0]##*/}"
+    else
+        # Full repo or multi-file → subdir keyed on repo basename.
+        target="$LLAMACPP_MODELS_DIR/${repo##*/}"
+        printf 'Pulling %s → %s\n' "$repo" "$target"
+        if (( ${#files[@]} )); then
+            hf download "$repo" "${files[@]}" --local-dir "$target" || return 1
+        else
+            hf download "$repo" --local-dir "$target" || return 1
+        fi
+        printf '\nDone. Contents:\n'
+        find "$target" -maxdepth 2 -type f -printf '  %s\t%p\n' 2>/dev/null \
+            | awk '{ printf "  %10.2f MB  %s\n", $1/1048576, $2 }' \
+            | sort -k3
+    fi
+}
+
+hf-search() {
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: hf-search <query> [--all] [--author NAME] [--limit N] [--raw]\n' >&2
+        printf '  default filters to GGUF repos; --all removes the filter\n' >&2
+        printf '  --raw forwards to `hf models ls` unchanged\n' >&2
+        return 1
+    fi
+    _hf_check_cli || return 1
+
+    local all=0 raw=0 author="" limit=25
+    local -a query=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --all)    all=1; shift ;;
+            --raw)    raw=1; shift ;;
+            --author) author="$2"; shift 2 ;;
+            --limit)  limit="$2"; shift 2 ;;
+            *)        query+=("$1"); shift ;;
+        esac
+    done
+
+    local -a args=(--search "${query[*]}" --sort downloads --limit "$limit")
+    [[ -n "$author" ]] && args+=(--author "$author")
+    (( all )) || args+=(--filter gguf)
+
+    if (( raw )); then
+        hf models ls "${args[@]}"
+        return
+    fi
+
+    hf models ls "${args[@]}" --format json | python3 -c '
+import json, sys
+rows = json.load(sys.stdin)
+if not rows:
+    print("(no results)"); sys.exit(0)
+SKIP = {"endpoints_compatible", "conversational", "region:us", "text-generation"}
+def short_tags(tags, n=4):
+    keep = [t for t in tags
+            if t not in SKIP
+            and not t.startswith("base_model:")
+            and not t.startswith("dataset:")
+            and not t.startswith("license:")]
+    return ", ".join(keep[:n])
+def short_date(s):
+    return (s or "")[:10]
+w = max(len(r["id"]) for r in rows)
+fmt = "{:<" + str(w) + "}  {:<10}  {:>8}  {:>5}  {}"
+print(fmt.format("ID", "CREATED", "DL", "LIKES", "TAGS"))
+print(fmt.format("-"*w, "-"*10, "-"*8, "-"*5, "-"*40))
+for r in rows:
+    print(fmt.format(r["id"], short_date(r.get("created_at", "")),
+                     r.get("downloads", 0), r.get("likes", 0),
+                     short_tags(r.get("tags", []))))
+'
+}
+
+hf-files() {
+    # List files in a HF model repo (recursive, human sizes), GGUFs first.
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: hf-files <repo> [--all]\n' >&2
+        printf '  default shows GGUFs first; --all keeps the original order\n' >&2
+        return 1
+    fi
+    _hf_check_cli || return 1
+
+    local all=0
+    local -a args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --all) all=1; shift ;;
+            *)     args+=("$1"); shift ;;
+        esac
+    done
+    local repo="${args[0]}"
+    if [[ -z "$repo" ]]; then
+        printf 'Error: missing repo id\n' >&2; return 1
+    fi
+
+    local raw
+    if ! raw=$(hf models ls -R -h "$repo" 2>&1); then
+        printf '%s\n' "$raw" >&2; return 1
+    fi
+
+    if (( all )); then
+        printf '%s\n' "$raw"
+    else
+        # Stable partition: GGUFs first (in their original order), then the rest.
+        printf '%s\n' "$raw" | awk '
+            /\.gguf[[:space:]]*$/ { ggufs[++ng] = $0; next }
+                                  { other[++no] = $0 }
+            END {
+                for (i = 1; i <= ng; i++) print ggufs[i]
+                if (ng && no) print ""
+                for (i = 1; i <= no; i++) print other[i]
+            }
+        '
+    fi
+}
+
+hf-pick() {
+    # Interactive: list GGUFs in <repo>, pick one, pull it via hf-pull.
+    # Useful follow-up to hf-search: pick the file you want from a repo
+    # without retyping its name.
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: hf-pick <repo>\n' >&2
+        printf '  Lists GGUFs in the repo, prompts for one, then runs hf-pull.\n' >&2
+        return 1
+    fi
+    _hf_check_cli || return 1
+
+    local repo="$1"
+    local raw
+    if ! raw=$(hf models ls -R "$repo" 2>&1); then
+        printf '%s\n' "$raw" >&2; return 1
+    fi
+
+    # `hf models ls -R` (no -h) emits whitespace-aligned columns:
+    #     size_bytes  YYYY-MM-DD HH:MM:SS  path
+    # The timestamp itself contains a space, so split into [size, path]
+    # via "first whitespace token" + "last whitespace token".
+    local -a paths=() sizes=()
+    local line size path
+    while IFS= read -r line; do
+        [[ "$line" == *.gguf ]] || continue
+        size=$(awk '{print $1}'  <<< "$line")
+        path=$(awk '{print $NF}' <<< "$line")
+        [[ -z "$path" || -z "$size" ]] && continue
+        paths+=("$path")
+        sizes+=("$size")
+    done <<< "$raw"
+
+    if (( ${#paths[@]} == 0 )); then
+        printf 'No GGUF files found in %s\n' "$repo" >&2
+        printf 'Try: hf-files %s\n' "$repo" >&2
+        return 1
+    fi
+
+    if [[ ! -t 0 || ! -t 1 ]]; then
+        printf 'Error: hf-pick requires an interactive terminal\n' >&2
+        printf 'Use: hf-pull %s <file.gguf>\n' "$repo" >&2
+        return 1
+    fi
+
+    printf 'GGUFs in %s:\n' "$repo" >&2
+    local i=1 size_h
+    for i in "${!paths[@]}"; do
+        size_h=$(printf '%s' "${sizes[i]}" \
+                 | awk '{ s=$1; u="BKMGT"; n=1
+                          while (s>=1024 && n<length(u)) { s/=1024; n++ }
+                          printf "%.1f%s", s, substr(u,n,1) }')
+        printf '  %2d) %-9s %s\n' "$((i+1))" "$size_h" "${paths[i]}" >&2
+    done
+
+    local reply
+    while :; do
+        read -r -p "Pick a number 1-${#paths[@]} (q to abort): " reply
+        [[ "$reply" =~ ^[Qq]$|^$ ]] && { printf 'Aborted.\n' >&2; return 1; }
+        if [[ "$reply" =~ ^[0-9]+$ ]] && (( reply >= 1 && reply <= ${#paths[@]} )); then
+            local picked="${paths[reply-1]}"
+            printf '\nPulling: %s :: %s\n' "$repo" "$picked"
+            hf-pull "$repo" "$picked"
+            return $?
+        fi
+        printf '  Invalid choice. Enter 1-%d or q.\n' "${#paths[@]}" >&2
+    done
+}
+
+hf-test() {
+    # hf-test <repo> [file] — pull (if missing), alias as the repo basename,
+    # start ik_llama-server, send a 1-token smoke prompt, then stop the server.
+    if [[ $# -eq 0 ]]; then
+        printf 'Usage: hf-test <repo> [file.gguf]\n' >&2; return 1
+    fi
+    _hf_check_cli || return 1
+
+    local repo="$1" file="${2:-}"
+    local alias_name="${repo##*/}"
+    alias_name="${alias_name%-GGUF}"
+    alias_name="${alias_name%.gguf}"
+
+    local target_path
+    if [[ -n "$file" ]]; then
+        target_path="${LLAMACPP_MODELS_DIR}/${file##*/}"
+        if [[ ! -f "$target_path" ]]; then
+            hf-pull "$repo" "$file" || return 1
+        fi
+    else
+        target_path="${LLAMACPP_MODELS_DIR}/${repo##*/}"
+        if [[ ! -d "$target_path" ]]; then
+            hf-pull "$repo" || return 1
+        fi
+        # If it's a single-GGUF dir, alias the file; otherwise just leave it.
+        local gguf
+        gguf=$(find "$target_path" -maxdepth 1 -name '*.gguf' 2>/dev/null | head -1)
+        if [[ -n "$gguf" ]]; then
+            target_path="$gguf"
+        else
+            printf 'No GGUF in %s — cannot smoke-test (safetensors needs conversion)\n' "$target_path" >&2
+            return 1
+        fi
+    fi
+
+    llama-alias "$alias_name" "$target_path" || return 1
+    llm-local-server start --backend ikllama --model "$alias_name" || return 1
+
+    printf '\n=== Smoke test ===\n'
+    local resp
+    resp=$(curl -sf --max-time 30 "http://${IKLLAMA_HOST}:${IKLLAMA_PORT}/v1/chat/completions" \
+        -H 'Content-Type: application/json' \
+        -d '{"model":"ikllama","messages":[{"role":"user","content":"Reply with the single word: OK"}],"max_tokens":8}' \
+        | python3 -c 'import sys,json; print(json.load(sys.stdin)["choices"][0]["message"]["content"].strip())' 2>/dev/null)
+
+    if [[ -n "$resp" ]]; then
+        printf 'Model responded: %s\n' "$resp"
+    else
+        printf 'No response (check /tmp/ikllama-server.log)\n' >&2
+    fi
+
+    llm-local-server stop --backend ikllama
+}
+
+_hf_check_cli() {
+    if ! command -v hf &>/dev/null; then
+        printf 'Error: `hf` CLI not found.\n' >&2
+        printf 'Install with: pip install -U "huggingface_hub[hf_xet]"\n' >&2
+        return 1
+    fi
+    # Auto-login if no cached token. Order: HF_TOKEN env, ~/.huggingface-token, fail.
+    if ! hf auth whoami &>/dev/null; then
+        local key="${HF_TOKEN:-${HUGGING_FACE_HUB_TOKEN:-}}"
+        [[ -z "$key" && -r "$HOME/.huggingface-token" ]] && key=$(<"$HOME/.huggingface-token")
+        if [[ -z "$key" ]]; then
+            printf 'Error: not logged in to HuggingFace and no token available.\n' >&2
+            printf 'Either: hf auth login   (interactive)\n' >&2
+            printf '    or: echo "hf_..." > ~/.huggingface-token && chmod 600 ~/.huggingface-token\n' >&2
+            return 1
+        fi
+        printf 'HuggingFace: not logged in — auto-login from token\n'
+        hf auth login --token "$key" --add-to-git-credential=false &>/dev/null || {
+            printf 'Error: hf auth login failed (bad token?)\n' >&2
+            return 1
+        }
+    fi
+}
+
 # ── INTERNAL HELPERS ──────────────────────────────────────────────────────────
 
 _parse_ctx() {
@@ -702,6 +1345,195 @@ _parse_ctx() {
 
 _llama_resolve_model() {
     _llama_resolve_model_in "$1" "$LLAMACPP_MODELS_DIR" "$LLAMACPP_DEFAULT_MODEL"
+}
+
+# Interactive numbered picker for GGUFs in $models_dir. Lists regular files
+# (raw GGUFs) and symlinks (aliases) — both are resolvable. HF cache files
+# are deliberately excluded: they can't be loaded by --model NAME until an
+# alias is created (see `llama-alias`). Writes the chosen filename (without
+# .gguf, suitable for re-feeding to _llama_resolve_model_in) to stdout.
+_llama_pick_model() {
+    local models_dir="$1" default_model="$2"
+    local -a all_files=()
+    local f
+    if [[ -d "$models_dir" ]]; then
+        while IFS= read -r f; do
+            all_files+=("$f")
+        done < <(find "$models_dir" -maxdepth 2 -name "*.gguf" 2>/dev/null | sort)
+    fi
+    if (( ${#all_files[@]} == 0 )); then
+        printf 'Error: no GGUFs in %s\n' "$models_dir" >&2
+        printf 'Pull one with: hf-pull <repo> <file.gguf>\n' >&2
+        printf 'Or alias an HF cache entry: llama-alias <name> <substr>...\n' >&2
+        return 1
+    fi
+
+    # Group split-shard GGUFs under their base name. A shard filename matches
+    # <base>-NNNNN-of-MMMMM.gguf — llama-server takes only the first shard via
+    # --model and discovers siblings on its own. We hide all but the first.
+    #
+    # Parallel arrays per displayed entry:
+    #   entries[i]    full path to the file the user will load (first shard for splits)
+    #   labels[i]     display name (basename, with " (N/M shards)" annotation for splits)
+    #   sizes[i]      total bytes (sum of all shards for splits)
+    #   warnings[i]   non-empty if not all shards are present
+    local -a entries=() labels=() sizes=() warnings=()
+    # Map: base -> "shards_present  total_size  expected_total  first_shard_path"
+    declare -A grp_count grp_size grp_expected grp_first
+
+    for f in "${all_files[@]}"; do
+        local fname="${f##*/}"
+        local stem="${fname%.gguf}"
+        # Detect shard suffix.
+        if [[ "$stem" =~ ^(.*)-([0-9]{5})-of-([0-9]{5})$ ]]; then
+            local base="${BASH_REMATCH[1]}"
+            local idx="${BASH_REMATCH[2]}"
+            local total="${BASH_REMATCH[3]}"
+            local sz; sz=$(stat -L -c %s "$f" 2>/dev/null)
+            grp_count[$base]=$(( ${grp_count[$base]:-0} + 1 ))
+            grp_size[$base]=$(( ${grp_size[$base]:-0} + sz ))
+            grp_expected[$base]="$total"
+            # The first shard is the canonical entry point for llama-server.
+            if [[ "$idx" == "00001" ]]; then
+                grp_first[$base]="$f"
+            fi
+        else
+            local sz; sz=$(stat -L -c %s "$f" 2>/dev/null)
+            entries+=("$f")
+            if [[ -L "$f" ]]; then
+                labels+=("${fname} → $(readlink -f "$f")")
+            else
+                # If the file lives in a subdirectory of models_dir, show the
+                # relative path so it's distinguishable from flat entries.
+                local rel="${f#"$models_dir"/}"
+                if [[ "$rel" == */* ]]; then
+                    labels+=("$rel")
+                else
+                    labels+=("$fname")
+                fi
+            fi
+            sizes+=("$sz")
+            warnings+=("")
+        fi
+    done
+
+    # Emit one entry per shard group.
+    local base
+    for base in "${!grp_count[@]}"; do
+        local count="${grp_count[$base]}"
+        local expected="${grp_expected[$base]}"
+        local first="${grp_first[$base]:-}"
+        if [[ -z "$first" ]]; then
+            # No first shard present — group is unloadable. Show it but warn loudly.
+            entries+=("")
+            labels+=("${base} (split GGUF, MISSING shard 1/$((10#$expected)))")
+            sizes+=("${grp_size[$base]}")
+            warnings+=("UNLOADABLE")
+            continue
+        fi
+        entries+=("$first")
+        if [[ "$count" == "$expected" ]]; then
+            labels+=("${base} (${count}/$((10#$expected)) shards)")
+            warnings+=("")
+        else
+            labels+=("${base} (${count}/$((10#$expected)) shards — INCOMPLETE)")
+            warnings+=("incomplete")
+        fi
+        sizes+=("${grp_size[$base]}")
+    done
+
+    # Sort entries by label for stable display order. Use a real tab as the
+    # delimiter — string concatenation with "\t" yields a literal backslash-t.
+    local TAB=$'\t'
+    local -a order=()
+    local i
+    for i in "${!labels[@]}"; do
+        order+=("${labels[i]}${TAB}${i}")
+    done
+    local -a sorted_entries=() sorted_labels=() sorted_sizes=() sorted_warnings=()
+    local idx
+    while IFS=$'\t' read -r _ idx; do
+        [[ -z "$idx" ]] && continue
+        sorted_entries+=("${entries[idx]}")
+        sorted_labels+=("${labels[idx]}")
+        sorted_sizes+=("${sizes[idx]}")
+        sorted_warnings+=("${warnings[idx]}")
+    done < <(printf '%s\n' "${order[@]}" | sort -f)
+    entries=("${sorted_entries[@]}")
+    labels=("${sorted_labels[@]}")
+    sizes=("${sorted_sizes[@]}")
+    warnings=("${sorted_warnings[@]}")
+
+    # Resolve the default to a full path so we can flag it in the list.
+    local default_path=""
+    if [[ -n "$default_model" ]]; then
+        if   [[ -f "$default_model" ]];                       then default_path="$default_model"
+        elif [[ -f "${models_dir}/${default_model}" ]];       then default_path="${models_dir}/${default_model}"
+        elif [[ -f "${models_dir}/${default_model}.gguf" ]];  then default_path="${models_dir}/${default_model}.gguf"
+        fi
+    fi
+
+    printf 'Pick a model for the server:\n' >&2
+    local default_idx=0 size_h marker disabled_count=0
+    for i in "${!entries[@]}"; do
+        size_h=$(printf '%s' "${sizes[i]}" \
+                 | awk '{ s=$1; u="BKMGT"; n=1
+                          while (s>=1024 && n<length(u)) { s/=1024; n++ }
+                          printf "%.1f%s", s, substr(u,n,1) }')
+        marker=''
+        if [[ -n "$default_path" && "${entries[i]}" == "$default_path" ]]; then
+            marker='[default]'
+            default_idx=$((i+1))
+        fi
+        if [[ "${warnings[i]}" == "UNLOADABLE" ]]; then
+            printf '  --) %-9s %s\n' "$size_h" "${labels[i]}" >&2
+            ((disabled_count++))
+        else
+            printf '  %2d) %-9s %s %s\n' "$((i+1))" "$size_h" "${labels[i]}" "$marker" >&2
+        fi
+    done
+    if (( disabled_count > 0 )); then
+        printf '  (%d entry/entries marked -- are unloadable and cannot be picked)\n' \
+            "$disabled_count" >&2
+    fi
+
+    local prompt
+    if (( default_idx > 0 )); then
+        prompt="Enter number 1-${#entries[@]}, Enter for default (#${default_idx}), q to abort: "
+    else
+        prompt="Enter number 1-${#entries[@]}, q to abort: "
+    fi
+
+    local reply
+    while :; do
+        read -r -p "$prompt" reply
+        [[ "$reply" =~ ^[Qq]$ ]] && { printf 'Aborted.\n' >&2; return 1; }
+        if [[ -z "$reply" ]]; then
+            if (( default_idx > 0 )); then
+                reply=$default_idx
+            else
+                printf '  No default — pick a number or q.\n' >&2
+                continue
+            fi
+        fi
+        if [[ "$reply" =~ ^[0-9]+$ ]] && (( reply >= 1 && reply <= ${#entries[@]} )); then
+            local picked="${entries[reply-1]}"
+            if [[ -z "$picked" ]]; then
+                printf '  That entry is unloadable (missing first shard). Pick another.\n' >&2
+                continue
+            fi
+            if [[ "${warnings[reply-1]}" == "incomplete" ]]; then
+                local confirm
+                read -r -p '  Group is incomplete; loading will fail. Pick anyway? [y/N] ' confirm
+                [[ "$confirm" =~ ^[Yy]$ ]] || continue
+            fi
+            # Emit the full path — _llama_resolve_model_in handles `[[ -f $model ]]`
+            # directly, so subdir paths like models_dir/BF16/foo-00001-of-N.gguf work.
+            printf '%s' "$picked"
+            return 0
+        fi
+        printf '  Invalid choice. Enter 1-%d or q.\n' "${#entries[@]}" >&2
+    done
 }
 
 _llama_resolve_model_in() {
@@ -718,15 +1550,34 @@ _llama_resolve_model_in() {
 }
 
 _lls_wait_http() {
-    local url="$1" label="$2" timeout="${3:-60}"
+    local url="$1" label="$2" timeout="${3:-60}" logfile="${4:-}"
+    # Patterns that indicate a terminal load failure — abort early when seen,
+    # rather than waiting the full timeout for /health to never come.
+    local err_re='out of memory|cudaMalloc failed|unable to load model|failed to (allocate|load|create context)|llama_kv_cache_init: failed|error: failed|GGML_ASSERT|terminate called|panic:'
     local i http_code
     for i in $(seq 1 "$timeout"); do
         http_code=$(curl -so /dev/null --max-time 2 -w "%{http_code}" "$url" 2>/dev/null)
-        [[ "$http_code" == "200" ]] && { printf '%s ready.\n' "$label"; return 0; }
+        [[ "$http_code" == "200" ]] && { printf '\r%s ready.%-30s\n' "$label" ""; return 0; }
         [[ "$http_code" == "503" ]] && printf '\r  loading model... %ds' "$i"
+        # Cheap log probe: scan only the tail so cost stays O(1) per tick.
+        if [[ -n "$logfile" && -r "$logfile" ]]; then
+            if tail -n 200 "$logfile" 2>/dev/null | grep -qiE -- "$err_re"; then
+                printf '\n%s failed to start — log says:\n' "$label" >&2
+                tail -n 200 "$logfile" 2>/dev/null \
+                    | grep -iE -- "$err_re" \
+                    | tail -n 8 \
+                    | sed 's/^/  /' >&2
+                printf '  (full log: %s)\n' "$logfile" >&2
+                return 1
+            fi
+        fi
         sleep 1
     done
     printf '\nTimeout after %ds waiting for %s\n' "$timeout" "$label" >&2
+    if [[ -n "$logfile" && -r "$logfile" ]]; then
+        printf 'Last 20 lines of %s:\n' "$logfile" >&2
+        tail -n 20 "$logfile" 2>/dev/null | sed 's/^/  /' >&2
+    fi
     return 1
 }
 
@@ -762,9 +1613,10 @@ claude-help() {
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'claude-local'                    'run via default backend (ollama)'
     printf '  %-36s%s\n' 'claude-local --backend llama'    'use llama-server instead'
-    printf '  %-36s%s\n' 'claude-local --backend ikllama'  'use ik_llama.cpp (fork — faster MoE/hybrid)'
+    printf '  %-36s%s\n' 'claude-local --backend ikllama'  'use ik_llama.cpp fork (faster MoE/CPU-hybrid;'
+    printf '  %-36s%s\n' ''                                '  worse on dense+SWA at tight VRAM, e.g. Gemma)'
     printf '  %-36s%s\n' 'claude-local --model NAME'       'override model'
-    printf '  %-36s%s\n' 'claude-local --ctx 128k'         'override context (llama backend only; Ollama: use ollama-create)'
+    printf '  %-36s%s\n' 'claude-local --ctx 128k'         'override context (llama/ikllama only; Ollama: use ollama-create)'
     printf '  %-36s%s\n' 'claude-local --gpus 1'           'Ollama: single GPU (HPC-safe)'
     printf '  %-36s%s\n' 'claude-local --no-autostart'     'skip server start (must be running)'
     printf '  %-36s%s\n' 'claude-local --no-autostop'      'keep server running after exit'
@@ -773,28 +1625,44 @@ claude-help() {
     printf '\n'
     printf "  ${b}LLM-LOCAL-SERVER${r}  service management\n"
     printf '%s\n' "$sep"
-    printf '  %-52s%s\n' 'llm-local-server start'                        'start default backend'
-    printf '  %-52s%s\n' 'llm-local-server start --backend llama --ctx 128k'  'llama-server with ctx'
-    printf '  %-52s%s\n' 'llm-local-server stop'                         'stop default backend'
-    printf '  %-52s%s\n' 'llm-local-server stop --backend llama'         'stop specific backend'
-    printf '  %-52s%s\n' 'llm-local-server restart [opts]'               'stop + start'
-    printf '  %-52s%s\n' 'llm-local-server status'                       'process + model + GPU'
+    printf '  %-52s%s\n' 'llm-local-server start'                              'start default backend'
+    printf '  %-52s%s\n' 'llm-local-server start --backend llama --ctx 128k'   'llama-server with ctx'
+    printf '  %-52s%s\n' 'llm-local-server start --backend ikllama --ctx 128k' 'ik_llama-server with ctx'
+    printf '  %-52s%s\n' 'llm-local-server stop'                               'stop default backend'
+    printf '  %-52s%s\n' 'llm-local-server stop --backend ollama|llama|ikllama' 'stop specific backend'
+    printf '  %-52s%s\n' 'llm-local-server restart [opts]'                     'stop + start'
+    printf '  %-52s%s\n' 'llm-local-server status'                             'all backends + GPU'
+    printf '  %-52s%s\n' 'llm-local-server status --backend ikllama'           'narrow to one backend'
 
     printf '\n'
     printf "  ${b}OLLAMA UTILITIES${r}\n"
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'ollama-pull [model]'             'pull a model'
     printf '  %-36s%s\n' 'ollama-create [--ctx N] [model]' 'create context-capped variant'
-    printf '  %-36s%s\n' 'ollama-models'                   'list models grouped by type'
+    printf '  %-36s%s\n' 'ollama-models'                   'list models grouped by suffix (cloud/embedding/plan/exec/misc)'
     printf '  %-36s%s\n' 'ollama-rename <old> <new>'       'rename model (exact casing)'
+    printf '  %-36s%s\n' 'ollama-rm <model> [model ...]'   'remove model(s); confirms when >1'
 
     printf '\n'
-    printf "  ${b}LLAMA.CPP UTILITIES${r}\n"
+    printf "  ${b}LLAMA.CPP / IK_LLAMA.CPP UTILITIES${r}  (shared — both backends read \$LLAMACPP_MODELS_DIR)\n"
     printf '%s\n' "$sep"
-    printf '  %-36s%s\n' 'llama-models'                    'list GGUFs in models dir + HF cache'
-    printf '  %-36s%s\n' 'llama-alias <name> <path>'       'create short-name alias (symlink)'
+    printf '  %-36s%s\n' 'llama-models'                    'grouped list (basename + quants) of GGUFs in models dir + HF cache'
+    printf '  %-36s%s\n' 'llama-models --paths'            'one full path per line (pipe to grep / llama-alias)'
+    printf '  %-36s%s\n' 'llama-models --raw'              'TSV: location/file/size/path/link'
+    printf '  %-36s%s\n' 'llama-alias <name> <path>'       'alias to explicit GGUF path (symlink)'
+    printf '  %-36s%s\n' 'llama-alias <name> <substr>...'  'alias to fuzzy match (all substrs must match)'
     printf '  %-36s%s\n' 'llama-alias <name>'              'remove alias'
+    printf '  %-36s%s\n' 'llama-rm <substr>... | <path>'   'delete GGUF (models dir → file; HF cache → whole repo)'
     printf '  %-36s%s\n' 'llama-info [model]'              'GGUF metadata + tensor summary'
+
+    printf '\n'
+    printf "  ${b}HUGGINGFACE UTILITIES${r}  (requires hf CLI from huggingface_hub >= 0.34)\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'hf-search <query> [--all]'       'search HF (GGUF-filtered by default)'
+    printf '  %-36s%s\n' 'hf-files <repo> [--all]'         'list files in a repo (GGUFs first)'
+    printf '  %-36s%s\n' 'hf-pick <repo>'                  'interactive: pick a GGUF and pull it'
+    printf '  %-36s%s\n' 'hf-pull <repo> [file ...]'       'download into LLAMACPP_MODELS_DIR'
+    printf '  %-36s%s\n' 'hf-test <repo> [file]'           'pull → alias → smoke-test on ikllama'
 
     printf '\n'
     printf "  ${b}ENV OVERRIDES${r}\n"
