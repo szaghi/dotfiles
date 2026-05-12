@@ -26,6 +26,9 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
 - Assume I am not emotionally fragile. I prefer challenge, contradiction, and structural correction over comfort.
 - Intellectual honesty over social preservation, always.
 
+**Review focus — style is handled, you are not:**
+- Formatting, indentation, line length, naming snake_case-vs-camelCase, trailing whitespace — these are enforced by linters, formatters, and pre-commit hooks (`ruff`, `fprettify`, `ALE`, git template). When reviewing code (mine, yours, or a diff), do not spend effort on items the tooling already catches. *Why:* style nits crowd out the analysis that only you can do — correctness, numerical stability, interface design, blast radius. *How to apply:* in PR review or code audit, the review priority is correctness → numerical/precision → memory/allocation → MPI/concurrency → GPU/device coherence → architecture → portability. Style enters only if the tooling missed it, and even then as a one-line footnote, not a section.
+
 ## Repository Layout
 - Fortran repos live in `~/fortran/`, Python repos in `~/python/`
 - When referencing another repo, verify the path exists with `ls` and locate
@@ -100,10 +103,47 @@ end do
 - Spaces around operators and after commas: `x(i, j) = foo(i, j) + bar`
 - Align related declarations and comments for readability
 
+### Modern Syntax — Use Symbolic, Not Legacy
+
+These are pure rule-substitutions. The legacy forms still compile but are obsolete in F90+;
+mixing them with modern code creates needless visual noise. The LLM default is the legacy
+form for some of these — explicitly override.
+
+- Comparison: use `>`, `>=`, `<`, `<=`, `==`, `/=`. Never `.gt.`, `.ge.`, `.lt.`, `.le.`, `.eq.`, `.ne.`.
+- Array constructors: use `[ 1, 2, 3 ]`. Never `(/ 1, 2, 3 /)`.
+- Logical equivalence: use `.eqv.` / `.neqv.` for `logical` operands. `==` and `/=` are
+  not standard-conforming on `logical` operands, even though most compilers accept them.
+  For `if (flag .eqv. .true.)`-style code, prefer the direct form `if (flag)` instead.
+- Keywords lowercase: `do`, `if`, `then`, `end`, `subroutine`, `module`. Never `DO`, `IF`, `THEN`.
+
 ### Kind Specifications (Portability)
 - Use `iso_fortran_env` kinds (`int32`, `real64`) or `selected_*_kind` — never bare `real` or `integer`
 - Always suffix literal constants with the kind parameter: `3.14_R8`, `1.0_real64`
 - Use `iso_c_binding` for C interop types
+
+#### Forbidden kind-violating patterns
+
+These are the LLM's default Fortran sins — the forms generated when no kind discipline
+is enforced. Reject every one of them on sight; they bypass the kind system, hardcode
+precision, and silently break single/mixed-precision builds.
+
+- `dsqrt`, `dexp`, `dlog`, `dabs`, `dcos`, `dsin`, `dtan`, `datan`, `datan2`, `dble`,
+  `dmin1`, `dmax1`, etc. → use the **generic intrinsics** `sqrt`, `exp`, `log`, `abs`,
+  `cos`, ...; let the compiler resolve to the right kind from the argument.
+- `1.0d0`, `2.5d-3`, `1.d-12` (the `d` exponent literal) → use kind-suffixed literals:
+  `1.0_R8P`, `2.5e-3_R8P`. The `d` form silently locks to double precision.
+- `real(8)`, `real(4)`, `real(16)` → bare numeric kinds are non-portable and
+  meaningless across compilers. Use `real(R8P)` / `real(real64)` via your kind module.
+- `double precision` keyword → use `real(R8P)` / `real(real64)`.
+- `dble(x)` for type conversion → use `real(x, R8P)` / `real(x, real64)`.
+- Hardcoded byte sizes like `int(8._R8P, 8)` → use `storage_size(0._R8P)/8` or
+  `c_sizeof` for portability across precision modes.
+- Bare integer-kinded "real" literal like `2_R8P` → spelled `2.0_R8P`; `2_R8P` is an
+  *integer* literal of kind R8P, not a real, and silently wrong in expressions expecting a real.
+
+The single test: every floating-point literal and every intrinsic call must compile
+identically when `R8P` is redefined from `real64` to `real32` (single precision) or to
+`real128` (quad). If anything breaks under that re-definition, the discipline is violated.
 
 ### Implicit SAVE Trap
 Initializing a local variable **at declaration** gives it implicit `SAVE` — its value persists across calls:
@@ -137,6 +177,143 @@ end function
 - All module entities `private` by default; explicitly declare `public` only the API surface
 - Type components `private` unless external access is required
 - Use `use module, only: ...` at all use sites — no implicit wildcard imports
+
+### Module Wiring — Completeness Envelope
+
+A task that creates or moves a Fortran module file is **not done** until the module is
+reachable from the rest of the project. "Reachable" means at least one consumer file
+contains a `use ModuleName, only: ...` and a call site that exercises the new symbols,
+and the project build (FoBiS / make / fpm) still compiles.
+
+Rules — apply on every task that creates, splits, or relocates a `.F90`:
+
+1. **Same-task wiring.** Creating the module and adding `use` in consumers is **one task**,
+   not two. Splitting them leaves a window where the new file exists but is dead code, and
+   the second task depends on wiring that may not exist yet.
+2. **Public surface must be explicit.** If callers will `use` new symbols, declare them
+   `public ::` explicitly — do not rely on the module being public-by-default. (You
+   default to `private`-by-default per the rule above; this is the corollary.)
+3. **Update stale `use` lists on rename/move.** Renaming or moving a module without
+   sweeping all `use OldName` sites is a guaranteed build break — grep before committing.
+4. **Self-test, every time.** After the change, the question to ask is:
+   *"If I run `fobis build` (or `make` / `fpm build`) right now, does the new code compile
+   AND is it reached from at least one call site?"* If either half fails, the task is
+   incomplete — don't move on.
+
+A module file with no `use` referencing it is dead code by definition. The compiler will
+not warn; only the wiring discipline catches this.
+
+### OOP & Encapsulation
+
+#### Per-component vs blanket `private`
+Two ways to make derived-type components private — they are NOT interchangeable:
+
+```fortran
+! Blanket — all-or-nothing. Every component declared after it is private.
+type :: t
+   private
+   integer :: a   ! private
+   integer :: b   ! private
+endtype
+
+! Per-component attribute — mix freely with public components.
+type :: t
+   integer, private :: a   ! private
+   integer          :: b   ! public
+endtype
+```
+
+The blanket `private` statement applies to all subsequent components and **cannot be
+overridden** for a single later component. To get partial encapsulation (e.g. one
+public allocatable + several private scalars), use the `, private` attribute on each
+hidden component individually.
+
+Same applies to type-bound procedures: `procedure, private :: helper` works per-binding.
+
+When in doubt about a Fortran rule, write a 5-line test program and compile it. Do not
+guess from C++/Java intuition.
+
+#### Function-result component access — chained `func()%component` is illegal
+Fortran does NOT allow `surface%get_bmax()%x` (component access on a function result).
+Three workarounds:
+
+```fortran
+! 1. Local temp
+v = surface%get_bmax(); print *, v%x
+
+! 2. associate (preferred — scoped, no name pollution)
+associate (v => surface%get_bmax())
+   print *, v%x
+end associate
+
+! 3. Method chain on a derived-type function result IS allowed (TBP call, not %)
+print *, surface%get_bmax()%norm()   ! OK if get_bmax returns a type with %norm()
+```
+
+Use `associate` over scalar accessors-per-component (`get_bmax_x()`, `get_bmax_y()`,
+`get_bmax_z()`) — three accessors per vector is API noise.
+
+#### Encapsulation without copy-cost (zero-copy patterns)
+
+The "private + accessor = copy" intuition is wrong for Fortran. Patterns that preserve
+encapsulation at zero data-copy cost:
+
+| Pattern | Use for | Cost |
+|---|---|---|
+| `pure function get_x(self)` returning a scalar / small derived type | Read access to scalar state | Inlined at -O2 |
+| `function ptr(self)` returning `pointer` to internal array | Whole-array read-write external access | Pointer descriptor only |
+| `subroutine adopt(self, arr)` using `move_alloc(arr, self%arr)` | Hand off ownership from caller | Pointer swap |
+| `subroutine for_each(self, op)` taking a procedure pointer | Mutate every element without exposing storage | None |
+| Index-based mutator `subroutine set_at(self, i, v)` | Single-element writes | None |
+
+Pointer-returning accessors require `target` on the component AND on `self` in the accessor
+signature, and the accessor cannot be `pure`. Reserve them for cases where the whole-array
+view is genuinely needed by external code.
+
+#### When NOT to encapsulate
+Genuine cases for keeping components public:
+- POD value types whose fields ARE the contract (`vector_R8P`'s `%x %y %z`, geometric
+  primitives in tight kernels).
+- Hot inner-loop element fields where accessor inlining can't be relied upon (verify with
+  `-fdump-tree-optimized` before keeping public).
+- Internal state-machine records with no invariants worth defending.
+
+For domain types that carry invariants (sizes that must match arrays, init flags, file
+handles) — encapsulate. The dispatch-knob lesson: if external code is poking a flag like
+`is_initialized=.false.` to force a code path, the right fix is a separate `set_*` mutator
+expressing intent, not exposing the invariant flag. Don't lie about state to control
+behaviour.
+
+#### Assignment overloads are easy to get wrong
+When overloading `assignment(=)`, the procedure must explicitly copy every component.
+Forgetting one silently corrupts the LHS — the compiler will not warn. Common bug pattern:
+adding a new component to the type and forgetting to update the assignment overload.
+
+If the type's components are all-allocatable / intrinsic-assignable, **prefer dropping
+the overload entirely** — Fortran 2003+ intrinsic assignment correctly deep-copies
+allocatable components. Custom overloads should exist only when copy semantics genuinely
+differ from the intrinsic (shallow copy of pointers, lazy clone, etc.).
+
+#### Finalisers (`final ::`) for arrays-of-types
+A type with `allocatable` components needs a `final :: cleanup` procedure to release
+storage when wrapped in an `allocatable :: arr(:)` of that type. Without it, gfortran
+mostly does the right thing today, but ifort and older compilers leak.
+
+```fortran
+type :: container
+   integer, allocatable :: data(:)
+contains
+   final :: container_finalize
+endtype
+
+contains
+   subroutine container_finalize(self)
+   type(container), intent(inout) :: self   ! NOT class — final must take type
+   if (allocated(self%data)) deallocate(self%data)
+   endsubroutine
+```
+
+Note the `type(...)` (not `class(...)`) on the finaliser dummy.
 
 ### I/O
 - Use standard units from `iso_fortran_env`: `input_unit`, `output_unit`, `error_unit`
@@ -175,6 +352,39 @@ Which variables need `!$acc declare` in a module:
 - Missing `update device`/`update host` causes stale data bugs that are hard to diagnose
 - Use `present` clause to assert data residency; assertion failures surface bugs early
 
+### GPU ↔ MPI Coherence
+
+When MPI ranks own GPU-resident data, every halo/boundary exchange has a coherence
+contract that the compiler will not enforce: the buffer sent must be the most recent
+*host* copy, and the buffer received must be propagated back to the *device* copy.
+Skipping either side produces stale-data bugs that pass smoke tests and silently
+diverge under refinement.
+
+The rule, in two lines:
+
+- Before `MPI_Send` / `MPI_Isend` / `MPI_*_all*` from a device buffer: `!$acc update host(buf)` (or `!$omp target update from(buf)`).
+- After `MPI_Recv` / `MPI_Irecv` into a device buffer: `!$acc update device(buf)` (or `!$omp target update to(buf)`).
+
+```fortran
+! Non-GPU-aware MPI — explicit host staging required
+!$acc update host(send_buf)
+call MPI_Sendrecv(send_buf, n, MPI_R8P, dst, tag, &
+                  recv_buf, n, MPI_R8P, src, tag, comm, status, ierr)
+!$acc update device(recv_buf)
+```
+
+GPU-aware MPI (CUDA-aware OpenMPI/MPICH, ROCm-aware MPI, Cray MPICH+GTL) lets the MPI
+call read/write device pointers directly and removes the staging — but only if the build,
+the runtime, and the device buffer registration are all aligned. Default to host staging
+and only enable GPU-aware MPI behind a build-time or env-var toggle (e.g. `*_GPU_AWARE_MPI=1`)
+with the staging path remaining available as fallback. The toggle exists because GPU-aware
+MPI fails opaquely on misconfigured clusters and you need a working baseline to bisect against.
+
+Forensic hint: if a multi-rank GPU run gives bit-identical results to a single-rank run
+on small grids but diverges as the decomposition is refined, suspect a missing
+`update host` before a send or `update device` after a receive. The halo region is
+the prime suspect.
+
 ### Device Code Pitfalls
 - **Non-contiguous array sections**: passing `arr(i, 1:m, k)` to a device routine is dangerous — use a local contiguous buffer (`private`) or pass the full array with scalar indices
 - **`associate` variables in OpenACC regions**: use `copyin`, not `firstprivate` — `firstprivate` fails with some compilers
@@ -208,6 +418,82 @@ C data pointer. This causes `errno=14 EFAULT` in HDF5 writes. Works at -O0/-O1 a
 explicit lb) and pass `nijk` directly. For scalar rank-3 fields use explicit-shape
 `q(ijk(1,1):ijk(2,1),...)` to bypass the descriptor entirely.
 Individual `-fno-*` flags do not isolate the trigger. Do not use allocatable copies as a workaround — allocation overhead is unacceptable in HPC hot paths.
+
+## Verbatim-Edit Protocol
+
+For changes where **exact bytes** matter — numerical kernels, generated code, license
+headers, version strings, manifest files, compiler-pragma blocks, golden test outputs —
+do not let me (the LLM) free-hand the edit through `Edit`. The cost of a paraphrased
+whitespace, a reformatted continuation line, or a "helpful" comment removal can be a
+silently broken kernel or a regenerated diff that no longer reviews cleanly.
+
+### When to use it
+
+Trigger this protocol when any of the following is true:
+
+- The edit is to a numerical-kernel inner loop (vectorised, OpenACC `!$acc parallel loop`,
+  OpenMP `!$omp parallel do`) — formatting/ordering matters for the compiler
+- The block is auto-generated or under a "do not edit" header
+- Whitespace, trailing newlines, or column alignment are load-bearing (Fortran fixed-form,
+  POSIX shell heredocs, Makefile recipes)
+- The change must be byte-identical across N files (header/license sweep)
+- A previous Edit attempt produced "looks right but doesn't match" pattern-match failures
+
+### How to apply
+
+Write a TOML plan with `before`/`after` blocks copied **verbatim from the source** (use
+`Read` or `git show`, never paraphrase), then apply via `sd -F` (fixed-string replace).
+
+```toml
+[task.kernel_intent_fix]
+file = "src/kernels/exchange.F90"
+type = "replace"
+before = '''
+SUBROUTINE compute_exchange(rho, n, e)
+    REAL(R8P) :: rho(n)
+    INTEGER   :: n
+    REAL(R8P) :: e
+'''
+after = '''
+SUBROUTINE compute_exchange(rho, n, e)
+    REAL(R8P), INTENT(IN)  :: rho(n)
+    INTEGER,   INTENT(IN)  :: n
+    REAL(R8P), INTENT(OUT) :: e
+'''
+```
+
+Apply with:
+
+```bash
+sd -F "$(cat before.txt)" "$(cat after.txt)" src/kernels/exchange.F90
+```
+
+Or one-shot via Python with base64-encoded blocks when the strings contain shell
+metacharacters.
+
+### Rules
+
+1. **Verbatim source.** Copy `before` from the file via `Read`/`git show` — never type it
+   from memory and never abbreviate with `...`.
+2. **Unique match.** Include enough surrounding context that `before` appears exactly
+   once in the file. Verify with `grep -cF "$before" file` before applying.
+3. **Whitespace is content.** Tabs vs spaces, trailing whitespace, blank lines — all
+   must match the source. `sd -F` is byte-exact, not regex-fuzzy.
+4. **Pre-flight check.** Confirm `before` exists in the target file before invoking `sd`
+   (it returns exit 0 even on zero matches — silent no-op is the failure mode).
+5. **One file per change.** Multi-file sweeps are N separate changes, not one fuzzy one.
+6. **Verify after.** Run the relevant compile step (`fobis build`, `gfortran -c -Wall`)
+   immediately — a verbatim-edit protocol that doesn't end with a build check defeats
+   the point.
+
+### Why not just `Edit`?
+
+`Edit` already does fixed-string replacement. The discipline this section adds is
+*upstream of the tool*: writing the before/after into a reviewable TOML artefact forces
+me to fetch the source verbatim instead of reconstructing it, makes the change auditable
+without re-running the LLM, and makes the edit re-applicable to a sibling branch or a
+regenerated file with zero ambiguity. For one-off tweaks `Edit` is fine; for kernel and
+generated-code changes, the artefact is worth the overhead.
 
 ## Commit Messages
 - Use Conventional Commits: `type(scope): description` — enforced by the
