@@ -36,10 +36,15 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
   or a submodule copy). If the path cannot be resolved unambiguously, ask.
 
 ## Build System
-- Primary build tool is **FoBiS.py** — use its built-in flags
-  (e.g. `-get`, `-ex`) rather than parsing fobos files with awk/sed
+- Primary build tool is **FoBiS** (project name **FoBiS.py**; CLI binary `fobis`,
+  version 3.8+). Use its built-in subcommands and double-dash long-form flags
+  (`fobis build --mode <name>`, `fobis fetch`, `fobis rule --ex <rule>`,
+  `fobis build --lmodes`) rather than parsing fobos files with awk/sed.
+- The legacy short-dash forms (`FoBiS.py build -mode X`, `-lmodes`, `-ex`,
+  `-ls`) are no longer accepted in FoBiS 3.8+ — always emit the new form when
+  writing scripts, CI, or docs.
 - Do NOT substitute make/cmake unless the user explicitly asks
-- Dependency management uses `FoBiS.py fetch`, not git submodules
+- Dependency management uses `fobis fetch`, not git submodules
 
 ## CI/CD
 - GitHub Actions workflows: make minimal changes — remove jobs
