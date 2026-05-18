@@ -167,6 +167,39 @@ real function kinetic_energy(v)
 end function
 ```
 
+### `pure` Annotation Must Match Reality — Module-Scope Reads Break It Under Debug
+
+Declaring a function `pure function` is a hard contract: the body may not access any
+entity outside its argument list, except `parameter` constants and intrinsic functions
+known-pure. Reading a module-scope variable (a singleton, a configuration flag, a
+logger handle, a `use`-imported `target` derived type's components) violates the
+contract — even when the read is "obviously harmless" like fetching an MPI rank-prefix
+string for log formatting.
+
+Release builds (`gfortran -O2`, `ifort` default) typically compile the function anyway
+and produce correct output — the violation is silent. **Debug builds**
+(`-fcheck=all -fbounds-check`, `-check all -traceback`) trip on the same code with an
+obscure SIGSEGV inside the impure expression, usually at a string concatenation, an
+allocatable-component access, or a derived-type-component dereference. The backtrace
+points at the offending expression line, not at the `pure` keyword on the function
+declaration — so the diagnosis is hard. Symptom that flags this class: *"release-mode
+run is fine, debug-mode build segfaults during initialization, and the segfaulting
+line is inside a method like `description()` / `to_string()` / `summary()` that
+formats and returns a string."* Suspect a `pure function` on that method that reaches
+into a module-scope singleton.
+
+*Why:* `-fcheck=all` enables descriptor / pointer / allocation-status sanity checks;
+the compiler's purity assumption lets it skip those checks inside `pure` bodies on
+the basis that purity excludes the conditions they catch. The mismatch between
+assumed purity and actual module-scope access then aliases into use-after-something
+at runtime.
+
+*How to apply:* if a "pure" function reads any module-scope state, **drop the `pure`
+annotation** — the function is not pure. Alternatively, refactor to pass the needed
+module state as an explicit dummy argument; then `pure` is honest and the compiler's
+optimizations stay valid. Same rule applies to `elemental pure` — `elemental` does
+not relax purity.
+
 ### Error Handling
 - Never ignore error codes from `allocate`, MPI, or I/O operations
 - Always use `stat=` and `errmsg=` with `allocate`/`deallocate`
@@ -208,6 +241,30 @@ Rules — apply on every task that creates, splits, or relocates a `.F90`:
 
 A module file with no `use` referencing it is dead code by definition. The compiler will
 not warn; only the wiring discipline catches this.
+
+### Method Extraction From a Legacy Loop — Absorb the Whole Iteration Body
+
+When carving a method out of a long-lived loop body (a `do while`, a time-stepping
+integration loop, a per-timestep substage loop), the extracted method must absorb
+**every** inline operation the loop wrapper ran during that iteration — not just the
+obvious "compute" body. The non-obvious operations include counters being incremented,
+caps applied to arguments, progress printing, cadence-gated side dumps, AMR/IO hooks,
+and barriers used as timing fences. *Why:* the original loop wrapper keeps calling the
+extracted method, so the leftover inline operations continue to fire **for that
+caller** and the bug is invisible. The moment a **different** orchestrator drives the
+extracted method (a new wrapper, a different framework loop, a test harness), the
+missing operations stop firing — and the failure mode is "loop never terminates" or
+"output frozen at iteration 0", which reads like a counter bug rather than an
+extraction bug.
+
+*How to apply:* before committing an extraction, diff the original loop body against
+the new method's body **plus** the new wrapper. Anything in the original body that
+doesn't appear in either half is a leak. The "behavior unchanged" claim is true only
+for the original caller; a new caller will expose every leak. Regression suites
+driven only by the original caller cannot catch this — they pass through the leak
+path. The right test is to drive the extracted method from a NEW caller (even a
+trivial one that just calls the method N times) and check the output matches the
+original loop's output for the same inputs.
 
 ### OOP & Encapsulation
 
