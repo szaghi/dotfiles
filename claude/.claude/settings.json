@@ -36,5 +36,17 @@
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/stefano/.claude/hooks/load-context-by-cwd.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
