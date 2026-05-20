@@ -59,6 +59,16 @@ on small grids but diverges as the decomposition is refined, suspect a missing
 `update host` before a send or `update device` after a receive. The halo region is
 the prime suspect.
 
+**Multi-realm: never read program-scope singletons inside a per-realm GPU object.** When a
+solver supports multiple concurrent domains/realms over one `MPI_COMM_WORLD`, program-scope
+"singleton" shims (grid/field/maps bound to "the last-initialized realm") silently give a GPU
+object another realm's decomposition — its halo exchange indexes the wrong comm map into its
+own device buffers, a silent cross-realm corruption with no abort. Pass the realm-local CPU
+objects (and per-rank comm-map offset arrays) in as dummy arguments from the caller's own
+`self%...`; reserve singletons for genuinely program-global state (the MPI handler — one
+rank/world/device). Cache scalars (`ngc`, `ni/nj/nk`, `nv`) on the object via `self%`, not by
+reaching into a `grid%`/`field%` global.
+
 ### Device Code Pitfalls
 - **Non-contiguous array sections**: passing `arr(i, 1:m, k)` to a device routine is dangerous — use a local contiguous buffer (`private`) or pass the full array with scalar indices
 - **`associate` variables in OpenACC regions**: use `copyin`, not `firstprivate` — `firstprivate` fails with some compilers
@@ -80,6 +90,7 @@ the prime suspect.
 - Check data residency at runtime: `acc_is_present(arr, size(arr))`
 - Stack size: run `ulimit -s unlimited` before Fortran programs with deep recursion
 - MPI hangs: first diagnostic — set `MPICH_ASYNC_PROGRESS=1` or `OMPI_MCA_opal_progress_threads=1`; reduce to 2 ranks to isolate
+- **Optimized-build backtraces lie.** A `-fast`/`-O2+` traceback frame is often mis-resolved: if the apparent crash line *marches forward* or *vanishes* as you add prints around it, the frame is an artifact, not the fault site. Localize a crash by step-by-step `write`/`flush` instrumentation (or a debug `-O0 -g` rebuild) before theorizing a cause from the frame.
 
 ### Conservation Diagnostic Normalisation
 - Never normalise a CFD conservation drift by the signed integral of the field. For any conservative variable whose physical mean is zero by symmetry (momentum components of a zero-mean perturbation, anti-symmetric fields), `s0 = sum(U_init)` is structurally O(eps) — dividing absolute drift by `|s0|` then explodes by `1/eps`. Symptom: drift = 3.4e+305 (= `1/tiny`). *How to apply:* normalise by a positive norm — `sum(abs(U_init(...)))` (L1), `sqrt(sum(U_init**2))` (L2), or a problem-specific reference scale (freestream, max). Same rule for relative error of any field that can be zero-mean. When a CFD diagnostic produces huge numbers (1e+200+) early in a run, suspect denominator collapse before solver instability.
