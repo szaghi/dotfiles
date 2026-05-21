@@ -116,9 +116,21 @@ def init_db(con: sqlite3.Connection) -> None:
 
 def build(args: argparse.Namespace) -> int:
     archive = Path(args.archive_dir).expanduser()
+    if not archive.exists():
+        print(f"Path does not exist: {archive}\n"
+              "  Did you download and unzip the Takeout export? "
+              "(see Phase 0 in mbox-index.md)", file=sys.stderr)
+        return 1
+    if not archive.is_dir():
+        print(f"Not a directory: {archive}\n"
+              "  Point build at the unzipped Takeout folder, not the .zip.",
+              file=sys.stderr)
+        return 1
     mboxes = sorted(archive.rglob("*.mbox"))
     if not mboxes:
-        print(f"No .mbox files found under {archive}", file=sys.stderr)
+        print(f"No .mbox files found under {archive}\n"
+              "  The directory exists but contains no .mbox. Unzip the Takeout "
+              "export here first (yields Takeout/Mail/*.mbox).", file=sys.stderr)
         return 1
     attach_root = Path(args.attach_dir).expanduser()
     attach_root.mkdir(parents=True, exist_ok=True)

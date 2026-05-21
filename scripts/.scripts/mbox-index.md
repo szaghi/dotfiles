@@ -10,6 +10,34 @@ mail has been deleted from the cloud.
 
 Script: `~/.scripts/mbox-index.py`
 
+**End-to-end:** Phase 0 *(get the mbox — manual, in the browser)* → `build` *(index it)* → `search` *(query it forever after)*.
+
+---
+
+## Phase 0 — Get the mbox from Google Takeout
+
+The script indexes `.mbox` files; it does **not** download your mail. Getting the mbox is
+a manual, browser-only step — Google has no bulk-export API for consumer Gmail, so nothing
+here can be scripted. Do this first.
+
+| Step | Action |
+| --- | --- |
+| 1. Request | At [takeout.google.com](https://takeout.google.com): **Deselect all** → select **Mail** only → "All Mail data included" (take everything, or pick labels) → file type **MBOX** → delivery **download link by email**, **.zip**, max size **50 GB** → **Create export**. |
+| 2. Wait | Google packages it and **emails a download link** — minutes to hours depending on mailbox size. |
+| 3. Download + unzip | Save `takeout-*.zip`, then extract. Unzipping yields `Takeout/Mail/*.mbox` — that `.mbox` is the input to `build`. |
+
+```bash
+mkdir -p /mnt/d/gmail-backup
+mv ~/Downloads/takeout-*.zip /mnt/d/gmail-backup/   # or wherever it landed
+cd /mnt/d/gmail-backup
+unzip -o takeout-*.zip                              # -> Takeout/Mail/*.mbox
+find /mnt/d/gmail-backup -iname '*.mbox'            # confirm before building
+```
+
+> If `build` reports **"No .mbox files found"**, Phase 0 is incomplete: the zip isn't
+> downloaded, isn't unzipped, or the path is wrong. The script needs the **extracted**
+> `.mbox`, never the `.zip`.
+
 ---
 
 ## Why not just `grep` the mbox?
@@ -132,6 +160,64 @@ Output columns: **date** · **sender** (truncated) · **subject** (truncated) ·
 | `fts` | email (FTS5 mirror) | `subject`, `sender`, `recipients`, `body` |
 
 The `.db` opens in **DB Browser for SQLite** if you'd rather click than type.
+
+---
+
+## Phase 4 — Reclaim quota: delete from Gmail cloud
+
+The archive only earns its keep once you delete the cloud copy. This step is **manual,
+in the Gmail web UI** — and irreversible — so verify the local archive *first*.
+
+### 1. Verify the archive before deleting anything
+
+| Check | Command | Pass condition |
+| --- | --- | --- |
+| Messages indexed | `python3 -c "import sqlite3;print(sqlite3.connect('mail.db').execute('SELECT count(*) FROM messages').fetchone()[0])"` | In the same ballpark as Gmail's message count for the same scope |
+| Attachments on disk | `find attachments -type f \| wc -l` | Matches the `attach` row count (same one-liner, `FROM attach`) |
+| Content is readable | `python3 ~/.scripts/mbox-index.py search "larger:10M"` | Returns your known big messages, not empty |
+
+> Uses Python's bundled `sqlite3` module — no separate `sqlite3` CLI needed. (If you
+> prefer the CLI: `sudo apt install sqlite3`, then `sqlite3 mail.db 'SELECT count(*) FROM messages;'`.)
+
+If any check fails, **stop** — re-run the Takeout export. Once deleted from the cloud,
+a botched archive cannot be re-fetched.
+
+### 2. Delete by size in the Gmail UI (where the quota actually is)
+
+Gmail has **labels, not folders**: one underlying message can carry many labels, and the
+quota counts the *message*, not each label-view. Consequences that bite:
+
+- **Archiving frees nothing** — the message still exists, just hidden from Inbox.
+- Removing a label leaves the message in **All Mail**, still counting against quota.
+- Space drops **only** after the message leaves All Mail *and* Trash is emptied.
+
+Target by **size**, not age — large attachments are the hogs. In the Gmail search bar:
+
+| Query | Finds |
+| --- | --- |
+| `larger:25M` | the worst offenders first |
+| `larger:10M` | everything over 10 MB |
+| `has:attachment larger:5M older_than:2y` | big + old + has attachment |
+| `larger:10M in:anywhere` | includes Spam & Trash too |
+
+Cross-reference each query against the same filter in your local DB before deleting, e.g.
+`mbox-index.py search "larger:25M"` — confirm the archive holds what you're about to remove.
+
+Per batch: run the query → click the **select-all checkbox** → click the banner
+*"Select all conversations that match this search"* (grabs the whole result set, not just
+the visible page) → **Delete**.
+
+### 3. Empty Trash — the step that frees the quota
+
+Nothing changes until you do this. Gmail Trash holds **30 days** and still counts.
+
+1. Left sidebar → **Trash** → **Empty Trash now**.
+2. Also **Spam** → Empty — spam counts too.
+3. Quota at [one.google.com/storage](https://one.google.com/storage) updates with a lag of
+   minutes to a few hours. Don't panic if it's slow.
+
+> **Order is non-negotiable:** verify archive → delete in UI → empty Trash. Deleting before
+> verifying, or expecting space back before emptying Trash, are the two ways this goes wrong.
 
 ---
 

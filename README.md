@@ -60,6 +60,7 @@
     - [Machine-specific overrides](#machine-specific-overrides)
     - [Environment reference](#environment-reference)
   - [scripts](#scripts)
+    - [mbox-index — searchable Gmail archive](#mbox-index--searchable-gmail-archive)
 - [Extending the dotfiles](#extending-the-dotfiles)
   - [Adding a file to an existing package](#adding-a-file-to-an-existing-package)
   - [Creating a new stow package](#creating-a-new-stow-package)
@@ -1049,6 +1050,32 @@ Run `claude-help` at any time for the live version of this reference.
 | `scripts/miscellanea/` | Misc scripts (archive, PDF preview, NAS mount…) |
 | `scripts/borg-automated-backup/` | Borg backup automation |
 | `scripts/pdf/` | PDF utilities |
+| `scripts/.scripts/mbox-index.py` | Index Gmail Takeout MBOX into searchable SQLite ([details](#mbox-index--searchable-gmail-archive)) |
+
+#### mbox-index — searchable Gmail archive
+
+Reclaim Google account quota by exporting Gmail to a local archive that stays searchable
+after you delete the cloud copy. Indexes a [Google Takeout](https://takeout.google.com)
+**MBOX** export into a **SQLite FTS5** database and extracts attachments to a
+date/sender file tree. Stdlib-only — no dependencies.
+
+```bash
+# 0. Get the mbox: Takeout (Mail → MBOX) → download zip → unzip
+unzip -o takeout-*.zip -d /mnt/d/gmail-backup        # yields Takeout/Mail/*.mbox
+
+# 1. Build the searchable index + extract attachments
+python3 ~/.scripts/mbox-index.py build /mnt/d/gmail-backup \
+        --db /mnt/d/gmail-backup/mail.db --attach-dir /mnt/d/gmail-backup/attachments
+
+# 2. Search (full-text + filters: from: to: subject: has:attachment larger:N before:/after:)
+python3 ~/.scripts/mbox-index.py search "invoice AND from:acme larger:5M after:2020-01-01"
+python3 ~/.scripts/mbox-index.py search "larger:25M"   # find quota hogs before deleting
+
+# 3. Verify the archive, then delete from Gmail by size and empty Trash to reclaim quota
+```
+
+Full workflow — including the Takeout export, archive verification, and the cloud-deletion
+steps — is in **[`scripts/.scripts/mbox-index.md`](scripts/.scripts/mbox-index.md)**.
 
 ---
 
