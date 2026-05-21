@@ -57,8 +57,10 @@ find /mnt/d/gmail-backup -iname '*.mbox'            # confirm before building
 | --- | --- |
 | `mbox-index.py build DIR` | Parse every `.mbox` under `DIR`, build `mail.db`, extract attachments to `./attachments` |
 | `mbox-index.py build DIR --db PATH --attach-dir PATH` | Same, with custom output locations |
-| `mbox-index.py search "QUERY"` | Query `mail.db`, newest first, 50 results |
+| `mbox-index.py search "QUERY"` | Query `mail.db`, newest first, 50 results (each line prefixed with its id) |
 | `mbox-index.py search "QUERY" --db PATH --limit N` | Query a specific DB, cap results at `N` |
+| `mbox-index.py show ID` | Print one message — headers, attachment paths, decoded body — by the id from `search` |
+| `mbox-index.py get ID --to DIR` | Copy a message's attachments out (original filenames restored) to `DIR` |
 
 All paths are flags — nothing is hardcoded. Defaults (`mail.db`, `attachments`) are
 relative to your **current working directory**, not the script or the archive.
@@ -83,6 +85,32 @@ relative to your **current working directory**, not the script or the archive.
 
 > `search` does **not** remember where `build` put the DB. If you used a custom
 > `--db` to build, pass the same `--db` to search.
+
+## Show options
+
+`search` prints a one-line summary per hit, each prefixed with the message **id**. Pass
+that id to `show` to read the full message — headers, attachment list (with on-disk
+paths), and decoded body.
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `id` (positional) | — | Message id from the first column of `search` output |
+| `--db` | `mail.db` (in cwd) | Database to read — same one `search` used |
+| `--chars` | `4000` | Body characters to print before truncating |
+| `--full` | off | Print the entire body, no truncation |
+
+## Get options
+
+`show` lists a message's attachments with their `<hash>_<name>` paths in the extraction
+tree. `get` copies them out to a directory of your choice with the **original** filename
+restored — all attachments of the message at once. (For a one-off, `cp` from the path
+`show` prints works just as well; `get` is the convenience for multi-attachment messages.)
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `id` (positional) | — | Message id from `search` output |
+| `--db` | `mail.db` (in cwd) | Database to read |
+| `--to` | `.` (cwd) | Destination directory (created if absent); name collisions get `_1`, `_2` suffixes |
 
 ---
 
@@ -118,6 +146,25 @@ text part. Filters combine with **AND**.
 | Everything from one sender | `python3 ~/.scripts/mbox-index.py search "from:linkedin"` |
 | Full-text + sender + size + date | `python3 ~/.scripts/mbox-index.py search "invoice AND from:acme larger:5M after:2020-01-01"` |
 | Query a NAS-hosted DB, top 10 only | `python3 ~/.scripts/mbox-index.py search "receipt" --db /mnt/nas/gmail/mail.db --limit 10` |
+| Read a specific hit (id from search) | `python3 ~/.scripts/mbox-index.py show 41994` |
+| Read its full body, no truncation | `python3 ~/.scripts/mbox-index.py show 41994 --full` |
+| Pull a message's attachments out | `python3 ~/.scripts/mbox-index.py get 41994 --to ~/Downloads` |
+
+Typical flow: `search` to locate, copy the id from the left column, `show ID` to read.
+
+```
+$ python3 ~/.scripts/mbox-index.py search "from:muscari" --limit 2
+  4358  2026-02-04  Roberto Muscari <roberto.musca  Re: Edge/Circuit in overset  [2 attach, 0.6MB]
+ 18320  2022-05-23  Roberto Muscari <roberto.musca  Licenze temporanee tecplot
+
+$ python3 ~/.scripts/mbox-index.py show 18320
+Id:      18320
+Date:    2022-05-23T...
+From:    Roberto Muscari <roberto.muscari@cnr.it>
+Subject: Licenze temporanee tecplot
+------------------------------------------------------------------------
+<decoded body text>
+```
 
 ### Sample session
 

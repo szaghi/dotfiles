@@ -15,6 +15,8 @@ Usage
 -----
     mbox-index.py build  ARCHIVE_DIR  [--db mail.db] [--attach-dir attachments]
     mbox-index.py search "QUERY"      [--db mail.db] [--limit N]
+    mbox-index.py show   ID           [--db mail.db] [--chars N | --full]
+    mbox-index.py get    ID           [--db mail.db] [--to DIR]
 
 QUERY uses FTS5 match syntax for the text part, plus optional filters:
     from:substr  to:substr  subject:substr  larger:5M  before:YYYY-MM-DD  after:YYYY-MM-DD
@@ -30,6 +32,7 @@ import email.policy
 import hashlib
 import mailbox
 import re
+import shutil
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -286,10 +289,80 @@ def search(args: argparse.Namespace) -> int:
         sender = (r["sender"] or "")[:30]
         subj = (r["subject"] or "")[:50]
         tag = f"  [{r['n_attach']} attach, {r['size_bytes']/1e6:.1f}MB]" if r["n_attach"] else ""
-        print(f"{date}  {sender:<30}  {subj}{tag}")
-    print(f"\n{len(rows)} result(s)", file=sys.stderr)
+        print(f"{r['id']:>6}  {date}  {sender:<30}  {subj}{tag}")
+    print(f"\n{len(rows)} result(s)  —  read one with: show <id>", file=sys.stderr)
     con.close()
     return 0
+
+
+def show(args: argparse.Namespace) -> int:
+    con = sqlite3.connect(args.db)
+    con.row_factory = sqlite3.Row
+    r = con.execute("SELECT * FROM messages WHERE id = ?", (args.id,)).fetchone()
+    if r is None:
+        print(f"No message with id {args.id} (use `search` to find ids)", file=sys.stderr)
+        con.close()
+        return 1
+    print(f"Id:      {r['id']}")
+    print(f"Date:    {r['date_utc'] or '(none)'}")
+    print(f"From:    {r['sender']}")
+    print(f"To:      {r['recipients']}")
+    print(f"Subject: {r['subject']}")
+    print(f"Size:    {r['size_bytes']/1e6:.1f}MB   Mbox: {r['mbox']}")
+    atts = con.execute(
+        "SELECT filename, mime, size_bytes, path FROM attach WHERE msg_id = ?", (args.id,)
+    ).fetchall()
+    if atts:
+        print(f"\nAttachments ({len(atts)}):")
+        for a in atts:
+            print(f"  {a['size_bytes']/1e6:6.1f}MB  {a['mime']:<24}  {a['filename']}")
+            print(f"           -> {a['path']}")
+    body = r["body"] or ""
+    if args.full or len(body) <= args.chars:
+        shown = body
+    else:
+        shown = body[: args.chars] + f"\n... [{len(body) - args.chars} more chars; --full for all]"
+    print("\n" + "-" * 72)
+    print(shown)
+    con.close()
+    return 0
+
+
+def get(args: argparse.Namespace) -> int:
+    con = sqlite3.connect(args.db)
+    con.row_factory = sqlite3.Row
+    atts = con.execute(
+        "SELECT filename, size_bytes, path FROM attach WHERE msg_id = ? ORDER BY id",
+        (args.id,),
+    ).fetchall()
+    con.close()
+    if not atts:
+        print(f"No attachments for message id {args.id} "
+              "(does it exist? `search` lists ids, `show` lists attachments)",
+              file=sys.stderr)
+        return 1
+
+    dest_dir = Path(args.to).expanduser()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for a in atts:
+        src = Path(a["path"])
+        if not src.exists():
+            print(f"  MISSING on disk: {src}", file=sys.stderr)
+            continue
+        out = dest_dir / _safe_name(a["filename"])
+        # avoid clobbering when one message has two attachments of the same name
+        if out.exists():
+            stem, suf = out.stem, out.suffix
+            n = 1
+            while out.exists():
+                out = dest_dir / f"{stem}_{n}{suf}"
+                n += 1
+        shutil.copy2(src, out)
+        print(f"  -> {out}   ({a['size_bytes']/1e6:.1f}MB)")
+        copied += 1
+    print(f"{copied} attachment(s) copied", file=sys.stderr)
+    return 0 if copied else 1
 
 
 def main() -> int:
@@ -308,6 +381,19 @@ def main() -> int:
     s.add_argument("--db", default="mail.db")
     s.add_argument("--limit", type=int, default=50)
     s.set_defaults(func=search)
+
+    sh = sub.add_parser("show", help="print one message (headers + body) by id")
+    sh.add_argument("id", type=int, help="row id from `search` output")
+    sh.add_argument("--db", default="mail.db")
+    sh.add_argument("--chars", type=int, default=4000, help="body chars to print (default 4000)")
+    sh.add_argument("--full", action="store_true", help="print the entire body, no truncation")
+    sh.set_defaults(func=show)
+
+    g = sub.add_parser("get", help="copy a message's attachments out, with original names")
+    g.add_argument("id", type=int, help="row id from `search` output")
+    g.add_argument("--db", default="mail.db")
+    g.add_argument("--to", default=".", help="destination directory (default: cwd)")
+    g.set_defaults(func=get)
 
     args = p.parse_args()
     return args.func(args)
