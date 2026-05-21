@@ -113,6 +113,10 @@ def init_db(con: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS ix_msg_date ON messages(date_utc);
         CREATE INDEX IF NOT EXISTS ix_msg_size ON messages(size_bytes);
         CREATE INDEX IF NOT EXISTS ix_att_msg  ON attach(msg_id);
+        -- Backstop for idempotent re-builds: a Message-ID may appear once.
+        -- Partial index so the (legitimately many) msgid-less rows don't collide.
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_msg_msgid
+            ON messages(msgid) WHERE msgid IS NOT NULL AND msgid <> '';
         """
     )
 
@@ -142,7 +146,18 @@ def build(args: argparse.Namespace) -> int:
     init_db(con)
 
     n_msg = n_att = 0
-    seen: set[str] = set()  # de-dupe by Message-ID across label exports
+    # De-dupe by Message-ID. Pre-seed from any rows already in the DB so a
+    # second build against an existing mail.db is idempotent — re-indexing an
+    # overlapping Takeout export adds only genuinely new messages.
+    seen: set[str] = {
+        row[0]
+        for row in con.execute(
+            "SELECT msgid FROM messages WHERE msgid IS NOT NULL AND msgid <> ''"
+        )
+    }
+    if seen:
+        print(f"   {len(seen)} messages already indexed — adding only new ones",
+              file=sys.stderr)
     for mb_path in mboxes:
         print(f"-> {mb_path.name}", file=sys.stderr)
         mb = mailbox.mbox(str(mb_path), factory=None)
@@ -154,11 +169,15 @@ def build(args: argparse.Namespace) -> int:
                 print(f"   skip (parse error): {e}", file=sys.stderr)
                 continue
 
+            # De-dup key: prefer the Message-ID; for the rare message that lacks
+            # one, synthesise a stable key from a content hash so identical copies
+            # still de-dupe across rebuilds (otherwise they re-insert every run).
             msgid = (msg.get("Message-ID") or "").strip()
-            if msgid and msgid in seen:
+            if not msgid:
+                msgid = "sha1:" + hashlib.sha1(raw).hexdigest()  # noqa: S324 - dedup id, not security
+            if msgid in seen:
                 continue
-            if msgid:
-                seen.add(msgid)
+            seen.add(msgid)
 
             dt = _parse_date(msg)
             year = dt.year if dt else 0
@@ -189,23 +208,29 @@ def build(args: argparse.Namespace) -> int:
                     body_parts.append(re.sub(r"<[^>]+>", " ", html))
 
             body = "\n".join(body_parts)
-            cur = con.execute(
-                """INSERT INTO messages
-                   (msgid,date_utc,year,sender,recipients,subject,body,size_bytes,n_attach,mbox)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    msgid,
-                    dt.isoformat() if dt else None,
-                    year,
-                    str(msg.get("From") or ""),
-                    str(msg.get("To") or ""),
-                    str(msg.get("Subject") or ""),
-                    body,
-                    len(raw),
-                    len(atts),
-                    mb_path.name,
-                ),
-            )
+            try:
+                cur = con.execute(
+                    """INSERT INTO messages
+                       (msgid,date_utc,year,sender,recipients,subject,body,size_bytes,n_attach,mbox)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        msgid,
+                        dt.isoformat() if dt else None,
+                        year,
+                        str(msg.get("From") or ""),
+                        str(msg.get("To") or ""),
+                        str(msg.get("Subject") or ""),
+                        body,
+                        len(raw),
+                        len(atts),
+                        mb_path.name,
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                # UNIQUE(msgid) backstop — already indexed in a prior build; skip.
+                if msgid:
+                    seen.add(msgid)
+                continue
             mid = cur.lastrowid
             con.execute(
                 "INSERT INTO fts(rowid,subject,sender,recipients,body) VALUES (?,?,?,?,?)",

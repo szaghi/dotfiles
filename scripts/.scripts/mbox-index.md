@@ -75,6 +75,27 @@ relative to your **current working directory**, not the script or the archive.
 | `--db` | `mail.db` (in cwd) | Output SQLite database path |
 | `--attach-dir` | `attachments` (in cwd) | Root of the extracted-attachment tree |
 
+### Updating later (incremental re-build)
+
+`build` is **idempotent**: run it again against an existing `--db` and it adds only
+messages not already indexed — overlapping messages from a newer Takeout are skipped, not
+duplicated. De-dup is by `Message-ID` (and, for the rare message lacking one, a content
+hash), enforced both by a pre-load of existing ids and a `UNIQUE` index as backstop.
+
+```bash
+# months later: pull a fresh Takeout, unzip it, point build at the SAME db
+unzip -o takeout-2026-*.zip -d /mnt/d/gmail-backup
+python3 ~/.scripts/mbox-index.py build /mnt/d/gmail-backup \
+        --db /mnt/d/gmail-backup/mail.db --attach-dir /mnt/d/gmail-backup/attachments
+#   46352 messages already indexed — adding only new ones
+#   Done: 312 messages, 47 attachments -> .../mail.db
+```
+
+> Note: a DB created **before** this idempotency support lacks the `UNIQUE` index. To pick
+> up the new schema, do **one** fresh rebuild (delete `mail.db` and re-run `build`); every
+> re-build after that is incremental. Deleting `mail.db` is safe — the attachment tree is
+> content-hashed, so extraction skips files already on disk.
+
 ## Search options
 
 | Flag | Default | Meaning |
