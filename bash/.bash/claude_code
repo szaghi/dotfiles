@@ -84,6 +84,67 @@ claude-zai-fast()    { claude-zai "glm-4.5-air" "$@"; }
 claude-zai-turbo()   { claude-zai "glm-5-turbo" "$@"; }
 claude-zai-premium() { claude-zai "glm-5.1"     "$@"; }
 
+# ── CNR IAC INSTITUTE ACCOUNT ─────────────────────────────────────────────────
+# Second Claude Code account (CNR IAC Pro plan, bound to the institute email),
+# kept fully isolated from the personal account via a separate CLAUDE_CONFIG_DIR.
+# Credentials, login state (~/.claude.json) and per-project trust live under
+# ~/.claude-iac and never collide with ~/.claude. Account-agnostic config
+# (CLAUDE.md, slash commands, skills, settings) is symlinked in so the institute
+# account inherits the same instructions and tooling.
+#
+# First use:  claude-iac login   → authenticate the isolated config (see below).
+# Thereafter: claude-iac         → institute-account session
+#             claude-iac status  → show which account the isolated config is on
+#             claude / claude-{sonnet,opus,plan} → personal account, unchanged.
+#
+# Login note: the OAuth page reuses whatever Claude session your BROWSER already
+# holds, so a plain login silently grabs the personal account. `claude-iac login`
+# pre-populates the institute email (--email) and forces the SSO flow (--sso),
+# which is how institutional plans bind accounts. Still open the printed URL in an
+# INCOGNITO window or a browser profile not signed into your personal claude.ai.
+# Set the email in claude_code.local:  CLAUDE_IAC_EMAIL="you@cnr.it"
+CLAUDE_IAC_DIR="${CLAUDE_IAC_DIR:-${HOME}/.claude-iac}"
+CLAUDE_IAC_EMAIL="${CLAUDE_IAC_EMAIL:-}"
+
+claude-iac() {
+    _claude_iac_bootstrap || return 1
+    case "${1:-}" in
+        login)
+            local -a a=()
+            [[ -n "$CLAUDE_IAC_EMAIL" ]] && a+=(--email "$CLAUDE_IAC_EMAIL")
+            # --sso is the usual path for institute-bound accounts; if IAC issued a
+            # plain subscription instead, re-run with:  claude-iac login --no-sso
+            if [[ "${2:-}" == "--no-sso" ]]; then shift; else a+=(--sso); fi
+            printf 'Authenticating CNR IAC account in %s\n' "$CLAUDE_IAC_DIR" >&2
+            [[ -z "$CLAUDE_IAC_EMAIL" ]] && printf 'Tip: set CLAUDE_IAC_EMAIL in ~/.bash/claude_code.local to pre-fill the email.\n' >&2
+            printf 'Open the URL below in an INCOGNITO window (not signed into personal claude.ai).\n' >&2
+            CLAUDE_CONFIG_DIR="$CLAUDE_IAC_DIR" claude auth login "${a[@]}" "${@:2}"
+            ;;
+        status)
+            CLAUDE_CONFIG_DIR="$CLAUDE_IAC_DIR" claude auth status --text "${@:2}"
+            ;;
+        logout)
+            CLAUDE_CONFIG_DIR="$CLAUDE_IAC_DIR" claude auth logout "${@:2}"
+            ;;
+        *)
+            CLAUDE_CONFIG_DIR="$CLAUDE_IAC_DIR" claude "$@"
+            ;;
+    esac
+}
+
+# Idempotent: create the isolated config dir and symlink the shareable parts.
+# Re-running is harmless (ln -sfn refreshes links; missing sources are skipped).
+_claude_iac_bootstrap() {
+    local src="${HOME}/.claude" dst="$CLAUDE_IAC_DIR" item
+    mkdir -p "$dst" || return 1
+    # Account-agnostic, safe to share. NOT shared: .credentials.json, .claude.json,
+    # settings.local.json — these carry auth/login/per-machine state.
+    for item in CLAUDE.md CLAUDE-fortran.md CLAUDE-gpu.md commands skills settings.json; do
+        [[ -e "${src}/${item}" ]] && ln -sfn "${src}/${item}" "${dst}/${item}"
+    done
+    return 0
+}
+
 # ── LOCAL INFERENCE ENTRY POINT ───────────────────────────────────────────────
 #
 # claude-local [OPTIONS] [-- CLAUDE_ARGS...]
@@ -1596,6 +1657,13 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-sonnet'                   'force Sonnet'
     printf '  %-36s%s\n' 'claude-opus'                     'force Opus'
     printf '  %-36s%s\n' 'claude-plan'                     'read-only plan (Opus) → auto-switch to Sonnet'
+    printf '\n'
+    printf "  ${b}CNR IAC${r}  institute Pro account · isolated CLAUDE_CONFIG_DIR=~/.claude-iac\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-iac login'                'authenticate (--email + --sso; open URL in incognito)'
+    printf '  %-36s%s\n' 'claude-iac login --no-sso'       'authenticate without SSO (plain subscription)'
+    printf '  %-36s%s\n' 'claude-iac status'               'show which account the isolated config is on'
+    printf '  %-36s%s\n' 'claude-iac'                      'institute-account session'
     printf '\n'
     printf "  ${b}OPENROUTER${r}  cloud free-tier · key: ~/.openrouter-ai-key\n"
     printf '%s\n' "$sep"

@@ -1,6 +1,8 @@
 # claude_code.local — adam (WSL2 workstation, 2x NVIDIA RTX, 64 GB RAM)
 # Sourced at the end of ~/.bash/claude_code by the base file.
 
+CLAUDE_IAC_EMAIL="claude01@iac.cnr.it"
+
 # ── GPU CONFIGURATION ─────────────────────────────────────────────────────────
 # Identify GPUs with: nvidia-smi -L
 export OLLAMA_GPU_UUID="GPU-63e0fc4d-bd54-cc22-532e-299518238d61"
