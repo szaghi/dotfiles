@@ -1,0 +1,62 @@
+{
+  "skill_name": "fobis",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Help me write a fobos file for a Fortran project. I have sources in src/ subdirectory. I want two build modes: debug (with -O0 -g -Wall flags) and release (with -O3). I'm using gfortran. The build output should go to build/debug/ and build/release/ respectively.",
+      "expected_output": "A complete multi-mode fobos file with [modes] section listing 'debug' and 'release', two mode sections each specifying compiler=gnu, appropriate cflags, correct build_dir paths, and src=./src/. Should use templates or variables to avoid repetition, and include obj_dir and mod_dir settings.",
+      "files": [],
+      "expectations": [
+        "Output contains a [modes] section with both debug and release listed",
+        "debug mode has cflags containing -O0 and -g",
+        "release mode has cflags containing -O3",
+        "debug mode has build_dir pointing to build/debug/ (or equivalent)",
+        "release mode has build_dir pointing to build/release/ (or equivalent)",
+        "compiler is set to gnu in at least one mode or template",
+        "src is set to ./src/ (or src/)",
+        "cflags in both modes includes -c flag"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My fobis build is failing. The error output is: 'Fatal Error: Module \\'penf_b_size\\' not found'. My project uses PENF. What are the common causes and how do I fix this?",
+      "expected_output": "A diagnostic guide covering: (1) missing src path to PENF sources, (2) PENF not fetched with FoBiS.py fetch, (3) wrong mod_dir so .mod files are not found, (4) needing to run FoBiS.py fetch first. Should provide concrete fobos file changes or commands to fix the issue.",
+      "files": [],
+      "expectations": [
+        "Response mentions FoBiS.py fetch or fobis fetch as a step to run",
+        "Response mentions adding PENF to the [dependencies] section of fobos",
+        "Response mentions the src option or mod_dir as a possible cause",
+        "Response provides at least one concrete fobos snippet or command to fix the issue",
+        "Response explains the difference between use=sources and use=fobos OR provides a working [dependencies] entry for PENF"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "How do I add PENF (https://github.com/szaghi/PENF) as a GitHub dependency to my FoBiS project, pinned to tag v1.5.0? I want it compiled inline with my project (not as a separate library).",
+      "expected_output": "Instructions showing: (1) the [dependencies] section to add to fobos with the correct PENF spec including tag=v1.5.0, (2) the FoBiS.py fetch command to run, (3) explanation that use=sources (default) compiles inline. Should be concrete and complete.",
+      "files": [],
+      "expectations": [
+        "Output contains a [dependencies] section example",
+        "PENF dependency spec includes tag=v1.5.0",
+        "PENF dependency spec includes the correct URL (github.com/szaghi/PENF)",
+        "Response mentions FoBiS.py fetch command to run after editing fobos",
+        "Response explains or implies that use=sources is the default and compiles inline",
+        "Response mentions that FoBiS.py build automatically picks up the dependency after fetch"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "What does --json output look like for fobis build? Show me how to use it in a CI script that fails the pipeline if the build fails.",
+      "expected_output": "Shows the JSON schema for fobis build --json (with status, target, objects_compiled, errors fields), then a bash or Python CI script that runs fobis build --json, parses the output, checks status == 'ok', and exits non-zero if not. Should note that exit code is also non-zero on failure.",
+      "files": [],
+      "expectations": [
+        "Response shows the JSON schema with status field",
+        "Response shows the errors array field in the schema",
+        "Response shows the objects_compiled field",
+        "Response includes a CI script (bash or Python) that checks the status field",
+        "CI script exits with non-zero status on build failure",
+        "Response mentions that exit code is also non-zero on failure (or that both status field and exit code can be used)"
+      ]
+    }
+  ]
+}

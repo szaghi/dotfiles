@@ -1,0 +1,336 @@
+#!/usr/bin/env bash
+# Manage Claude Code skills declaratively across machines.
+#
+# Three classes of skill, three lifecycle owners:
+#   A. Custom user-authored     → stowed from dotfiles, this script ignores
+#   B. Plugin/marketplace        → driven by `claude plugin` CLI, declared in
+#                                  ~/.claude/settings.json enabledPlugins
+#   C. Third-party loose         → declared in
+#                                  ~/.claude/skills/manifest.toml with
+#                                  install/update/uninstall commands
+#
+# Per-host filtering of class C: ~/dotfiles/machines/<hostname>.skills
+# (one skill name per line; missing file = install all).
+#
+# Restart Claude Code after install/update so plugin changes load.
+
+set -euo pipefail
+
+# -- paths ---------------------------------------------------------------------
+SETTINGS="${HOME}/.claude/settings.json"
+MANIFEST="${HOME}/.claude/skills/manifest.toml"
+SKILLS_DIR="${HOME}/.claude/skills"
+DOTFILES="${HOME}/dotfiles"
+HOSTNAME_S="$(hostname -s)"
+PROFILE="${DOTFILES}/machines/${HOSTNAME_S}.skills"
+
+# -- colours (only when stdout is a tty) ---------------------------------------
+if [[ -t 1 ]]; then
+  C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'
+  C_DIM=$'\033[2m'; C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
+else
+  C_OK=""; C_WARN=""; C_ERR=""; C_DIM=""; C_BOLD=""; C_RESET=""
+fi
+
+msg()  { printf '%s\n' "$*"; }
+ok()   { printf '%s✓%s %s\n' "$C_OK"   "$C_RESET" "$*"; }
+warn() { printf '%s!%s %s\n' "$C_WARN" "$C_RESET" "$*"; }
+err()  { printf '%s✗%s %s\n' "$C_ERR"  "$C_RESET" "$*" >&2; }
+dim()  { printf '%s%s%s\n'   "$C_DIM"  "$*" "$C_RESET"; }
+
+# -- prerequisites -------------------------------------------------------------
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { err "missing required command: $1"; exit 2; }
+}
+need_cmd python3
+need_cmd claude
+
+# -- JSON / TOML readers (one python3 invocation per call) ---------------------
+
+# Echo each enabled plugin key (form: name@marketplace) from settings.json.
+list_enabled_plugins() {
+  [[ -f "$SETTINGS" ]] || return 0
+  python3 - "$SETTINGS" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    cfg = json.load(f)
+for name, on in (cfg.get("enabledPlugins") or {}).items():
+    if on:
+        print(name)
+PY
+}
+
+# Echo each skill name in manifest.toml (after per-host filtering).
+list_manifest_skills() {
+  [[ -f "$MANIFEST" ]] || return 0
+  local all
+  all=$(python3 - "$MANIFEST" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+with open(sys.argv[1], "rb") as f:
+    data = tomllib.load(f)
+for name in (data.get("skills") or {}):
+    print(name)
+PY
+  )
+  if [[ -f "$PROFILE" ]]; then
+    # filter against the per-host profile (strip blanks and # comments)
+    local profile_skills
+    profile_skills=$(grep -vE '^\s*(#|$)' "$PROFILE" || true)
+    while IFS= read -r name; do
+      [[ -z "$name" ]] && continue
+      grep -qxF "$name" <<<"$profile_skills" && echo "$name"
+    done <<<"$all"
+  else
+    echo "$all"
+  fi
+}
+
+# Read one field (check|install|update|uninstall|description) for a manifest skill.
+manifest_field() {
+  local name="$1" field="$2"
+  python3 - "$MANIFEST" "$name" "$field" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+with open(sys.argv[1], "rb") as f:
+    data = tomllib.load(f)
+name, field = sys.argv[2], sys.argv[3]
+print((data.get("skills") or {}).get(name, {}).get(field, ""))
+PY
+}
+
+# -- class A: custom skills (informational only) -------------------------------
+
+# Echo each custom skill name (a directory under ~/.claude/skills/ that is NOT
+# in manifest.toml and NOT installed by a plugin).
+list_custom_skills() {
+  [[ -d "$SKILLS_DIR" ]] || return 0
+  local manifest_names plugin_skills
+  manifest_names=$(list_manifest_skills_unfiltered)
+  plugin_skills=$(list_plugin_skill_dirs)
+  for d in "$SKILLS_DIR"/*/; do
+    [[ -d "$d" ]] || continue
+    local n
+    n=$(basename "$d")
+    grep -qxF "$n" <<<"$manifest_names" && continue
+    grep -qxF "$n" <<<"$plugin_skills"  && continue
+    echo "$n"
+  done
+}
+
+list_manifest_skills_unfiltered() {
+  [[ -f "$MANIFEST" ]] || return 0
+  python3 - "$MANIFEST" <<'PY'
+import sys
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+with open(sys.argv[1], "rb") as f:
+    data = tomllib.load(f)
+for n in (data.get("skills") or {}):
+    print(n)
+PY
+}
+
+# Skill directories owned by an installed plugin (rough heuristic: any
+# subdir of plugins/cache/<marketplace>/<plugin>/<sha>/skills/).
+list_plugin_skill_dirs() {
+  local cache="${HOME}/.claude/plugins/cache"
+  [[ -d "$cache" ]] || return 0
+  find "$cache" -maxdepth 5 -type d -name skills -prune 2>/dev/null \
+    | while IFS= read -r dir; do
+        find "$dir" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null
+      done | sort -u
+}
+
+# -- subcommands ---------------------------------------------------------------
+
+do_install() {
+  msg "${C_BOLD}plugin/marketplace skills${C_RESET}"
+  local p
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    if claude plugin list 2>/dev/null | grep -qF "$p"; then
+      ok "$p (already installed)"
+    else
+      msg "  installing $p ..."
+      claude plugin install "$p"
+      ok "$p"
+    fi
+  done < <(list_enabled_plugins)
+
+  msg ""
+  msg "${C_BOLD}third-party loose skills${C_RESET}"
+  if [[ -f "$PROFILE" ]]; then
+    dim "host profile: $PROFILE"
+  else
+    dim "no host profile ($PROFILE) — installing every manifest entry"
+  fi
+  local s check install
+  while IFS= read -r s; do
+    [[ -z "$s" ]] && continue
+    check=$(manifest_field "$s" check)
+    install=$(manifest_field "$s" install)
+    if [[ -n "$check" ]] && eval "$check" >/dev/null 2>&1; then
+      ok "$s (already installed)"
+      continue
+    fi
+    [[ -z "$install" ]] && { warn "$s: no install command in manifest"; continue; }
+    msg "  installing $s ..."
+    eval "$install"
+    ok "$s"
+  done < <(list_manifest_skills)
+}
+
+do_update() {
+  msg "${C_BOLD}plugin/marketplace skills${C_RESET}"
+  local p
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    msg "  updating $p ..."
+    claude plugin update "$p" || warn "$p update failed (continuing)"
+  done < <(list_enabled_plugins)
+
+  msg ""
+  msg "${C_BOLD}third-party loose skills${C_RESET}"
+  local s check update
+  while IFS= read -r s; do
+    [[ -z "$s" ]] && continue
+    check=$(manifest_field "$s" check)
+    update=$(manifest_field "$s" update)
+    if [[ -n "$check" ]] && ! eval "$check" >/dev/null 2>&1; then
+      warn "$s: not installed — run 'skills-apply install' first"
+      continue
+    fi
+    [[ -z "$update" ]] && { warn "$s: no update command in manifest"; continue; }
+    msg "  updating $s ..."
+    eval "$update" || warn "$s update failed (continuing)"
+  done < <(list_manifest_skills)
+
+  msg ""
+  dim "restart Claude Code to load updated plugins"
+}
+
+do_remove() {
+  local name="${1:-}"
+  [[ -z "$name" ]] && { err "usage: skills-apply remove <name>"; exit 2; }
+
+  # try plugin first
+  if list_enabled_plugins | grep -qF "$name"; then
+    msg "uninstalling plugin $name ..."
+    claude plugin uninstall "$name"
+    warn "remove $name from enabledPlugins in $SETTINGS to make this persistent"
+    return 0
+  fi
+  # then manifest
+  local uninstall
+  uninstall=$(manifest_field "$name" uninstall)
+  if [[ -n "$uninstall" ]]; then
+    msg "running uninstall command for $name ..."
+    eval "$uninstall"
+    warn "remove [skills.$name] from $MANIFEST to make this persistent"
+    return 0
+  fi
+  err "$name is neither an enabled plugin nor a manifest entry"
+  err "(custom user-authored skills are managed by stow — remove the dir from dotfiles and re-stow)"
+  exit 1
+}
+
+do_status() {
+  msg "${C_BOLD}host${C_RESET}              $HOSTNAME_S"
+  msg "${C_BOLD}settings${C_RESET}          $SETTINGS"
+  msg "${C_BOLD}manifest${C_RESET}          $MANIFEST"
+  if [[ -f "$PROFILE" ]]; then
+    msg "${C_BOLD}host profile${C_RESET}      $PROFILE"
+  else
+    msg "${C_BOLD}host profile${C_RESET}      $(printf '%s(none — all manifest skills apply)%s' "$C_DIM" "$C_RESET")"
+  fi
+  msg ""
+
+  msg "${C_BOLD}class A — custom user-authored (stowed)${C_RESET}"
+  local found=0
+  while IFS= read -r n; do
+    [[ -z "$n" ]] && continue
+    found=1
+    local target
+    target=$(readlink -f "$SKILLS_DIR/$n" 2>/dev/null || echo "$SKILLS_DIR/$n")
+    if [[ -L "$SKILLS_DIR/$n" ]]; then
+      ok "$n  $(dim "→ $target")"
+    else
+      warn "$n  (not a symlink — not yet migrated into dotfiles?)"
+    fi
+  done < <(list_custom_skills)
+  [[ $found -eq 0 ]] && dim "  (none)"
+
+  msg ""
+  msg "${C_BOLD}class B — plugin/marketplace (claude plugin)${C_RESET}"
+  local installed
+  installed=$(claude plugin list 2>/dev/null || echo "")
+  found=0
+  while IFS= read -r p; do
+    [[ -z "$p" ]] && continue
+    found=1
+    if grep -qF "$p" <<<"$installed"; then
+      ok "$p"
+    else
+      warn "$p  (declared but not installed — run skills-apply install)"
+    fi
+  done < <(list_enabled_plugins)
+  [[ $found -eq 0 ]] && dim "  (no enabledPlugins in settings.json)"
+
+  msg ""
+  msg "${C_BOLD}class C — third-party loose (manifest)${C_RESET}"
+  found=0
+  while IFS= read -r s; do
+    [[ -z "$s" ]] && continue
+    found=1
+    local check desc
+    check=$(manifest_field "$s" check)
+    desc=$(manifest_field "$s" description)
+    if [[ -n "$check" ]] && eval "$check" >/dev/null 2>&1; then
+      ok "$s  $(dim "— $desc")"
+    else
+      warn "$s  (declared but not installed)  $(dim "— $desc")"
+    fi
+  done < <(list_manifest_skills)
+  [[ $found -eq 0 ]] && dim "  (no skills in manifest match this host)"
+  return 0
+}
+
+usage() {
+  cat <<EOF
+Usage: skills-apply <command> [args]
+
+Commands:
+  install         Install every declared skill (idempotent)
+  update          Update every installed skill
+  status          Show installed-vs-declared for all three classes
+  remove <name>   Uninstall one skill (plugin or manifest)
+
+Declarations:
+  ~/.claude/settings.json         enabledPlugins (class B)
+  ~/.claude/skills/manifest.toml  loose skills (class C)
+  ~/dotfiles/machines/<host>.skills  per-host class-C filter (optional)
+
+Custom user-authored skills (class A) are managed by stow — add the source
+under dotfiles/claude/.claude/skills/<name>/ and re-stow.
+EOF
+}
+
+# -- entry ---------------------------------------------------------------------
+
+case "${1:-}" in
+  install)         shift; do_install "$@" ;;
+  update)          shift; do_update "$@"  ;;
+  status)          shift; do_status "$@"  ;;
+  remove|uninstall) shift; do_remove "$@" ;;
+  -h|--help|help|"") usage ;;
+  *)               err "unknown command: $1"; usage; exit 2 ;;
+esac

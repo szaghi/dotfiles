@@ -69,6 +69,92 @@ This file (sourced by `~/.bashrc`) configures Claude Code over three local backe
 
 `claude-local` auto-starts the requested backend and stops any other local backend that's running, so only one of ollama/llama/ikllama is live at a time. Shared state lives in `~/.bash/claude_code`; machine-specific overrides (GPU IDs, binary paths, model defaults) in `~/.bash/claude_code.local`.
 
+## Claude Code Skills (`claude/.claude/skills/`, `~/.scripts/skills-apply`)
+
+Skills in `~/.claude/skills/` are managed declaratively across machines via
+three lanes — three structurally different lifecycle owners, one driver
+script. Full design in `claude/.claude/skills/README.md`.
+
+### The three classes
+
+| Class | Owner | Declared in | Examples |
+|---|---|---|---|
+| **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image`, `latex-posters` |
+| **B. Plugin / marketplace** | `claude plugin` CLI | `settings.json` → `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything` |
+| **C. Third-party loose** | upstream installers | `claude/.claude/skills/manifest.toml` | `perplexity-search` (`.venv` + `litellm`) |
+
+Per-host filtering of class C: `machines/<hostname>.skills` (one skill name
+per line; blanks and `#` comments allowed). Missing file = install every
+manifest entry. Class A stows everywhere (cheap source-only); class B is
+host-uniform via `settings.json`.
+
+### `skills-apply` interface
+
+```bash
+skills-apply install          # install everything declared (idempotent)
+skills-apply update           # update every installed skill
+skills-apply status           # show installed-vs-declared for all three classes
+skills-apply remove <name>    # uninstall one skill (plugin or manifest)
+```
+
+Restart Claude Code after `install` or `update` so plugin changes load.
+
+### Adding a new skill
+
+- **Class A** (custom): drop `claude/.claude/skills/<name>/` with at least a
+  `SKILL.md`, `git add`, `bash dotify.sh claude`. New symlink at
+  `~/.claude/skills/<name>/` is immediate.
+- **Class B** (plugin): `claude plugin install <name>@<marketplace>`, confirm
+  `settings.json` `enabledPlugins` was updated, commit. Other hosts pick it
+  up via `skills-apply install`.
+- **Class C** (loose): add `[skills.<name>]` block to `manifest.toml` with
+  `check` / `install` / `update` / `uninstall` shell commands. Add the name
+  to each `machines/<host>.skills` that should sync it. The dotfiles own
+  the *recipe*; the upstream installer owns the *work* — do NOT vendor
+  install logic, wrap it.
+
+### Things to know when editing
+
+- `~/.claude/skills/` should only ever contain symlinks once the machinery
+  is in place. A real directory there is a drift signal — either it is a
+  not-yet-migrated class-A skill or a stale copy that should be removed.
+- `~/.claude/settings.json` is a stow symlink; Claude Code writes back to
+  it when plugins are enabled/disabled, so commit settings.json drift
+  before re-stowing or you will lose the live state. The dotfile is the
+  source of truth — pull changes into the dotfile, never the other way.
+- `skills-apply remove` does NOT rewrite `settings.json` or `manifest.toml`
+  — it just runs the uninstall command and prints a warning that you must
+  edit the declaration file by hand to make the removal persistent.
+- The script uses `python3 -m tomllib` (Python 3.11+) for manifest parsing;
+  the `claude` CLI is the only other hard dependency.
+
+## Claude Code Custom Slash Commands (`claude/.claude/commands/`)
+
+Custom slash commands are plain markdown files under
+`claude/.claude/commands/`, deployed by stow as symlinks into
+`~/.claude/commands/`. Lifecycle is identical to class-A custom skills —
+no installer, no machinery, just git + stow.
+
+| Command | Purpose |
+|---|---|
+| `/semantic-commit` | Generate Conventional Commits-formatted message from staged diff (no auto-commit, no `Co-authored-by`) |
+| `/capture-findings` | Capture session findings into repo docs / repo `.claude/` / global `~/.claude/CLAUDE.md` |
+
+Each file is YAML front-matter (`description`, `allowed-tools`) plus a
+prompt body. Lines starting with `` !` `` are shell substitutions evaluated
+at invocation time.
+
+### Adding a new slash command
+
+```bash
+vim ~/dotfiles/claude/.claude/commands/<name>.md
+cd ~/dotfiles && git add claude/.claude/commands/<name>.md
+bash dotify.sh claude
+```
+
+`/<name>` is then available on this host immediately and on other hosts on
+their next `git pull && bash dotify.sh claude`.
+
 ## HPC Lmod Environments
 
 Environment toolchains are managed via Lmod (install: `sudo apt install lmod`).

@@ -1,0 +1,23 @@
+# Third-party Claude Code skills not managed by the `claude plugin` CLI.
+#
+# Custom user-authored skills (e.g. fobis, research-lookup) live as plain
+# directories alongside this file and need no entry here — they are deployed
+# by stow when this package is restowed.
+#
+# Plugin/marketplace skills are declared in `../settings.json` under
+# `enabledPlugins` and installed by `skills-apply install`.
+#
+# Each entry below describes ONE loose skill with its install/update/uninstall
+# commands. The commands are shell strings executed verbatim by skills-apply.
+# Use `check` to detect whether the skill is already installed so install can
+# be idempotent.
+
+[skills.perplexity-search]
+description = "Perplexity web search via OpenRouter (Python skill with .venv)"
+# A .venv with litellm installed is the install marker. The SKILL.md and
+# scripts live in the dotfiles repo (this skill ships its own Python sources),
+# so install only needs to build the .venv and populate it.
+check     = "test -x ~/.claude/skills/perplexity-search/.venv/bin/python"
+install   = "python3 -m venv ~/.claude/skills/perplexity-search/.venv && ~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet litellm python-dotenv"
+update    = "~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet --upgrade litellm python-dotenv"
+uninstall = "rm -rf ~/.claude/skills/perplexity-search/.venv"

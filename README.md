@@ -49,6 +49,7 @@
     - [Global configuration (CLAUDE.md, settings.json)](#global-configuration-claudemd-settingsjson)
     - [Status line](#status-line)
     - [Slash commands](#slash-commands)
+    - [Skills — three-class machinery (skills-apply)](#skills--three-class-machinery-skills-apply)
     - [Claude CLI wrappers — overview](#claude-cli-wrappers--overview)
     - [Cloud: Anthropic](#cloud-anthropic)
     - [Cloud: OpenRouter](#cloud-openrouter)
@@ -60,6 +61,7 @@
     - [Machine-specific overrides](#machine-specific-overrides)
     - [Environment reference](#environment-reference)
   - [scripts](#scripts)
+    - [skills-apply — Claude Code skills sync](#skills-apply--claude-code-skills-sync)
     - [mbox-index — searchable Gmail archive](#mbox-index--searchable-gmail-archive)
 - [Extending the dotfiles](#extending-the-dotfiles)
   - [Adding a file to an existing package](#adding-a-file-to-an-existing-package)
@@ -750,7 +752,8 @@ live quick-reference. If a detail here ever drifts from reality, trust
 | `settings.json` | Permissions, model default, status-line binding, enabled plugins, marketplaces |
 | `settings.local.json` | Machine-specific overrides — **gitignored** |
 | `statusline-command.sh` | Custom status line (Python-backed JSON parser, Solarized palette) |
-| `commands/semantic-commit.md` | `/semantic-commit` slash command |
+| `commands/` | Custom slash commands — `/semantic-commit`, `/capture-findings` (see [Slash commands](#slash-commands)) |
+| `skills/` | Custom user-authored skills (class A) + `manifest.toml` for third-party loose skills (class C) — see [Skills](#skills--three-class-machinery-skills-apply) |
 
 The shell wrappers live in a separate package: `bash/.bash/claude_code`
 (≈820 LOC, sourced from `~/.bashrc`). Machine-specific knobs (GPU IDs,
@@ -821,12 +824,85 @@ Requires `python3` (used once per render) and works on any terminal with
 
 #### Slash commands
 
+Custom slash commands are plain markdown files under `claude/.claude/commands/`,
+deployed by stow as symlinks into `~/.claude/commands/`. Lifecycle is identical
+to class-A custom skills — git tracks the source, stow deploys symlinks, no
+installer or extra machinery.
+
 | Command | Purpose |
 |---|---|
-| `/semantic-commit` | Analyze staged diff + recent commit style, emit a Conventional Commits-formatted message (no auto-commit) |
+| `/semantic-commit` | Analyze staged diff + recent commit style, emit a Conventional Commits-formatted message (no auto-commit, no `Co-authored-by` lines) |
+| `/capture-findings` | Capture session findings into repo docs, repo `CLAUDE.md` / `.claude/`, and global `~/.claude/CLAUDE.md` — auto-detects branch, merge-base, and existing repo Claude config |
 
-Slash commands are markdown files with a YAML front-matter declaring
-allowed Bash tools; see `commands/semantic-commit.md` for the template.
+Each command is a markdown file with a YAML front-matter declaring its
+`description` and the `allowed-tools` (whitelisted Bash invocations plus
+file ops). The body is the prompt template; lines beginning with `` !` ``
+are shell substitutions evaluated at invocation time (see
+[Claude Code custom commands docs](https://docs.claude.com/en/docs/claude-code/slash-commands)).
+See `commands/semantic-commit.md` for a minimal template and
+`commands/capture-findings.md` for a richer one with git-aware substitutions.
+
+**Add a new slash command:**
+
+```bash
+# 1. write the command (front-matter + prompt body)
+vim ~/dotfiles/claude/.claude/commands/my-command.md
+
+# 2. version it
+cd ~/dotfiles && git add claude/.claude/commands/my-command.md
+
+# 3. deploy (idempotent — stow only adds the new symlink)
+bash dotify.sh claude
+```
+
+The new `/my-command` is immediately available in the next Claude Code
+session on this host; other hosts pick it up on their next `git pull && bash dotify.sh claude`.
+
+#### Skills — three-class machinery (skills-apply)
+
+Skills in `~/.claude/skills/` fall into three structurally different classes
+with three different lifecycle owners. The dotfiles wire all three into one
+declarative, per-host workflow via `skills-apply` (`scripts/.scripts/skills-apply`,
+≈340 LOC bash) plus a TOML manifest. The full design is in
+[`claude/.claude/skills/README.md`](claude/.claude/skills/README.md); the
+summary:
+
+| Class | Examples | Lifecycle owner | Where declared |
+|---|---|---|---|
+| **A. Custom user-authored** | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image`, `latex-posters` | git + stow | `claude/.claude/skills/<name>/` (real source dirs) |
+| **B. Plugin / marketplace** | `frontend-design`, `skill-creator`, `cli-anything` | `claude plugin` CLI | `settings.json` → `enabledPlugins` |
+| **C. Third-party loose** | `perplexity-search` | upstream installers (pipx, venv, `curl \| bash`…) | `claude/.claude/skills/manifest.toml` |
+
+Per-host filtering of class C: `machines/<hostname>.skills` (one skill name
+per line, blanks and `#` comments allowed). A missing file means "install
+every manifest entry on this host". Class A always stows everywhere
+(source-only, cheap); class B is host-uniform via `settings.json`.
+
+`skills-apply` interface:
+
+```bash
+skills-apply install         # install everything declared (idempotent)
+skills-apply update          # update everything installed
+skills-apply status          # show installed-vs-declared for all three classes
+skills-apply remove <name>   # uninstall one skill (plugin or manifest)
+```
+
+Restart Claude Code after `install` or `update` so plugin changes load.
+
+Adding a new skill:
+
+- **Class A** — drop the directory under `claude/.claude/skills/<name>/`
+  (at minimum a `SKILL.md`), `git add`, re-stow with `bash dotify.sh claude`.
+- **Class B** — `claude plugin install <name>@<marketplace>`, then commit
+  the resulting `settings.json` change. Future hosts pick it up via
+  `skills-apply install`.
+- **Class C** — add a `[skills.<name>]` block to `manifest.toml` with
+  `check` / `install` / `update` / `uninstall` shell commands; add the
+  name to each `machines/<host>.skills` file that should sync it.
+
+The new dotfiles dependency this adds is just `claude` (the Claude Code
+CLI binary) — already required as a Development extra. Python 3 (already
+required) is reused for inline `tomllib` parsing of the manifest.
 
 #### Claude CLI wrappers — overview
 
@@ -1051,6 +1127,38 @@ Run `claude-help` at any time for the live version of this reference.
 | `scripts/borg-automated-backup/` | Borg backup automation |
 | `scripts/pdf/` | PDF utilities |
 | `scripts/.scripts/mbox-index.py` | Index Gmail Takeout MBOX into searchable SQLite ([details](#mbox-index--searchable-gmail-archive)) |
+| `scripts/.scripts/skills-apply` | Declarative install/update/status for Claude Code skills across three classes ([details](#skills-apply--claude-code-skills-sync)) |
+
+#### skills-apply — Claude Code skills sync
+
+`skills-apply` is the per-host driver for the three-class skills machinery
+introduced in [Skills](#skills--three-class-machinery-skills-apply). It
+reads:
+
+- `~/.claude/settings.json` → `enabledPlugins` (class B — plugin/marketplace)
+- `~/.claude/skills/manifest.toml` → `[skills.*]` blocks (class C — third-party)
+- `~/dotfiles/machines/<hostname>.skills` (optional per-host class-C filter)
+
+…and delegates to the upstream installer for each class: `claude plugin
+install/update/uninstall` for B, the manifest's own `install`/`update`/
+`uninstall` shell strings for C. Class A (custom user-authored) is managed
+entirely by stow — `skills-apply status` simply reports whether each
+expected symlink resolves.
+
+```bash
+skills-apply install          # idempotent: skip already-installed entries
+skills-apply update           # update every installed skill
+skills-apply status           # group by class, mark drift, exit 0
+skills-apply remove <name>    # uninstall (plugin or manifest); does NOT
+                              # rewrite settings.json or manifest.toml —
+                              # script warns you to do that yourself
+```
+
+Restart Claude Code after `install` or `update` so plugin changes load
+(the `claude plugin update` CLI itself says "restart required to apply").
+
+Dependencies: `claude` (Claude Code CLI), `python3` (for inline `tomllib`
+JSON/TOML parsing of `settings.json` and `manifest.toml`).
 
 #### mbox-index — searchable Gmail archive
 
