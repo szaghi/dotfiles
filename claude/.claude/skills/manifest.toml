@@ -21,3 +21,16 @@ check     = "test -x ~/.claude/skills/perplexity-search/.venv/bin/python"
 install   = "python3 -m venv ~/.claude/skills/perplexity-search/.venv && ~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet litellm python-dotenv"
 update    = "~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet --upgrade litellm python-dotenv"
 uninstall = "rm -rf ~/.claude/skills/perplexity-search/.venv"
+
+[skills.mattpocock-skills]
+description = "Matt Pocock's engineering/productivity skills bundle (diagnose, grill-with-docs, tdd, to-prd, ...)"
+# Bundle install: one git clone at ~/.local/share/claude-skills/mattpocock-skills,
+# then symlink every SKILL.md dir into ~/.claude/skills/ via the upstream
+# link-skills.sh (idempotent). Each linked subskill (diagnose, tdd, ...) will
+# appear under "class A — custom" in `skills-apply status` since skills-apply
+# keys class-C entries by name and the individual skill names don't match
+# "mattpocock-skills" — that is a known cosmetic wart, not a bug.
+check     = "test -d ~/.local/share/claude-skills/mattpocock-skills/.git"
+install   = "git clone --depth 1 https://github.com/mattpocock/skills ~/.local/share/claude-skills/mattpocock-skills && bash ~/.local/share/claude-skills/mattpocock-skills/scripts/link-skills.sh"
+update    = "git -C ~/.local/share/claude-skills/mattpocock-skills pull --ff-only && bash ~/.local/share/claude-skills/mattpocock-skills/scripts/link-skills.sh"
+uninstall = "for l in ~/.claude/skills/*; do [ -L \"$l\" ] && case \"$(readlink -f \"$l\")\" in $HOME/.local/share/claude-skills/mattpocock-skills/*) rm \"$l\" ;; esac; done; rm -rf ~/.local/share/claude-skills/mattpocock-skills"
