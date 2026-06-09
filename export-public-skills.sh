@@ -35,6 +35,7 @@ ALLOWLIST=(
   cpp-hpc
   hpc-cluster-tooling
   hpc-numerics
+  hpc-index
 )
 # ---------------------------------------------------------------------------
 
