@@ -144,6 +144,31 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `cli-anything@cli-anything` | B | CLI-Anything plugin (HKUDS/CLI-Anything) |
 | `perplexity-search` | C | `.venv` + `litellm` — Perplexity search via OpenRouter |
 
+### HPC skill fleet
+
+A coherent set of class-A knowledge skills covering high-performance and
+scientific computing, structured on a **reference vs applied vs theory vs
+workflow** axis. Each (except the router) is a `SKILL.md` plus chapter files
+under `chapters/` and a `cheatsheet.md` / `glossary.md` / `patterns.md`. They
+are the skills exported to the public `claude-skills-hpc` repository by
+`../../../export-public-skills.sh` (see its `ALLOWLIST`).
+
+| Skill | Layer | Notes |
+|---|---|---|
+| `iso-c-9899-2024/` | reference (standard) | ISO/IEC 9899:2024 — C23 (working draft N3220) |
+| `iso-cpp-2023/` | reference (standard) | ISO/IEC 14882 — C++23 (working draft N4950) |
+| `fortran-2023-standard/` | reference (standard) | ISO/IEC 1539-1:2023 — Fortran 2023 |
+| `mpi-5.0/` | reference (spec) | MPI 5.0 — message passing, collectives, RMA, MPI-IO |
+| `openmp-6.0/` | reference (spec) | OpenMP API v6.0 (+ Nov-2025 errata) |
+| `openacc-3.4/` | reference (spec) | OpenACC API v3.4 |
+| `cuda-programming/` | reference (spec) | CUDA Programming Guide (NVIDIA, Release 13.3) |
+| `cpp-hpc/` | applied | C++ HPC toolchain, idioms, parallel models, ecosystem |
+| `python-hpc/` | applied | Python CPU + GPU performance engineering |
+| `gpu-multithreading/` | applied | Cross-language parallel design + optimization playbook |
+| `hpc-numerics/` | theory | Numerical algorithms, error/stability, roofline |
+| `hpc-cluster-tooling/` | workflow | SLURM, Make/CMake, GDB/sanitizers, perf/TAU |
+| `hpc-index/` | router | Disambiguation map over the twelve skills above (holds no domain knowledge) |
+
 ## Dependencies
 
 - `claude` — the Claude Code CLI binary (used by `skills-apply` for class B).
