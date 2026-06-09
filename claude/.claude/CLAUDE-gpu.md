@@ -1,14 +1,16 @@
 ## GPU / OpenACC / CUDA Conventions
 
-### Reference Skill — consult the OpenACC spec, don't answer from memory
-When a question turns on **OpenACC directive/clause semantics** — what a clause does, data-clause
-and reference-counter behavior, gang/worker/vector mapping rules, async-queue ordering, the
-`routine` directive, the `acc_*` runtime API, or a v3.4 detail — invoke the **`openacc-3.4`**
-skill and ground the answer in it. Do **not** recall directive semantics from training memory:
-data-movement and async-ordering rules are subtle and version-sensitive. These conventions are
-*house style and hard-won project gotchas*; the skill is the *authority on the OpenACC standard*.
-(Fortran base-language rules → `fortran-2023-standard`; OpenMP-offload/CUDA/vendor-compiler
-behavior → that vendor's docs, not the OpenACC skill.)
+### Reference Skills — consult the spec, don't answer from memory
+When a question turns on **directive/clause semantics of a parallel-programming standard**, invoke
+the matching reference skill and ground the answer in it — do **not** recall directive semantics from
+training memory (data-movement, async-ordering, data-sharing-vs-mapping, and memory-model rules are
+subtle and version-sensitive):
+- **OpenACC** (`#pragma acc`/`!$acc`, data clauses, gang/worker/vector, async, `routine`, `acc_*`, v3.4) → **`openacc-3.4`** skill.
+- **OpenMP** (`#pragma omp`/`!$omp`, data-sharing/mapping clauses, `target` offload, tasking/`depend`, `schedule`, flush memory model, `omp_*`, v6.0 + Nov-2025 errata) → **`openmp-6.0`** skill.
+
+These conventions are *house style and hard-won project gotchas*; the skills are the *authority on the
+standards*. (Fortran base-language rules → `fortran-2023-standard`; CUDA/vendor-compiler-specific
+behavior → that vendor's docs, not these skills.)
 
 ### OpenACC Directives
 - Always use `!$acc parallel loop` with explicit `gang`, `vector`, `seq` clauses — never bare `!$acc kernels` (compiler may silently under-parallelize)
