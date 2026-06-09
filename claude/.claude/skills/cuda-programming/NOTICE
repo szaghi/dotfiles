@@ -1,0 +1,22 @@
+NOTICE — cuda-programming skill
+===============================
+
+This skill is an independent, original knowledge base. The frameworks,
+structure, explanatory synthesis, decision tables, and indices are our own
+expression, licensed CC-BY-4.0 (see repository LICENSE).
+
+Source material
+---------------
+Synthesized while reading the publicly readable "CUDA Programming Guide,
+Release 13.3" (© NVIDIA Corporation, all rights reserved).
+
+This skill does NOT reproduce the CUDA Programming Guide's explanatory text.
+The explanatory prose in this skill is our own (measured verbatim-prose overlap
+with the source is negligible). Code examples and reference tables, however, are
+derived from NVIDIA's documentation and remain subject to NVIDIA's terms — they
+are reproduced as functional/factual elements (API calls, signatures, numeric
+specification values), which are not protected as creative expression.
+
+Not affiliated with, endorsed by, or a reproduction of NVIDIA's documentation.
+"CUDA" and "NVIDIA" are trademarks of NVIDIA Corporation. For authoritative
+behavior, consult the official guide at https://docs.nvidia.com/cuda/.
