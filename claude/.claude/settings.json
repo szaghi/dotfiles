@@ -9,6 +9,7 @@
       "Edit(/home/stefano/python/**)"
     ]
   },
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -25,7 +26,6 @@
     "type": "command",
     "command": "bash /home/stefano/.claude/statusline-command.sh"
   },
-  "model": "opus",
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
@@ -49,5 +49,6 @@
   "effortLevel": "high",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "tui": "fullscreen"
 }

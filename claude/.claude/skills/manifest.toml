@@ -34,3 +34,17 @@ check     = "test -d ~/.local/share/claude-skills/mattpocock-skills/.git"
 install   = "git clone --depth 1 https://github.com/mattpocock/skills ~/.local/share/claude-skills/mattpocock-skills && bash ~/.local/share/claude-skills/mattpocock-skills/scripts/link-skills.sh"
 update    = "git -C ~/.local/share/claude-skills/mattpocock-skills pull --ff-only && bash ~/.local/share/claude-skills/mattpocock-skills/scripts/link-skills.sh"
 uninstall = "for l in ~/.claude/skills/*; do [ -L \"$l\" ] && case \"$(readlink -f \"$l\")\" in $HOME/.local/share/claude-skills/mattpocock-skills/*) rm \"$l\" ;; esac; done; rm -rf ~/.local/share/claude-skills/mattpocock-skills"
+
+[skills.book-to-skill]
+description = "Meta-skill that converts books/documents (PDF, EPUB, DOCX, ...) into structured Claude Code skills"
+# Single-skill repo (no upstream link script): clone to the shared cache dir,
+# then symlink the repo root into ~/.claude/skills/book-to-skill. The skill's
+# SKILL.md resolves its bundled scripts/extract.py relative to that dir, so the
+# symlink target MUST be the repo root. `ln -sfn` keeps re-installs idempotent
+# (force + no-deref avoids nesting a link inside an existing symlinked dir).
+# Python extraction deps (docling, pdftotext, ...) are optional and prompted
+# for by extract.py at run time — not installed here.
+check     = "test -d ~/.local/share/claude-skills/book-to-skill/.git"
+install   = "git clone --depth 1 https://github.com/virgiliojr94/book-to-skill ~/.local/share/claude-skills/book-to-skill && ln -sfn ~/.local/share/claude-skills/book-to-skill ~/.claude/skills/book-to-skill"
+update    = "git -C ~/.local/share/claude-skills/book-to-skill pull --ff-only && ln -sfn ~/.local/share/claude-skills/book-to-skill ~/.claude/skills/book-to-skill"
+uninstall = "rm -f ~/.claude/skills/book-to-skill; rm -rf ~/.local/share/claude-skills/book-to-skill"
