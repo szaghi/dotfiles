@@ -1,6 +1,6 @@
 ---
 name: gpu-multithreading
-description: "Practitioner knowledge base for parallel, multithreaded, and GPU programming — the design methodology, performance laws, and cross-technology optimization playbook. Use when designing or optimizing parallel software: choosing a parallel decomposition (PCAM, geometric/pipeline/master-worker patterns); reasoning about speedup and scalability (Amdahl, Gustafson, roofline, arithmetic intensity); writing shared-memory code (C++ threads, mutexes, atomics, memory_order, condition variables, lock-free/CAS, false sharing, deadlock); distributed-memory message passing (MPI, domain decomposition, halo exchange, collectives); GPU programming (CUDA/OpenCL thread hierarchy, warps, coalescing, shared-memory tiling, occupancy, host-device transfer); directive-based parallelism (OpenMP fork-join, data-sharing clauses, reductions, target offload); high-level GPU template libraries (Thrust transform/reduce/scan/sort); load balancing (static/DLT, dynamic/work-stealing/master-worker); or diagnosing parallel performance and correctness pitfalls (data races, uncoalesced access, benchmark-timing errors, floating-point non-reproducibility). Self-contained: the CUDA, MPI, OpenMP, and OpenCL chapters carry concrete APIs, host-program skeletons, code, and parameter tables — usable for hands-on coding, not just design."
+description: "Practitioner knowledge base for parallel, multithreaded, and GPU programming — the design methodology, performance laws, and cross-technology optimization playbook. Use when designing or optimizing parallel software: choosing a parallel decomposition (PCAM, geometric/pipeline/master-worker patterns); reasoning about speedup and scalability (Amdahl, Gustafson, roofline, arithmetic intensity); writing shared-memory code (C++ threads, mutexes, atomics, memory_order, condition variables, lock-free/CAS, false sharing, deadlock); distributed-memory message passing (MPI, domain decomposition, halo exchange, collectives); GPU programming (CUDA/OpenCL thread hierarchy, warps, coalescing, shared-memory tiling, occupancy, host-device transfer); directive-based parallelism (OpenMP fork-join, data-sharing clauses, reductions); OpenMP GPU offload in depth (target/teams/distribute, the map clause and target-data regions, declare target, unified shared memory, async multi-device offload, the Eightfold Path to performance); high-level GPU template libraries (Thrust transform/reduce/scan/sort); load balancing (static/DLT, dynamic/work-stealing/master-worker); or diagnosing parallel performance and correctness pitfalls (data races, uncoalesced access, benchmark-timing errors, floating-point non-reproducibility). Self-contained: the CUDA, MPI, OpenMP, and OpenCL chapters carry concrete APIs, host-program skeletons, code, and parameter tables — usable for hands-on coding, not just design."
 allowed-tools:
   - Read
   - Grep
@@ -8,7 +8,7 @@ argument-hint: [topic, technology (cuda/mpi/openmp), pattern, or chapter (e.g. c
 ---
 
 # GPU & Multithreaded Parallel Programming
-**Scope**: design methodology · performance laws · shared/distributed/GPU programming models · optimization | **Chapters**: 12 | **Generated**: 2026-06-09
+**Scope**: design methodology · performance laws · shared/distributed/GPU programming models · OpenMP GPU offload · optimization | **Chapters**: 13 | **Generated**: 2026-06-09
 
 ## How to Use This Skill
 
@@ -62,6 +62,7 @@ Static (proportional/DLT) for predictable work; dynamic (master–worker, **work
 | [ch10](chapters/ch10-high-level-gpu-thrust.md) | High-Level GPU (Thrust) | device_vector, transform/reduce/scan/sort, fancy iterators, fusion |
 | [ch11](chapters/ch11-load-balancing.md) | Load Balancing | static/DLT, dynamic, master-worker, work stealing, tuple space |
 | [ch12](chapters/ch12-optimization-and-pitfalls.md) | Optimization & Pitfalls | triage order, data races, false sharing, timing discipline, FP reproducibility |
+| [ch13](chapters/ch13-openmp-gpu-offload.md) | OpenMP GPU Offload | target/teams/distribute, map & target-data regions, declare target, USM, async multi-device, Eightfold Path |
 
 ## Topic Index
 
@@ -83,7 +84,13 @@ Static (proportional/DLT) for predictable work; dynamic (master–worker, **work
 - **mutex / RAII locking** → ch04
 - **OpenCL / NDRange / work-items** → ch08
 - **OpenMP / fork-join / clauses** → ch09
-- **occupancy / warp divergence** → ch07
+- **OpenMP GPU offload (target/teams/distribute)** → ch13, ch09
+- **map clause / target-data regions / data movement** → ch13
+- **declare target / unified shared memory (USM)** → ch13
+- **async offload / multi-device (nowait/depend/device)** → ch13
+- **variant directives / performance portability** → ch13
+- **Eightfold Path to performance** → ch13
+- **occupancy / warp divergence** → ch07, ch13
 - **PCAM methodology** → ch02
 - **pipeline pattern** → ch02
 - **reduction / scan (prefix sum)** → ch05, ch09

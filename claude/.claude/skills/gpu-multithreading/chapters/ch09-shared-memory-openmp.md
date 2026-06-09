@@ -92,6 +92,7 @@ Use `#pragma omp taskwait` to wait for child tasks; `depend` clauses to express 
 for (int i = 0; i < n; ++i) y[i] = a*x[i] + y[i];
 ```
 - `target` offloads a region; `teams` creates leagues (≈ CUDA blocks); `distribute` splits across teams; `parallel for` splits within a team. `map(to:)`/`map(from:)`/`map(tofrom:)`/`map(alloc:)` control transfer direction.
+- This is the overview; **Ch 13 covers OpenMP GPU offload in depth** — the device data environment, target-data regions to keep data resident, `declare target`, USM, async/multi-device offload, and the Eightfold Path to performance.
 
 ## Key Concepts
 - **Default data-sharing trap**: loop-body temporaries that should be `private` are often `shared` by default → races. `default(none)` forces you to classify every variable and catches this at compile time.
@@ -139,3 +140,4 @@ for (int i = 0; i < n; ++i) y[i] = a*x[i] + y[i];
 - **Ch 05 (Reductions)**: `reduction` and the floating-point reproducibility caveat.
 - **Ch 06 (MPI)**: OpenMP is the within-node layer of hybrid MPI+OpenMP.
 - **Ch 12 (Optimization)**: false sharing, NUMA affinity, and timing discipline.
+- **Ch 13 (OpenMP GPU offload)**: the device model, `map`/target-data regions, hierarchical parallelism, USM, async multi-device, the Eightfold Path.

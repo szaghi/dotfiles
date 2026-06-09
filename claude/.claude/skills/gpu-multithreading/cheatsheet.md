@@ -51,6 +51,16 @@
 | `__syncthreads()` | `barrier(...)` |
 | stream | command queue / events |
 
+## OpenMP GPU offload tells
+- `target` alone runs **serially** on the device — add `teams distribute parallel for [simd]` (or `target teams loop`) for parallelism.
+- `target`/`teams`/`distribute`/`parallel for` ≈ offload / blocks / split-across-teams / split-within-team.
+- `map` is **data movement, not data sharing**: `to`/`from`/`tofrom`/`alloc`; mapping is reference-counted.
+- **Biggest lever: minimize data movement** — wrap iterative kernels in `target data` (or `target enter/exit data`) so arrays cross once; `target update to/from` to refresh only what changes.
+- `declare target` for device-callable functions/globals; `requires unified_shared_memory` to drop `map` boilerplate (productivity over peak perf).
+- Async/multi-GPU: `nowait`+`depend(in:/out:)` (task DAG), `device(d)` clause, `if(cond)` for conditional offload.
+- Portability: `declare variant`/`metadirective` for context-tuned implementations.
+- **Eightfold Path** (top-down): portability → libraries → algorithm → occupancy → converged flow → minimize data movement → coalescence → load balance.
+
 ## MPI tells
 - Two ranks exchanging → `MPI_Sendrecv` or nonblocking (blocking both-send = deadlock).
 - Prefer collectives (`Bcast`/`Allreduce`/`Alltoall`) over point-to-point loops.

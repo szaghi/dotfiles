@@ -26,8 +26,12 @@
 **granularity** — task size; fine = more parallelism + overhead, coarse = less of both (Ch 2, 11).
 **Gustafson's law** — weak-scaling speedup (1−α)+αN; ~linear as problems grow (Ch 3).
 **happens-before** — sequenced-before + synchronizes-with ordering relation (Ch 4).
+**declare target** — OpenMP directive compiling a function/global for device use (Ch 13).
+**device data environment** — per-device memory created by an OpenMP `target` region (Ch 13).
+**Eightfold Path** — OpenMP offload performance checklist: portability, libraries, algorithm, occupancy, converged flow, data movement, coalescence, load balance (Ch 13).
 **lock-free** — progress guaranteed without locks, via atomic CAS (Ch 5).
 **load imbalance** — gap between max and mean worker load; wasted capacity (Ch 11).
+**map clause** — OpenMP `to`/`from`/`tofrom`/`alloc` host↔device data movement (data movement, NOT data sharing) (Ch 13).
 **master–worker** — coordinator dispatches work to workers; dynamic balancing (Ch 2, 11).
 **memory_order** — relaxed/acquire/release/acq_rel/seq_cst atomic ordering (Ch 4).
 **MIMD** — independent instruction+data streams per PE; multicore/clusters (Ch 1).
@@ -45,6 +49,11 @@
 **SPMD** — single program, multiple data; the MPI/GPU-kernel model (Ch 1, 6).
 **strong scaling** — fixed problem, more processors (Amdahl regime) (Ch 3).
 **streaming multiprocessor (SM)** — GPU core cluster running warps (Ch 1, 7).
+**target (OpenMP)** — directive offloading a region's execution to a device (Ch 13).
+**target data region** — keeps mapped data resident across multiple `target` kernels; the key offload optimization (Ch 13).
+**teams / league** — OpenMP `teams` launches a league of teams (≈ CUDA blocks), no inter-team sync (Ch 13).
+**unified shared memory (USM)** — host/device shared address space (`requires unified_shared_memory`); makes `map` optional (Ch 13).
+**variant directive** — `declare variant`/`metadirective`: context-selected tuned implementations for performance portability (Ch 13).
 **task farm** — see master–worker (Ch 2, 11).
 **tiling** — staging a data tile into fast memory for reuse (GPU agglomeration) (Ch 7).
 **tuple space (Linda)** — associative shared space for decoupled coordination (Ch 11).
