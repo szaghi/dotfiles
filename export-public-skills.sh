@@ -32,6 +32,7 @@ ALLOWLIST=(
   iso-cpp-2023
   gpu-multithreading
   python-hpc
+  cpp-hpc
 )
 # ---------------------------------------------------------------------------
 
