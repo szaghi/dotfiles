@@ -29,6 +29,8 @@ ALLOWLIST=(
   fortran-2023-standard
   cuda-programming
   iso-c-9899-2024
+  iso-cpp-2023
+  gpu-multithreading
 )
 # ---------------------------------------------------------------------------
 
