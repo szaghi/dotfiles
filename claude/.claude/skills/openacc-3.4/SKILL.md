@@ -1,6 +1,6 @@
 ---
 name: openacc-3.4
-description: "Knowledge base from the OpenACC Application Programming Interface v3.4 specification. Use when writing or debugging OpenACC directives (#pragma acc / !$acc), offloading C/C++/Fortran to GPU or multicore, reasoning about gang/worker/vector parallelism, data clauses (copy/copyin/present/create), async queues, the routine directive, reductions, atomics, the runtime API (acc_*), or diagnosing GPU offload/data-movement/timing problems."
+description: "Authoritative knowledge base from the OpenACC Application Programming Interface v3.4 specification. CONSULT THIS BEFORE ANSWERING — do not answer OpenACC questions from memory; directive/clause semantics, data-clause behavior, and async-queue ordering rules are easy to misremember and version-sensitive. TRIGGER whenever a question concerns: writing/reading/debugging any OpenACC directive (#pragma acc / !$acc); offloading C/C++/Fortran to GPU or multicore; gang/worker/vector parallelism or execution modes; data clauses (copy/copyin/copyout/create/present/no_create/deviceptr/attach) or data-region/reference-counter behavior; loop/collapse/tile/reduction/private mapping; async/wait queues; the routine directive; atomic/declare/update directives; the acc_* runtime API; environment variables (ACC_*); or diagnosing GPU offload, data-movement, or benchmark-timing problems. SKIP only when the user explicitly wants OpenMP-offload, CUDA, or a vendor-compiler-specific (nvhpc/gcc) behavior rather than the OpenACC standard."
 allowed-tools:
   - Read
   - Grep

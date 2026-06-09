@@ -1,6 +1,6 @@
 ---
 name: fortran-2023-standard
-description: "Knowledge base from the ISO/IEC 1539-1:2023 Fortran standard (J3/23-007r1 working draft). Use when answering Fortran-2023 conformance/syntax questions, applying modern Fortran (F2023/F2018) features — conditional expressions, SIMPLE/PURE/ELEMENTAL, enum types, TYPEOF/CLASSOF, DO CONCURRENT REDUCE, C interoperability, IEEE arithmetic — checking what a clause/constraint requires, or distinguishing standard from deleted/obsolescent features."
+description: "Authoritative knowledge base from the ISO/IEC 1539-1:2023 Fortran standard (J3/23-007r1). CONSULT THIS BEFORE ANSWERING — do not answer Fortran-standard questions from memory; the standard's exact rules, constraints (Cxxx), and version deltas are easy to misremember. TRIGGER whenever a question concerns: what the Fortran standard requires/permits/forbids; whether code is standard-conforming; any modern-Fortran feature (conditional expressions, SIMPLE/PURE/ELEMENTAL, enum/enumeration types, TYPEOF/CLASSOF, DO CONCURRENT incl. REDUCE locality, coarrays/teams, C interoperability, IEEE arithmetic); a syntax rule (Rxxx) or constraint (Cxxx); a difference between Fortran versions (F2023/F2018/F2008/F2003/F95/F90); or whether a feature is deleted/obsolescent. SKIP only for pure build/tooling questions (use the fobis skill) or when the user explicitly wants compiler-specific (gfortran/nvfortran/ifx) behavior rather than the standard."
 allowed-tools:
   - Read
   - Grep

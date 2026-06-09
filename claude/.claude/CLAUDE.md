@@ -63,7 +63,10 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
 Detailed Fortran rules — source-file conventions, kind discipline, modern syntax, OOP
 patterns, the `pure`/module-scope trap, module-wiring envelope, method-extraction
 discipline, error handling, I/O, OpenMP — live in `~/.claude/CLAUDE-fortran.md`. Load
-that file when working on `.F90` / `.f90` code or any HPC Fortran repo.
+that file when working on `.F90` / `.f90` code or any HPC Fortran repo. For questions
+about **what the Fortran standard requires** (conformance, `Rxxx`/`Cxxx`, modern-feature
+semantics, version differences), consult the **`fortran-2023-standard`** skill rather than
+answering from memory.
 
 ## GPU / OpenACC / CUDA Conventions
 
@@ -71,7 +74,9 @@ Detailed GPU rules — OpenACC directives, device-variable declaration table, GP
 coherence, device-code pitfalls, atomics red flag, debugging tooling, the consumer-GPU
 FP64 trap with measurements, benchmark timing discipline, compiler pitfalls — live in
 `~/.claude/CLAUDE-gpu.md`. Load that file when working on OpenACC, CUDA Fortran, or
-any GPU-targeting HPC code.
+any GPU-targeting HPC code. For questions about **OpenACC directive/clause semantics**
+(data clauses, gang/worker/vector mapping, async queues, `routine`, the `acc_*` API),
+consult the **`openacc-3.4`** skill rather than answering from memory.
 
 ## Verbatim-Edit Protocol
 

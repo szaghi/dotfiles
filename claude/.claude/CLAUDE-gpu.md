@@ -1,5 +1,15 @@
 ## GPU / OpenACC / CUDA Conventions
 
+### Reference Skill — consult the OpenACC spec, don't answer from memory
+When a question turns on **OpenACC directive/clause semantics** — what a clause does, data-clause
+and reference-counter behavior, gang/worker/vector mapping rules, async-queue ordering, the
+`routine` directive, the `acc_*` runtime API, or a v3.4 detail — invoke the **`openacc-3.4`**
+skill and ground the answer in it. Do **not** recall directive semantics from training memory:
+data-movement and async-ordering rules are subtle and version-sensitive. These conventions are
+*house style and hard-won project gotchas*; the skill is the *authority on the OpenACC standard*.
+(Fortran base-language rules → `fortran-2023-standard`; OpenMP-offload/CUDA/vendor-compiler
+behavior → that vendor's docs, not the OpenACC skill.)
+
 ### OpenACC Directives
 - Always use `!$acc parallel loop` with explicit `gang`, `vector`, `seq` clauses — never bare `!$acc kernels` (compiler may silently under-parallelize)
 - Specify `collapse(N)` depth explicitly on nested loops

@@ -1,5 +1,15 @@
 ## Fortran Conventions
 
+### Reference Skill — consult the standard, don't answer from memory
+When a question turns on **what the Fortran standard actually requires** — conformance, a
+syntax rule (`Rxxx`) or constraint (`Cxxx`), a modern-feature semantic (SIMPLE/PURE, enum
+types, TYPEOF/CLASSOF, DO CONCURRENT REDUCE, IEEE, C interop), or a version difference
+(F2023/F2018/F2008/…) — invoke the **`fortran-2023-standard`** skill and ground the answer
+in it. Do **not** recall the standard from training memory: exact constraint numbers and
+version deltas are easy to misremember. These conventions cover *house style*; the skill is
+the *authority on the language*. (Build/tooling → `fobis`; compiler-specific behavior →
+CLAUDE-gpu.md and the compiler's own docs.)
+
 ### Source Files
 - Use `.F90` extension (uppercase F — preprocessor always enabled)
 - One module per file; filename matches module name (`adam_grid_object.F90` → `module adam_grid_object`)
