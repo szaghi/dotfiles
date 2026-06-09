@@ -20,6 +20,13 @@ The right concurrency model depends on what blocks you. **I/O-bound** work (netw
 
 - **Clusters & job queues** (scale past one node): distribute tasks across machines with a broker/queue. Key discipline: make tasks **idempotent** and **chunked**, handle worker failure, and avoid the coordinator becoming a bottleneck.
 
+- **`mpi4py`** (true distributed-memory MPI from Python): the SPMD model — launch with `mpirun -np N python script.py`, each process is a **rank** in `MPI.COMM_WORLD`. The HPC-standard way to scale Python across cluster nodes (vs `multiprocessing`, which is single-node).
+  - **The two-API rule (the central mpi4py idiom)**: methods come in two forms.
+    - **lowercase** (`comm.send`, `comm.recv`, `comm.bcast`, `comm.gather`) — send **arbitrary Python objects**, serialized with **pickle**. Convenient but **slow** (pack/unpack overhead).
+    - **Uppercase** (`comm.Send`, `comm.Recv`, `comm.Bcast`, `comm.Gather`) — send **NumPy buffers** directly (no pickle), near C-speed.
+    - **Rule: uppercase NumPy methods in performance-critical paths, lowercase for convenience/setup.**
+  - Same operations as C MPI: point-to-point (`Send`/`Recv`/`Isend`/`Irecv`), collectives (`Bcast`/`Scatter`/`Gather`/`Allreduce`), communicators. Object-oriented (methods on `Comm`, keyword/default arguments).
+
 ## Key Concepts
 - **Process startup & pickling cost**: spawning processes and pickling args/results has overhead — **chunk** work so each task does enough to amortize it ("a less naive pool" batches inputs).
 - **Sharing NumPy between processes**: pickling a large array per task is the classic multiprocessing performance trap; use shared memory or memmap so workers reference the same buffer.
@@ -53,8 +60,25 @@ async def fetch_all(urls):
 # Joblib: embarrassingly parallel in one line
 from joblib import Parallel, delayed
 out = Parallel(n_jobs=-1)(delayed(work)(x) for x in items)
+
+# mpi4py: distributed across cluster nodes — run with `mpirun -np N python script.py`
+from mpi4py import MPI
+import numpy as np
+comm = MPI.COMM_WORLD
+rank, size = comm.Get_rank(), comm.Get_size()
+
+# UPPERCASE: NumPy buffers, no pickle — use in performance-critical paths
+buf = np.empty(n, dtype="float64")
+if rank == 0: buf[:] = produce()
+comm.Bcast(buf, root=0)                       # fast: direct buffer transfer
+
+# lowercase: arbitrary Python objects via pickle — convenient, slower
+config = comm.bcast(config if rank == 0 else None, root=0)
+
+local = compute(buf)                          # each rank works on its share
+total = comm.allreduce(local, op=MPI.SUM)     # collective reduction across ranks
 ```
-- **What it demonstrates**: process pool with chunking, shared-memory array passing, async gather, and Joblib.
+- **What it demonstrates**: process pool with chunking, shared-memory array passing, async gather, Joblib, and mpi4py's uppercase (NumPy, fast) vs lowercase (pickle, convenient) APIs.
 
 ## Reference Tables
 
@@ -64,6 +88,12 @@ out = Parallel(n_jobs=-1)(delayed(work)(x) for x in items)
 | I/O-bound, high concurrency | `asyncio` | overlap waits on one thread |
 | I/O-bound, simple | threads | GIL released during I/O |
 | beyond one machine | cluster / job queue | distribute + retry |
+| HPC multi-node (SPMD) | `mpi4py` | true distributed MPI |
+
+| mpi4py API | Sends | Speed |
+|---|---|---|
+| lowercase (`send`/`bcast`) | arbitrary objects (pickle) | slow — setup/convenience |
+| **Uppercase** (`Send`/`Bcast`) | NumPy buffers (no pickle) | **fast — hot paths** |
 
 | Multiprocessing trap | Fix |
 |---|---|
@@ -77,8 +107,11 @@ out = Parallel(n_jobs=-1)(delayed(work)(x) for x in items)
 3. Share large NumPy arrays via shared memory/memmap — never pickle them per task.
 4. `asyncio` is cooperative — one blocking call stalls the loop; use async libraries throughout.
 5. Joblib simplifies embarrassingly parallel CPU loops; at cluster scale make tasks idempotent and chunked.
+6. `mpi4py` brings true distributed-memory MPI to Python (SPMD, ranks over `COMM_WORLD`) for multi-node HPC — use **uppercase** NumPy-buffer methods (`Bcast`/`Send`) in hot paths, lowercase pickle-based methods (`bcast`/`send`) only for convenience/setup.
 
 ## Connects To
 - **Ch 04 (GIL)**: why threads don't parallelize CPU-bound Python; `nogil`/Numba alternatives.
 - **Ch 06 (Dask)**: Dask scales DataFrame/array work across cores and clusters.
 - **Ch 09 (Multi-GPU)**: Dask-CUDA distributes GPU work the same way.
+- **mpi-5.0 skill**: the authoritative MPI reference (semantics, all routines) behind mpi4py.
+- **hpc-cluster-tooling skill**: running mpi4py jobs via SLURM (`srun`/`mpirun`) on a cluster.

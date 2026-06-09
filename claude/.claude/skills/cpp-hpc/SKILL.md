@@ -1,6 +1,6 @@
 ---
 name: cpp-hpc
-description: "Practitioner knowledge base for high-performance computing in C++ — the full toolchain, language idioms, parallel programming models, and HPC ecosystem. Use when building or optimizing C++ HPC software: the toolchain (Linux/cluster, git, CMake/Spack, compiler flags, SLURM); modern C++ for performance (RAII, smart pointers, move semantics, auto, constexpr, const-correctness, the STL containers/algorithms/iterators); shared-memory parallelism (parallel-STL execution policies, std::thread/atomic, OpenMP fork-join/clauses/tasks/offload); distributed-memory MPI (point-to-point, collectives, derived datatypes, communicators, RMA, scaling, halo exchange); GPU programming (CUDA thread hierarchy, coalescing, shared-memory tiling, occupancy); performance portability with Kokkos (Views, execution/memory spaces, layouts, parallel_for/reduce); HPC hardware (memory hierarchy, cache, SIMD, NUMA, roofline, accelerators); parallel I/O (HDF5, NetCDF, VTK, MPI-IO); debugging and profiling (GDB, AddressSanitizer/ThreadSanitizer, Valgrind, perf, Cachegrind, Nsight); numerical libraries (BLAS/LAPACK/gemm, FFTW, PETSc, Trilinos/Kokkos); or the actor model of concurrency. Self-contained with concrete APIs, code, and parameter tables for hands-on C++ HPC work."
+description: "Practitioner knowledge base for high-performance computing in C++ — the full toolchain, language idioms, parallel programming models, and HPC ecosystem. Use when building or optimizing C++ HPC software: the toolchain (Linux/cluster, git, CMake/Spack, compiler flags, SLURM); modern C++ for performance (RAII, smart pointers, move semantics, auto, constexpr, const-correctness, the STL containers/algorithms/iterators); shared-memory parallelism (parallel-STL execution policies, std::thread/atomic, OpenMP fork-join/clauses/tasks/offload); distributed-memory MPI (point-to-point, collectives, derived datatypes, communicators, RMA, scaling, halo exchange, and MPL the modern header-only type-safe C++ MPI binding); GPU programming (CUDA thread hierarchy, coalescing, shared-memory tiling, occupancy); performance portability with Kokkos (Views, execution/memory spaces, layouts, parallel_for/reduce); HPC hardware (memory hierarchy, cache, SIMD, NUMA, roofline, accelerators); parallel I/O (HDF5, NetCDF, VTK, MPI-IO); debugging and profiling (GDB, AddressSanitizer/ThreadSanitizer, Valgrind, perf, Cachegrind, Nsight); numerical libraries (BLAS/LAPACK/gemm, FFTW, PETSc, Trilinos/Kokkos); or the actor model of concurrency. Self-contained with concrete APIs, code, and parameter tables for hands-on C++ HPC work."
 allowed-tools:
   - Read
   - Grep
@@ -91,6 +91,7 @@ Never one-file-per-rank or raw binary at scale — parallel HDF5/NetCDF, all ran
 - **Kokkos (View / spaces / layout)** → ch10
 - **move semantics / smart pointers / RAII** → ch02
 - **MPI (point-to-point / scaling)** → ch06, ch07
+- **MPL (modern C++ MPI binding)** → ch06
 - **NUMA / SIMD / accelerators** → ch05
 - **OpenMP / clauses / tasks / offload** → ch08
 - **PETSc / Trilinos / sparse solvers** → ch13

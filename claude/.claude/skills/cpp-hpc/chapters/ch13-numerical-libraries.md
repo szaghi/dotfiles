@@ -14,6 +14,11 @@ Don't reimplement numerical kernels — decades of expert, hardware-tuned work l
 
 - **PETSc** (Portable, Extensible Toolkit for Scientific Computation):
   - Distributed sparse linear algebra for PDEs: **Vec** (distributed vectors), **Mat** (distributed sparse matrices), **KSP** (Krylov solvers: GMRES, CG), **PC** (preconditioners), **SNES** (nonlinear), **TS** (time steppers). Built on MPI; scales to thousands of ranks. You assemble the matrix/vector and choose solver+preconditioner; PETSc handles the parallel distribution.
+  - **Object-oriented design in C, via polymorphism**: `Vec`, `Mat`, `KSP`, `PC`, `PetscViewer` are object classes. A `Mat` created as sparse or dense exposes the *same* interface — `MatMult(A, x, y)` (y ← Ax) works regardless of the underlying storage. This polymorphism lets you switch matrix formats or solvers without rewriting the algorithm.
+  - **Parallel assembly is the core idiom**: build distributed objects with `VecSetValues`/`MatSetValues` (each rank contributes its entries, possibly off-process), then `VecAssemblyBegin/End` + `MatAssemblyBegin/End` to communicate and finalize. The assembly is where the MPI happens — you set values locally, PETSc routes them.
+  - **Bracketing & options**: all PETSc work lives between `PetscInitialize()` and `PetscFinalize()`; runtime behavior (solver type, preconditioner, tolerances) is controlled by **command-line options** (`-ksp_type gmres -pc_type ilu`) read from the **PETSc options database** — change the solver without recompiling.
+  - **`MatShell` (matrix-free)**: when the matrix is too large to store, register your own `MatMult` via `MatCreateShell` + `MatShellSetOperation(MATOP_MULT, …)` — the Krylov solver only needs the matvec, never the explicit matrix (the matrix-free iterative idiom).
+  - **DMDA / structured grids**: `DMDA` manages distributed structured-grid data with ghost regions, generating the halo exchange for stencil operators automatically — the bridge from a discretized PDE to a parallel PETSc solve.
 
 - **Trilinos** (a large ecosystem of HPC numerical packages):
   - Modular packages including **Tpetra** (next-gen distributed linear algebra, Kokkos-backed for GPU portability; Epetra is the legacy version), plus solvers, preconditioners, and discretization tools. The Kokkos-based design gives performance portability across CPU/GPU.
@@ -41,14 +46,23 @@ fftw_plan plan = fftw_plan_dft_1d(n, in, out, FFTW_FORWARD, FFTW_MEASURE);
 for (int step = 0; step < nsteps; ++step) fftw_execute(plan);   // reuse the plan
 fftw_destroy_plan(plan);
 
-// PETSc: assemble distributed system, choose Krylov solver + preconditioner
+// PETSc: assemble a distributed matrix, then Krylov-solve (all between Init/Finalize)
+Mat A; MatCreate(PETSC_COMM_WORLD, &A);
+MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, N, N);
+MatSetFromOptions(A);                       // type/layout from the options database
+// each rank sets its (possibly off-process) entries, then assembles (the MPI step):
+for (PetscInt i = rstart; i < rend; ++i)
+    MatSetValue(A, i, i, 2.0, INSERT_VALUES);
+MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY); MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY);
+
 KSP ksp; KSPCreate(PETSC_COMM_WORLD, &ksp);
 KSPSetOperators(ksp, A, A);
-KSPSetType(ksp, KSPGMRES);                 // Krylov method
-PC pc; KSPGetPC(ksp, &pc); PCSetType(pc, PCILU);   // preconditioner
-KSPSolve(ksp, b, x);                       // PETSc handles the MPI distribution
+KSPSetType(ksp, KSPGMRES);                  // Krylov method (overridable: -ksp_type)
+PC pc; KSPGetPC(ksp, &pc); PCSetType(pc, PCILU);   // preconditioner (-pc_type)
+KSPSetFromOptions(ksp);                      // command-line options override these
+KSPSolve(ksp, b, x);                        // PETSc handles the MPI distribution
 ```
-- **What it demonstrates**: BLAS-3 GEMM, FFTW plan reuse, and a PETSc distributed Krylov solve with preconditioner.
+- **What it demonstrates**: BLAS-3 GEMM, FFTW plan reuse, and a PETSc parallel-assembly + Krylov solve whose solver/preconditioner are runtime-selectable via the options database.
 
 ## Reference Tables
 
@@ -70,9 +84,11 @@ KSPSolve(ksp, b, x);                       // PETSc handles the MPI distribution
 2. BLAS-3 `gemm` hits near-peak FLOPS; restructure dense work into matrix-matrix products. LAPACK for factorizations/solves.
 3. FFTW uses plans — measure/plan once, execute repeatedly.
 4. PETSc provides distributed sparse Vec/Mat + Krylov solvers (KSP) and preconditioners (PC) over MPI; the preconditioner choice dominates convergence.
-5. Trilinos/Tpetra (Kokkos-backed) gives GPU-portable distributed numerics.
+5. PETSc is object-oriented C via polymorphism (`MatMult` works on any `Mat` type); build distributed objects with `Set/AssemblyValues` (assembly = the MPI step), select solver/preconditioner at runtime via the options database (`-ksp_type`/`-pc_type`), and use `MatShell` for matrix-free iteration.
+6. Trilinos/Tpetra (Kokkos-backed) gives GPU-portable distributed numerics.
 
 ## Connects To
 - **Ch 07 (MPI)**: PETSc/Trilinos build on MPI for distribution.
+- **hpc-numerics skill**: the iterative/Krylov solver and preconditioning *theory* (CG/GMRES, multigrid, conditioning) that PETSc's KSP/PC implement.
 - **Ch 10 (Kokkos)**: Tpetra's performance-portability backend.
 - **Ch 01 (Toolchain)**: linking these via CMake `find_package`/Spack.

@@ -25,6 +25,36 @@ All work must lie between `MPI_Init` and `MPI_Finalize`.
 - **Collective communication** (all ranks participate, heavily optimized):
   - `MPI_Bcast` (root→all), `MPI_Scatter`/`MPI_Gather` (distribute/collect chunks), `MPI_Reduce`/`MPI_Allreduce` (combine with `MPI_SUM`/`MPI_MAX`/…), `MPI_Barrier` (synchronize). Always prefer collectives over hand-rolled point-to-point loops.
 
+### MPL — the modern C++ MPI binding
+The C MPI API works from C++ but is verbose and type-unsafe (`void*` buffers, manual `MPI_Datatype`, explicit counts). **MPL** (Message Passing Layer) is a **header-only C++ library** wrapping MPI in idiomatic, type-safe, RAII C++ — the modern way to write MPI in C++.
+
+- **No init/finalize calls**: `mpl::environment` initializes on first use and finalizes automatically (RAII) — no `MPI_Init`/`MPI_Finalize`.
+- **Communicators are RAII objects** with the **copy operator deleted** (copying would duplicate a communicator — usually a bug). Get the world communicator as a `const&` and **pass communicators by reference**:
+  ```cpp
+  const mpl::communicator &comm = mpl::environment::comm_world();
+  int rank = comm.rank(), nprocs = comm.size();   // methods, not free functions
+  ```
+- **Type-safe buffers via polymorphism (templating + ADL)** — no explicit datatype or count for the common cases:
+  - **Scalar**: `comm.bcast(0, x);` (root first; `x` is a plain `T`, no `&`/count).
+  - **`std::vector`**: pass `.data()` + an `mpl::contiguous_layout<T>(n)` derived type.
+  - **Iterator ranges**: `comm.send(v.begin(), v.end(), dest);` / `comm.recv(v.begin(), v.end(), src);` — the most idiomatic form.
+- **Point-to-point**: `comm.send(scalar, dest)` / `comm.recv(scalar, src)`; nonblocking calls return an **`mpl::irequest`** whose `.wait()` is a method (vs C's `MPI_Wait(&req)`).
+- **Collectives** are communicator methods with functor reduction operators: `comm.allreduce(mpl::plus<float>(), sendbuf, recvbuf)` (or in-place with one buffer). `mpl::plus`/`mpl::max`/… replace `MPI_SUM`/`MPI_MAX`.
+- **Derived datatypes** are **layout objects** (`mpl::contiguous_layout`, `mpl::vector_layout`, `mpl::indexed_layout`) — typed, RAII, no `MPI_Type_commit`/`MPI_Type_free`.
+
+```cpp
+#include <mpl/mpl.hpp>
+int main() {                                       // no MPI_Init/Finalize
+    const mpl::communicator &comm = mpl::environment::comm_world();
+    int rank = comm.rank();
+    std::vector<double> x(n);
+    if (rank == 0) { /* fill x */ }
+    comm.bcast(0, x.data(), mpl::contiguous_layout<double>(n));   // type-safe broadcast
+    double local = work(x), total;
+    comm.allreduce(mpl::plus<double>(), local, total);            // functor reduction
+}                                                  // RAII finalize on scope exit
+```
+
 ## Key Concepts
 - **Blocking vs nonblocking completion**: blocking returns when safe; nonblocking returns immediately and you must complete it later — the mechanism for overlap.
 - **Message matching**: (comm, source, tag) — wildcards on receive, details recovered from `MPI_Status` (`MPI_SOURCE`, `MPI_TAG`, `MPI_Get_count`).
@@ -73,14 +103,26 @@ compute_boundary(ghost);
 | `Reduce`/`Allreduce` | combine (sum/max/…) → root / all |
 | `Barrier` | synchronize all ranks |
 
+| Concept | C API | MPL (C++) |
+|---|---|---|
+| init/finalize | `MPI_Init`/`MPI_Finalize` | none (RAII `environment`) |
+| communicator | `MPI_Comm` handle | `mpl::communicator` (RAII, copy-deleted) |
+| rank/size | `MPI_Comm_rank/size` | `comm.rank()`/`comm.size()` methods |
+| send buffer | `void*`+count+`MPI_Datatype` | typed scalar / `vector` / iterator range |
+| reduction op | `MPI_SUM`/`MPI_MAX` | `mpl::plus<T>`/`mpl::max<T>` functors |
+| derived type | `MPI_Type_*`+commit/free | `mpl::contiguous_layout<T>` (RAII) |
+| nonblocking | `MPI_Request`+`MPI_Wait(&r)` | `mpl::irequest`+`r.wait()` |
+
 ## Key Takeaways
 1. MPI is SPMD: one program ranked over a communicator; messages match on (comm, source, tag).
 2. Blocking calls return when safe; two ranks blocking-sending to each other deadlock — use `MPI_Sendrecv` or nonblocking.
 3. Prefer optimized collectives (`Bcast`/`Allreduce`/`Scatter`/`Gather`) over hand-rolled point-to-point loops.
 4. Overlap communication with computation via `Isend`/`Irecv` + `Wait` to hide network latency.
 5. From C++, pass `vector::data()` buffers and built-in `MPI_*` datatypes; all MPI work lives between `MPI_Init`/`MPI_Finalize`.
+6. For modern C++, **MPL** is the idiomatic binding: header-only, RAII communicators (copy-deleted, pass by reference), type-safe buffers (scalar/vector/iterator, no explicit datatype/count), functor reductions (`mpl::plus`), layout-object derived types, and no init/finalize — far safer than the raw C API from C++.
 
 ## Connects To
 - **Ch 05 (Hardware)**: the cluster/interconnect model.
 - **Ch 07 (Advanced MPI)**: derived datatypes, communicators, RMA, scaling.
 - **Ch 14 (Actor model)**: an alternative message-passing concurrency model.
+- **mpi-5.0 skill**: the authoritative MPI standard semantics (C/Fortran bindings) that MPL wraps.

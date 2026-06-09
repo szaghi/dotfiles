@@ -33,6 +33,8 @@ ALLOWLIST=(
   gpu-multithreading
   python-hpc
   cpp-hpc
+  hpc-cluster-tooling
+  hpc-numerics
 )
 # ---------------------------------------------------------------------------
 

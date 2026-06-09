@@ -1,6 +1,6 @@
 ---
 name: python-hpc
-description: "Practitioner knowledge base for performance engineering in Python across CPU and GPU. Use when profiling or optimizing Python performance: finding bottlenecks (cProfile, line_profiler, memory_profiler, Scalene, py-spy); choosing data structures and cutting RAM (list/dict/set complexity, __slots__, Bloom/trie); vectorizing with NumPy/NumExpr and lazy generators; compiling hot loops (Numba @njit, Cython, PyPy, the GIL, nogil/prange); concurrency (asyncio for I/O, multiprocessing/Joblib for CPU, Dask clusters); fast DataFrames (Pandas vectorization, Polars lazy/query-optimizer, Dask); writing CUDA kernels in Python (Numba-CUDA: cuda.grid, atomics, syncthreads, device functions); GPU kernel optimization (occupancy, coalescing, shared-memory tiling, bank conflicts, warp divergence); CUDA streams and multi-GPU (Dask-CUDA, JAX pmap); GPU array/DataFrame libraries (CuPy, RAPIDS cuDF/cuML); JAX (jit/grad/vmap/pmap, XLA, autodiff); GPU profiling/debugging (Nsight Systems/Compute, nvtx, CUDA simulator); or applied GPU patterns (stencils/PDEs, N-body, image processing, deep learning). Covers CPU-side performance and GPU acceleration end to end with concrete APIs and code."
+description: "Practitioner knowledge base for performance engineering in Python across CPU and GPU. Use when profiling or optimizing Python performance: finding bottlenecks (cProfile, line_profiler, memory_profiler, Scalene, py-spy); choosing data structures and cutting RAM (list/dict/set complexity, __slots__, Bloom/trie); vectorizing with NumPy/NumExpr and lazy generators; compiling hot loops (Numba @njit, Cython, PyPy, the GIL, nogil/prange); concurrency (asyncio for I/O, multiprocessing/Joblib for CPU, Dask clusters, mpi4py for distributed-memory MPI); fast DataFrames (Pandas vectorization, Polars lazy/query-optimizer, Dask); writing CUDA kernels in Python (Numba-CUDA: cuda.grid, atomics, syncthreads, device functions); GPU kernel optimization (occupancy, coalescing, shared-memory tiling, bank conflicts, warp divergence); CUDA streams and multi-GPU (Dask-CUDA, JAX pmap); GPU array/DataFrame libraries (CuPy, RAPIDS cuDF/cuML); JAX (jit/grad/vmap/pmap, XLA, autodiff); GPU profiling/debugging (Nsight Systems/Compute, nvtx, CUDA simulator); or applied GPU patterns (stencils/PDEs, N-body, image processing, deep learning). Covers CPU-side performance and GPU acceleration end to end with concrete APIs and code."
 allowed-tools:
   - Read
   - Grep
@@ -84,6 +84,7 @@ Profile to classify. Memory-bound → coalesce, shared-memory reuse, fewer bytes
 - **JAX (jit/grad/vmap)** → ch11
 - **memory-bound vs compute-bound** → ch08, ch12
 - **multiprocessing / Joblib** → ch05
+- **mpi4py / distributed MPI (uppercase vs lowercase)** → ch05
 - **Nsight profiling** → ch12
 - **Numba `@njit`** → ch04
 - **Numba-CUDA kernels** → ch07
