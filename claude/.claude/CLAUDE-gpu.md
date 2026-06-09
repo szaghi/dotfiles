@@ -1,15 +1,17 @@
 ## GPU / OpenACC / CUDA Conventions
 
 ### Reference Skills — consult the spec, don't answer from memory
-When a question turns on **directive/clause semantics of a parallel-programming standard**, invoke
-the matching reference skill and ground the answer in it — do **not** recall directive semantics from
-training memory (data-movement, async-ordering, data-sharing-vs-mapping, and memory-model rules are
-subtle and version-sensitive):
+When a question turns on the **semantics of a parallel-programming standard** (directive/clause, or
+library API/protocol), invoke the matching reference skill and ground the answer in it — do **not**
+recall the semantics from training memory (data-movement, async-ordering, data-sharing-vs-mapping,
+memory-model, send-mode/completion, and collective/RMA-synchronization rules are subtle, deadlock-prone,
+and version-sensitive):
 - **OpenACC** (`#pragma acc`/`!$acc`, data clauses, gang/worker/vector, async, `routine`, `acc_*`, v3.4) → **`openacc-3.4`** skill.
 - **OpenMP** (`#pragma omp`/`!$omp`, data-sharing/mapping clauses, `target` offload, tasking/`depend`, `schedule`, flush memory model, `omp_*`, v6.0 + Nov-2025 errata) → **`openmp-6.0`** skill.
+- **MPI** (`MPI_*`/`mpi_f08`, send modes, nonblocking/collective/RMA semantics, datatypes, communicators, MPI-IO, thread levels, Sessions, the v5.0 ABI) → **`mpi-5.0`** skill.
 
 These conventions are *house style and hard-won project gotchas*; the skills are the *authority on the
-standards*. (Fortran base-language rules → `fortran-2023-standard`; CUDA/vendor-compiler-specific
+standards*. (Fortran base-language rules → `fortran-2023-standard`; CUDA/vendor-compiler/implementation-specific
 behavior → that vendor's docs, not these skills.)
 
 ### OpenACC Directives

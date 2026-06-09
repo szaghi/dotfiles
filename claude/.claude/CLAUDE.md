@@ -74,9 +74,10 @@ Detailed GPU rules — OpenACC directives, device-variable declaration table, GP
 coherence, device-code pitfalls, atomics red flag, debugging tooling, the consumer-GPU
 FP64 trap with measurements, benchmark timing discipline, compiler pitfalls — live in
 `~/.claude/CLAUDE-gpu.md`. Load that file when working on OpenACC, CUDA Fortran, or
-any GPU-targeting HPC code. For questions about **directive/clause semantics** of a
-parallel-programming standard, consult the matching reference skill rather than answering
-from memory: **`openacc-3.4`** (OpenACC) or **`openmp-6.0`** (OpenMP — incl. the Nov-2025 errata).
+any GPU-targeting HPC code. For questions about the **semantics of a parallel-programming
+standard**, consult the matching reference skill rather than answering from memory:
+**`openacc-3.4`** (OpenACC), **`openmp-6.0`** (OpenMP — incl. the Nov-2025 errata), or
+**`mpi-5.0`** (MPI — message passing, collectives, RMA, MPI-IO, the v5.0 ABI).
 
 ## Verbatim-Edit Protocol
 
