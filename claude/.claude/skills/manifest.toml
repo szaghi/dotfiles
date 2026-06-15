@@ -63,3 +63,24 @@ check     = "test -x ~/.local/share/claude-skills/pdf-venv/bin/python && ~/.loca
 install   = "python3 -m venv ~/.local/share/claude-skills/pdf-venv && ~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet --upgrade pip && ~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet pypdf pdfplumber reportlab pandas pytesseract pdf2image"
 update    = "~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet --upgrade pypdf pdfplumber reportlab pandas pytesseract pdf2image"
 uninstall = "rm -rf ~/.local/share/claude-skills/pdf-venv"
+
+[skills.latex-document-skill]
+description = "Community LaTeX skill (ndpvt-web): compile/create LaTeX with XeLaTeX+LuaLaTeX auto-detect, latexmk backend"
+# Single-skill repo (book-to-skill pattern): clone to cache, symlink repo root
+# into ~/.claude/skills. We DELIBERATELY do NOT run its setup.sh — that script
+# does `pip install --break-system-packages` (violates PEP 668 / our Python
+# conventions) and apt-installs system TeX. Instead its Python deps go in an
+# isolated venv built from the repo's own requirements.txt; invoke
+# ~/.local/share/claude-skills/latex-venv/bin/python for the chart/csv/mailmerge
+# scripts (generate_chart.py, csv_to_latex.py, mail_merge.py, validate_latex.py).
+# System tools (texlive, latexmk, biber, texfot, poppler, imagemagick, pandoc)
+# are apt-managed per host, NOT owned here. compile_latex.sh auto-detects engine
+# from preamble (fontspec/xeCJK/polyglossia -> xelatex; luacode/directlua ->
+# lualatex; else pdflatex) and honors --use-latexmk. AUDIT NOTES: network calls
+# limited to user-invoked fetch_bibtex.sh (doi.org/arxiv.org) and
+# plantuml_to_pdf.sh (downloads a pinned PlantUML jar — avoid or vendor it). No
+# LICENSE file shipped despite MIT claim — do not redistribute on that basis.
+check     = "test -L ~/.claude/skills/latex-document-skill && test -x ~/.local/share/claude-skills/latex-venv/bin/python && ~/.local/share/claude-skills/latex-venv/bin/python -c 'import matplotlib, numpy, pandas, jinja2' 2>/dev/null"
+install   = "git clone --depth 1 https://github.com/ndpvt-web/latex-document-skill ~/.local/share/claude-skills/latex-document-skill && ln -sfn ~/.local/share/claude-skills/latex-document-skill ~/.claude/skills/latex-document-skill && python3 -m venv ~/.local/share/claude-skills/latex-venv && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet --upgrade pip && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet -r ~/.local/share/claude-skills/latex-document-skill/requirements.txt"
+update    = "git -C ~/.local/share/claude-skills/latex-document-skill pull --ff-only && ln -sfn ~/.local/share/claude-skills/latex-document-skill ~/.claude/skills/latex-document-skill && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet --upgrade -r ~/.local/share/claude-skills/latex-document-skill/requirements.txt"
+uninstall = "rm -f ~/.claude/skills/latex-document-skill; rm -rf ~/.local/share/claude-skills/latex-document-skill ~/.local/share/claude-skills/latex-venv"
