@@ -793,7 +793,7 @@ session. It encodes:
 | `permissions.allow` | `Read/Write/Edit` on `~/fortran/**` and `~/python/**` | Frictionless tool use inside my project trees |
 | `model` | `opus` | Default cloud model |
 | `statusLine.command` | `bash /home/stefano/.claude/statusline-command.sh` | Custom status line |
-| `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything` | Pre-enabled plugins |
+| `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything`, `document-skills` | Pre-enabled plugins |
 | `extraKnownMarketplaces` | `anthropic-agent-skills`, `cli-anything` | Extra plugin sources |
 | `alwaysThinkingEnabled` | `false` | Thinking is opt-in per request |
 | `effortLevel` | `high` | Max reasoning effort by default |
@@ -870,7 +870,7 @@ summary:
 | Class | Examples | Lifecycle owner | Where declared |
 |---|---|---|---|
 | **A. Custom user-authored** | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image` | git + stow | `claude/.claude/skills/<name>/` (real source dirs) |
-| **B. Plugin / marketplace** | `frontend-design`, `skill-creator`, `cli-anything` | `claude plugin` CLI | `settings.json` → `enabledPlugins` |
+| **B. Plugin / marketplace** | `frontend-design`, `skill-creator`, `cli-anything`, `document-skills` | `claude plugin` CLI | `settings.json` → `enabledPlugins` |
 | **C. Third-party loose** | `perplexity-search` | upstream installers (pipx, venv, `curl \| bash`…) | `claude/.claude/skills/manifest.toml` |
 
 Per-host filtering of class C: `machines/<hostname>.skills` (one skill name

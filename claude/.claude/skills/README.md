@@ -89,11 +89,18 @@ file means "install every manifest entry on this host" — keep that
 convention as the default so new hosts opt-out rather than opt-in.
 
 ```text
-# machines/adam.skills      (WSL2 workstation — search only, no heavy indexing)
+# machines/adam.skills      (WSL2 workstation — full set)
 perplexity-search
+mattpocock-skills
+book-to-skill
+pdf-deps
+latex-document-skill
 
-# machines/quark.skills     (Chuwi N150 laptop — same)
+# machines/quark.skills     (Chuwi N150 laptop — no mattpocock bundle)
 perplexity-search
+book-to-skill
+pdf-deps
+latex-document-skill
 
 # machines/cluster.skills   (HPC login node)
 # (intentionally empty: no class-C skills make sense on a shared cluster)
@@ -141,7 +148,12 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `frontend-design@claude-plugins-official` | B | Distinctive frontend interfaces |
 | `skill-creator@claude-plugins-official` | B | Create / evaluate / optimize skills |
 | `cli-anything@cli-anything` | B | CLI-Anything plugin (HKUDS/CLI-Anything) |
+| `document-skills@anthropic-agent-skills` | B | Official Anthropic pdf / xlsx / docx / pptx skills (Python deps via `pdf-deps` venv) |
 | `perplexity-search` | C | `.venv` + `litellm` — Perplexity search via OpenRouter |
+| `mattpocock-skills` | C | Matt Pocock skill bundle (diagnose, tdd, grill-*, …) — host: adam only |
+| `book-to-skill` | C | Convert books / documents into structured skills |
+| `pdf-deps` | C | Isolated venv (pypdf, pdfplumber, reportlab, …) backing the class-B `pdf` skill |
+| `latex-document-skill` | C | Community LaTeX skill — XeLaTeX/LuaLaTeX auto-detect, latexmk backend, isolated venv |
 
 ### HPC skill fleet
 

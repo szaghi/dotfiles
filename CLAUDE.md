@@ -80,7 +80,7 @@ script. Full design in `claude/.claude/skills/README.md`.
 | Class | Owner | Declared in | Examples |
 |---|---|---|---|
 | **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image` |
-| **B. Plugin / marketplace** | `claude plugin` CLI | `settings.json` → `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything` |
+| **B. Plugin / marketplace** | `claude plugin` CLI | `settings.json` → `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything`, `document-skills` |
 | **C. Third-party loose** | upstream installers | `claude/.claude/skills/manifest.toml` | `perplexity-search` (`.venv` + `litellm`) |
 
 Per-host filtering of class C: `machines/<hostname>.skills` (one skill name
