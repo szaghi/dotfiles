@@ -179,5 +179,4 @@ If the script fails, read the error message and address the issue before retryin
 - **scientific-schematics**: Use for technical diagrams, flowcharts, circuits, pathways
 - **generate-image**: Use for photos, illustrations, artwork, visual concepts
 - **scientific-slides**: Combine with generate-image for visually rich presentations
-- **latex-posters**: Use generate-image for poster visuals and hero images
 

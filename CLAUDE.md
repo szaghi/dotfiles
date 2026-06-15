@@ -79,7 +79,7 @@ script. Full design in `claude/.claude/skills/README.md`.
 
 | Class | Owner | Declared in | Examples |
 |---|---|---|---|
-| **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image`, `latex-posters` |
+| **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image` |
 | **B. Plugin / marketplace** | `claude plugin` CLI | `settings.json` → `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything` |
 | **C. Third-party loose** | upstream installers | `claude/.claude/skills/manifest.toml` | `perplexity-search` (`.venv` + `litellm`) |
 

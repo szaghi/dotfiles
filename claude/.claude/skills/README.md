@@ -134,7 +134,6 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 |---|---|---|
 | `fobis/` | A | `/fobis` slash command — FoBiS.py build tool expert |
 | `generate-image/` | A | FLUX / Nano Banana image generation |
-| `latex-posters/` | A | LaTeX poster (beamerposter / tikzposter / baposter) |
 | `markdown-mermaid-writing/` | A | Markdown + Mermaid diagram authoring |
 | `markitdown/` | A | Convert PDF / DOCX / PPTX / etc. to Markdown |
 | `research-lookup/` | A | Parallel Chat API + Perplexity research backend |
