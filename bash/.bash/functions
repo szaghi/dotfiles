@@ -141,3 +141,17 @@ hpc-login() {
   # HPC login via Step CLI + headless Playwright
   eval "$(ssh-agent -s)" && ~/.bin/hpc-login --headed "$@"
 }
+
+say() {
+  # Speak a word/phrase aloud with Piper neural TTS (US English, fluent voice).
+  # Usage:  say aerothermal            | say "Reynolds number"
+  #         say -v 3 turbine           | say --volume 0.5 "quiet please"
+  # Volume is a linear multiplier (1.0 = original). Default from $SAY_VOLUME,
+  # else 2.0. Set a permanent default with: export SAY_VOLUME=3   (in exports).
+  local vol="${SAY_VOLUME:-2.0}"
+  if [[ "$1" == "-v" || "$1" == "--volume" ]]; then vol="$2"; shift 2; fi
+  local voice="$HOME/.local/share/piper/voices/en_US-lessac-medium.onnx"
+  local wav="${TMPDIR:-/tmp}/say.wav"
+  echo "$*" | "$HOME/.venvs/tts/bin/piper" -m "$voice" -f "$wav" 2>/dev/null \
+    && ffplay -autoexit -nodisp -loglevel quiet -af "volume=${vol}" "$wav"
+}
