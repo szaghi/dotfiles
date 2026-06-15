@@ -84,3 +84,13 @@ check     = "test -L ~/.claude/skills/latex-document-skill && test -x ~/.local/s
 install   = "git clone --depth 1 https://github.com/ndpvt-web/latex-document-skill ~/.local/share/claude-skills/latex-document-skill && ln -sfn ~/.local/share/claude-skills/latex-document-skill ~/.claude/skills/latex-document-skill && python3 -m venv ~/.local/share/claude-skills/latex-venv && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet --upgrade pip && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet -r ~/.local/share/claude-skills/latex-document-skill/requirements.txt"
 update    = "git -C ~/.local/share/claude-skills/latex-document-skill pull --ff-only && ln -sfn ~/.local/share/claude-skills/latex-document-skill ~/.claude/skills/latex-document-skill && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet --upgrade -r ~/.local/share/claude-skills/latex-document-skill/requirements.txt"
 uninstall = "rm -f ~/.claude/skills/latex-document-skill; rm -rf ~/.local/share/claude-skills/latex-document-skill ~/.local/share/claude-skills/latex-venv"
+
+[skills.stop-slop]
+description = "Remove AI writing tells from prose (hardikpandya/stop-slop) — static markdown, no build"
+# Pure-prose skill: SKILL.md + references/*.md, MIT, NO scripts/venv/network.
+# book-to-skill pattern — clone to cache, symlink repo root. No build step;
+# `update` is a plain git pull (author iterates the banned-phrase lists).
+check     = "test -d ~/.local/share/claude-skills/stop-slop/.git"
+install   = "git clone --depth 1 https://github.com/hardikpandya/stop-slop ~/.local/share/claude-skills/stop-slop && ln -sfn ~/.local/share/claude-skills/stop-slop ~/.claude/skills/stop-slop"
+update    = "git -C ~/.local/share/claude-skills/stop-slop pull --ff-only && ln -sfn ~/.local/share/claude-skills/stop-slop ~/.claude/skills/stop-slop"
+uninstall = "rm -f ~/.claude/skills/stop-slop; rm -rf ~/.local/share/claude-skills/stop-slop"

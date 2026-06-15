@@ -95,12 +95,14 @@ mattpocock-skills
 book-to-skill
 pdf-deps
 latex-document-skill
+stop-slop
 
 # machines/quark.skills     (Chuwi N150 laptop — no mattpocock bundle)
 perplexity-search
 book-to-skill
 pdf-deps
 latex-document-skill
+stop-slop
 
 # machines/cluster.skills   (HPC login node)
 # (intentionally empty: no class-C skills make sense on a shared cluster)
@@ -154,6 +156,7 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `book-to-skill` | C | Convert books / documents into structured skills |
 | `pdf-deps` | C | Isolated venv (pypdf, pdfplumber, reportlab, …) backing the class-B `pdf` skill |
 | `latex-document-skill` | C | Community LaTeX skill — XeLaTeX/LuaLaTeX auto-detect, latexmk backend, isolated venv |
+| `stop-slop` | C | Remove AI writing tells from prose (static markdown, no build) |
 
 ### HPC skill fleet
 
