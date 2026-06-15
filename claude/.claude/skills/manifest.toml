@@ -48,3 +48,18 @@ check     = "test -d ~/.local/share/claude-skills/book-to-skill/.git"
 install   = "git clone --depth 1 https://github.com/virgiliojr94/book-to-skill ~/.local/share/claude-skills/book-to-skill && ln -sfn ~/.local/share/claude-skills/book-to-skill ~/.claude/skills/book-to-skill"
 update    = "git -C ~/.local/share/claude-skills/book-to-skill pull --ff-only && ln -sfn ~/.local/share/claude-skills/book-to-skill ~/.claude/skills/book-to-skill"
 uninstall = "rm -f ~/.claude/skills/book-to-skill; rm -rf ~/.local/share/claude-skills/book-to-skill"
+
+[skills.pdf-deps]
+description = "Python runtime for the official `pdf` skill (document-skills plugin) — isolated venv"
+# The official `pdf` skill (Class B plugin: document-skills@anthropic-agent-skills)
+# ships only instructions; it calls bare `python3` and shells out to system tools.
+# WSL2 system Python is externally-managed (PEP 668), so its libs go in a dedicated
+# venv here, NOT system site-packages. When running the skill's snippets, invoke
+# ~/.local/share/claude-skills/pdf-venv/bin/python explicitly (see SKILL note).
+# System binaries (qpdf, tesseract-ocr, poppler-utils) are apt-managed per host,
+# NOT owned here — apt isn't reproducible from this manifest by design.
+# `pdf2image`+`pytesseract` need poppler+tesseract on PATH at run time.
+check     = "test -x ~/.local/share/claude-skills/pdf-venv/bin/python && ~/.local/share/claude-skills/pdf-venv/bin/python -c 'import pypdf, pdfplumber, reportlab, pandas, pytesseract, pdf2image' 2>/dev/null"
+install   = "python3 -m venv ~/.local/share/claude-skills/pdf-venv && ~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet --upgrade pip && ~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet pypdf pdfplumber reportlab pandas pytesseract pdf2image"
+update    = "~/.local/share/claude-skills/pdf-venv/bin/pip install --quiet --upgrade pypdf pdfplumber reportlab pandas pytesseract pdf2image"
+uninstall = "rm -rf ~/.local/share/claude-skills/pdf-venv"
