@@ -48,7 +48,7 @@
   },
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
-  "tui": "fullscreen",
+  "tui": "default",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
   "agentPushNotifEnabled": true

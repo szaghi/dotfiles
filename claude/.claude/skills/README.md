@@ -147,6 +147,8 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `markitdown/` | A | Convert PDF / DOCX / PPTX / etc. to Markdown |
 | `research-lookup/` | A | Parallel Chat API + Perplexity research backend |
 | `scientific-writing/` | A | IMRAD manuscript / reporting-guideline workflow |
+| `darktable-raw/` | A | darktable 4.6 manual as a knowledge base (modules, scene-referred pipeline, darktable-cli) |
+| `darktable-operator/` | A | RAW post-processing workflow — Claude drives darktable-cli; prompt-controlled edit values via XMP patching (see its `USER-GUIDE.md`) |
 | `frontend-design@claude-plugins-official` | B | Distinctive frontend interfaces |
 | `skill-creator@claude-plugins-official` | B | Create / evaluate / optimize skills |
 | `cli-anything@cli-anything` | B | CLI-Anything plugin (HKUDS/CLI-Anything) |
