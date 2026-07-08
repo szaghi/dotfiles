@@ -9,7 +9,7 @@
       "Edit(/home/stefano/python/**)"
     ]
   },
-  "model": "opus",
+  "model": "fable",
   "hooks": {
     "SessionStart": [
       {
