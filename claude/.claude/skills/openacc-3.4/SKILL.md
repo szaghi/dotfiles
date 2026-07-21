@@ -60,6 +60,7 @@ This is the *specification*, not a tutorial — answers cite sections. For HPC p
 ### GPU practice traps (cross-referenced to your memory)
 - **`>100×` speedup ≈ a missing `wait`** before the timer (async returns immediately); time with `system_clock`, not `cpu_time`.
 - **Consumer NVIDIA GPUs**: 1:64 FP64:FP32 ratio → FP32-store/FP64-compute is *slower* than full FP64, not an optimization.
+- **nvfortran: `reduction` into a `declare create` module allocatable** → `CUDA_ERROR_LAUNCH_FAILED (719)` at launch (reduction epilogue addressed via the static global descriptor symbol, not the present-table pointer). Spec-conforming code; NVHPC defect. Reduce into a procedure-local array instead; `declare create` scalars and procedure-locals are unaffected. (CLAUDE-gpu.md → Compiler Pitfalls)
 
 ---
 

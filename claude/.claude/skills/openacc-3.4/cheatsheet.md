@@ -56,6 +56,7 @@
 - **Device library call gets host address** → wrap in `host_data use_device(...)`.
 - **`update` "does nothing"** → it doesn't allocate; data was never staged. Use `enter data`/`copyin` first or `if_present`.
 - **Consumer NVIDIA GPU, FP64 code slow** → 1:64 FP64:FP32 ratio (vs 1:2 datacenter); FP32-store/FP64-compute is a *trap*, strictly slower than full FP64. (reference_consumer_gpu_fp64_trap)
+- **nvfortran: launch error 719 on a reduction kernel** → the reduction target is a module allocatable with module-scope `declare create`; the combine is generated against the static descriptor symbol (invalid data pointer). `enter data` presence is irrelevant. Reduce into a procedure-local array (automatic or allocatable, procedure-scope `declare create`), copy to module storage on host. Spec-conforming code — NVHPC codegen defect. (CLAUDE-gpu.md → Compiler Pitfalls; Xall audit_l2res_openacc_reduction.md)
 
 ## MPI + OpenACC
 - Map ranks → GPUs via `ACC_DEVICE_NUM` (node-local rank) or `acc_set_device_num`.

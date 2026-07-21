@@ -2,14 +2,12 @@
   "permissions": {
     "allow": [
       "Read(/home/stefano/fortran/**)",
-      "Write(/home/stefano/fortran/**)",
       "Edit(/home/stefano/fortran/**)",
       "Read(/home/stefano/python/**)",
-      "Write(/home/stefano/python/**)",
       "Edit(/home/stefano/python/**)"
     ]
   },
-  "model": "fable",
+  "model": "claude-opus-4-8[1m]",
   "hooks": {
     "SessionStart": [
       {

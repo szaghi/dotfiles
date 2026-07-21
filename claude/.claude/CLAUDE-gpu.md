@@ -33,6 +33,7 @@ Which variables need `!$acc declare` in a module:
 
 - Module-level variables **cannot** use the `private` clause — this causes "No device symbol for address reference"; only local variables can be `private`
 - After allocating a module `allocatable` on the host, call `!$acc update device(arr)` to populate the device copy
+- **Exception — reduction targets**: a module `allocatable` with `declare create` must never be the target of a `reduction` clause (nvfortran kernel-launch failure; see Compiler Pitfalls below). Reduce into a procedure-local array, then copy to module storage on the host.
 
 ### Data Movement
 - Minimize host↔device transfers; maximize data reuse on device
@@ -165,4 +166,29 @@ C data pointer. This causes `errno=14 EFAULT` in HDF5 writes. Works at -O0/-O1 a
 explicit lb) and pass `nijk` directly. For scalar rank-3 fields use explicit-shape
 `q(ijk(1,1):ijk(2,1),...)` to bypass the descriptor entirely.
 Individual `-fno-*` flags do not isolate the trigger. Do not use allocatable copies as a workaround — allocation overhead is unacceptable in HPC hot paths.
+
+#### nvfortran bug: OpenACC reduction into a `declare create` module allocatable
+`reduction(+:arr(1:n))` targeting a **module allocatable that has module-scope
+`!$acc declare create`** fails at kernel launch with `CUDA_ERROR_LAUNCH_FAILED (719)`
+("invalid pointer dereference"). Verified 25.11 (`-acc=gpu -gpu=mem:managed,ccnative,fastmath`,
+RTX 4070/WSL2) and bisected in a standalone reproducer: `declare create` on the target is the
+poison; `enter data copyin` is irrelevant (fails with or without); the identical kernel with
+the same module allocatable *without* `declare create` runs correctly. Mechanism: nvfortran
+generates the reduction epilogue (cross-gang combine) through the static global device symbol —
+the device copy of the *descriptor* — instead of the present-table pointer; for descriptor-based
+allocatables that dereference is invalid. The code is conforming OpenACC 3.4; this is an NVHPC
+codegen defect.
+
+**Not affected**: `declare create` *scalars* (the symbol is the storage) and procedure-local
+arrays — automatic or allocatable — with procedure-scope `declare create`.
+
+**Fix pattern** (Xall `l2res`): local allocatable + procedure-scope `declare create` +
+per-call `allocate` → `enter data copyin` → kernel reduction → `update host` →
+`exit data delete` → `deallocate`; copy to module storage on the host if persistence is needed.
+
+**WSL2 corollary**: dropping the directives and relying on `-gpu=mem:managed` alone is not
+portable — `update host` on purely managed data is a `cuMemPrefetchAsync` to CPU, which fails
+with error 101 (`CUDA_ERROR_INVALID_DEVICE`) on WSL2.
+
+Full audit: `~/fortran/xall/Xall_GPU/audit_l2res_openacc_reduction.md`.
 
