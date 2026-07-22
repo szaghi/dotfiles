@@ -85,6 +85,38 @@ install   = "git clone --depth 1 https://github.com/ndpvt-web/latex-document-ski
 update    = "git -C ~/.local/share/claude-skills/latex-document-skill pull --ff-only && ln -sfn ~/.local/share/claude-skills/latex-document-skill ~/.claude/skills/latex-document-skill && ~/.local/share/claude-skills/latex-venv/bin/pip install --quiet --upgrade -r ~/.local/share/claude-skills/latex-document-skill/requirements.txt"
 uninstall = "rm -f ~/.claude/skills/latex-document-skill; rm -rf ~/.local/share/claude-skills/latex-document-skill ~/.local/share/claude-skills/latex-venv"
 
+[skills.remotion-best-practices]
+description = "Official Remotion agent skills (remotion-dev/skills) — umbrella skill: all 9 sub-skills for programmatic React video/infographics"
+# Installed via the `skills` CLI (vercel-labs/skills, run through npx — no global
+# npm install owned here). `add --copy` writes REAL directories (not symlinks)
+# into ~/.claude/skills/, so they coexist cleanly with the stow-managed skills
+# tree — do NOT clone-to-cache + symlink like the other class-C entries; the CLI
+# owns placement. --agent claude-code + --yes make it non-interactive.
+#
+# LAYOUT WART: `--skill '*'` does NOT nest under one umbrella dir. It installs
+# 10 SIBLING top-level skill dirs, each with its own SKILL.md (so Claude Code
+# discovers them individually): mediabunny, remotion-best-practices,
+# remotion-{captions,create,docs,interactivity,markup,render,saas,upgrade}. We
+# key this manifest entry on the name `remotion-best-practices` (the entry-point
+# skill that references the other 9); the sibling dirs will show under "class A —
+# custom" in `skills-apply status` because their names don't match the manifest
+# key — same known cosmetic wart as the mattpocock-skills bundle, not a bug.
+#
+# install == update: `add --copy` overwrites in place (that is how
+# vercel-labs/skills performs upgrades). Pinned to whatever the talks projects
+# run (Remotion 4.0.438 as of Jul 2026); re-running update tracks upstream.
+# SIDE EFFECT: the CLI also writes ~/.agents/.skill-lock.json (its own
+# agent-agnostic tracking file, outside ~/.claude and outside this repo) —
+# harmless. Our own conventions (Solarized role-swap, still-first infographics
+# workflow) will live in a SEPARATE class-A skill, NOT here.
+#
+# UNINSTALL removes all 10 dirs by name — `skills remove` with no --skill flag
+# operating on this repo would miss the siblings, so they are listed explicitly.
+check     = "test -f ~/.claude/skills/remotion-best-practices/SKILL.md"
+install   = "npx --yes skills@latest add remotion-dev/skills --global --agent claude-code --skill '*' --copy --yes"
+update    = "npx --yes skills@latest add remotion-dev/skills --global --agent claude-code --skill '*' --copy --yes"
+uninstall = "npx --yes skills@latest remove mediabunny remotion-best-practices remotion-captions remotion-create remotion-docs remotion-interactivity remotion-markup remotion-render remotion-saas remotion-upgrade --global --agent claude-code --yes"
+
 [skills.stop-slop]
 description = "Remove AI writing tells from prose (hardikpandya/stop-slop) — static markdown, no build"
 # Pure-prose skill: SKILL.md + references/*.md, MIT, NO scripts/venv/network.
