@@ -51,6 +51,7 @@
       }
     }
   },
+  "disableClaudeAiConnectors": true,
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
   "tui": "default",
