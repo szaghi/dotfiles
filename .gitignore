@@ -9,6 +9,7 @@ bash/.bash/private
 claude/.claude/.credentials.json
 claude/.claude/.env
 scripts/.bin/hpc-login-venv
+scripts/.config/systemd/user/*.target.wants/
 *.gpg
 *token*
 *secret*

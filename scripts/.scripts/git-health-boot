@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+#
+# git-health-boot -- run git-health only when the previous shutdown was unclean.
+#
+# Mechanism: a marker file on tmpfs (/run, wiped every boot). At boot this
+# script creates it; a clean shutdown removes it via the paired systemd unit's
+# ExecStop. If the marker is ALREADY present at boot, tmpfs was never cleared
+# by an orderly shutdown sequence -- meaning the previous session died without
+# running its stop job. That is the case worth scanning for.
+#
+# Report-only. Results go to the journal: journalctl -u git-health-boot
+#
+# A full scan of every repo costs minutes of saturated disk I/O, and you reboot
+# far more often than you crash. So this defaults to repos touched recently --
+# corruption from a crash lands in whatever was mid-write, which is by
+# definition recently active.
+
+set -uo pipefail
+
+# See git-health: keep a downstream `| head` from turning the 0/1 healthy/suspect
+# status into a SIGPIPE 141 that systemd would misreport as a failure.
+trap '' PIPE
+
+# Marker lives in the per-user runtime dir: user-owned, and tmpfs under /run so
+# it cannot survive a reboot. Plain /run is root-owned -- a *user* unit writing
+# there gets EACCES, the marker never appears, and every boot then looks clean
+# while no crash is ever detected. Verified the hard way.
+MARKER="${GIT_HEALTH_MARKER:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/git-health.boot-marker}"
+USER_HOME="${GIT_HEALTH_HOME:-$HOME}"
+DAYS="${GIT_HEALTH_BOOT_DAYS:-14}"
+SCAN="${GIT_HEALTH_BIN:-$USER_HOME/.scripts/git-health}"
+
+case "${1:-check}" in
+  clean)
+    # Invoked on orderly shutdown: remove the marker so the next boot is quiet.
+    rm -f "$MARKER" 2>/dev/null
+    echo "git-health-boot: clean shutdown recorded"
+    exit 0
+    ;;
+  check) ;;
+  *) echo "usage: git-health-boot [check|clean]" >&2; exit 2 ;;
+esac
+
+if [[ ! -x "$SCAN" ]]; then
+  echo "git-health-boot: scanner not found at $SCAN" >&2
+  exit 2
+fi
+
+# Arm the marker, loudly. A marker that cannot be written is not a cosmetic
+# problem: the detector would then report a clean boot forever and never once
+# notice a crash. Silent failure here defeats the entire mechanism.
+arm_marker() {
+  if ! : > "$MARKER" 2>/dev/null; then
+    echo "git-health-boot: ERROR cannot write marker $MARKER" >&2
+    echo "git-health-boot: crash detection is INOPERATIVE until this is fixed" >&2
+    return 1
+  fi
+  return 0
+}
+
+if [[ -e "$MARKER" ]]; then
+  # Marker survived on tmpfs => no clean-shutdown job ever ran.
+  echo "git-health-boot: previous shutdown was UNCLEAN -- scanning repos active in the last $DAYS days"
+  echo "git-health-boot: marker $MARKER dated $(stat -c %y "$MARKER" 2>/dev/null || echo unknown)"
+  if "$SCAN" --root "$USER_HOME" --days "$DAYS"; then
+    echo "git-health-boot: no corruption found."
+    rc=0
+  else
+    echo ""
+    echo "git-health-boot: SUSPECT REPOSITORIES FOUND -- see the report above."
+    echo "git-health-boot: nothing was modified; inspect and repair by hand."
+    rc=1
+  fi
+  # Re-arm for the next boot regardless of outcome.
+  arm_marker
+  exit "$rc"
+fi
+
+arm_marker
+echo "git-health-boot: clean boot -- marker armed, no scan needed"
+exit 0

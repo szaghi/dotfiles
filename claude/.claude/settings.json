@@ -8,6 +8,7 @@
     ]
   },
   "model": "opus",
+  "disableClaudeAiConnectors": true,
   "hooks": {
     "SessionStart": [
       {
@@ -51,7 +52,6 @@
       }
     }
   },
-  "disableClaudeAiConnectors": true,
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
   "tui": "default",

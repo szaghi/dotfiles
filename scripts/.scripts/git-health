@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+#
+# git-health -- report-only integrity scan for git repositories.
+#
+# Detects the corruption signature left by an unclean WSL2/host shutdown:
+# zero-length loose objects, refs pointing at absent objects, and packs that
+# fail a full connectivity walk. Metadata survives a writeback loss while the
+# data blocks do not, so a zero-length object file looks present to git and
+# poisons every read and write path that touches it.
+#
+# This script NEVER repairs. Repair needs judgement (staged-but-unwritten
+# blobs, silently no-op `git add`, deciding what is orphaned debris versus
+# reachable history) and an unattended fixer turns a recoverable problem into
+# an unrecoverable one. It reports; a human decides.
+#
+# Exit status: 0 = all scanned repos healthy, 1 = at least one suspect repo.
+
+set -uo pipefail
+
+# Downstream pagers (`| head`) close the pipe early; without this a SIGPIPE
+# propagates and the script exits 141, which systemd would report as a failure
+# rather than the intended 0/1 healthy/suspect status.
+trap '' PIPE
+
+ROOT="${GIT_HEALTH_ROOT:-$HOME}"
+MAXDEPTH="${GIT_HEALTH_MAXDEPTH:-6}"
+DAYS="${GIT_HEALTH_DAYS:-}"     # empty => scan every repo found
+DEEP=0
+QUIET=0
+
+usage() {
+  cat <<'EOF'
+Usage: git-health [OPTIONS]
+
+Report-only integrity scan of git repositories. Never modifies anything.
+
+Options:
+  -d, --days N     Only scan repos whose .git was modified in the last N days
+                   (default: all). Corruption from a crash lands in whatever
+                   was being written, so a recent-activity filter is both much
+                   cheaper and nearly as effective.
+  -r, --root DIR   Directory to search (default: $HOME)
+      --deep       Also run `git fsck --no-dangling`. Slower, and largely
+                   redundant with the connectivity walk already performed.
+  -q, --quiet      Print only suspect repos and the summary.
+  -h, --help       Show this help.
+
+Environment: GIT_HEALTH_ROOT, GIT_HEALTH_DAYS, GIT_HEALTH_MAXDEPTH.
+
+Exit: 0 if all scanned repos are healthy, 1 if any are suspect.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--days)  DAYS="${2:?--days needs a value}"; shift 2 ;;
+    -r|--root)  ROOT="${2:?--root needs a value}"; shift 2 ;;
+    --deep)     DEEP=1; shift ;;
+    -q|--quiet) QUIET=1; shift ;;
+    -h|--help)  usage; exit 0 ;;
+    *)          echo "git-health: unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+command -v git >/dev/null 2>&1 || { echo "git-health: git not found" >&2; exit 2; }
+
+say() { [[ $QUIET -eq 1 ]] || printf '%s\n' "$*"; }
+
+mapfile -t REPOS < <(
+  find "$ROOT" -maxdepth "$MAXDEPTH" -type d -name .git -not -path '*/.git/*' 2>/dev/null |
+    sed 's|/\.git$||' | sort
+)
+
+if [[ ${#REPOS[@]} -eq 0 ]]; then
+  echo "git-health: no git repositories found under $ROOT" >&2
+  exit 0
+fi
+
+say "git-health: scanning under $ROOT"
+[[ -n "$DAYS" ]] && say "           (restricted to repos active in the last $DAYS days)"
+
+scanned=0
+skipped=0
+suspect=0
+SUSPECT_REPORT=""
+
+for repo in "${REPOS[@]}"; do
+  gitdir="$repo/.git"
+  [[ -d "$gitdir" ]] || gitdir="$repo"
+
+  # A bare `info/` with no HEAD and no config is a stray `git init`, not a repo.
+  if [[ ! -e "$gitdir/HEAD" && ! -e "$gitdir/config" ]]; then
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  if [[ -n "$DAYS" ]]; then
+    if [[ -z "$(find "$gitdir" -maxdepth 1 -newermt "-${DAYS} days" -print -quit 2>/dev/null)" ]]; then
+      skipped=$((skipped + 1))
+      continue
+    fi
+  fi
+
+  scanned=$((scanned + 1))
+  problems=()
+
+  # 1. Zero-length loose objects. The primary writeback-loss signature: git
+  #    sees the filename, assumes the object exists, then dies reading it.
+  empties=$(find "$gitdir/objects" -type f -size 0 -path '*/??/*' 2>/dev/null | wc -l)
+  [[ "$empties" -gt 0 ]] && problems+=("$empties zero-length loose object(s)")
+
+  # 2. HEAD must resolve to an object that actually exists. An unborn branch in
+  #    a freshly-initialised repo is legitimate, not corruption.
+  if ! git -C "$repo" rev-parse --verify --quiet HEAD >/dev/null 2>&1; then
+    if [[ -z "$(git -C "$repo" for-each-ref --format='%(refname)' 2>/dev/null)" ]]; then
+      : # no refs at all => fresh repo, nothing committed yet
+    else
+      problems+=("HEAD does not resolve (bad object / broken ref)")
+    fi
+  fi
+
+  # 3. Any ref pointing at a missing object. for-each-ref reports these on
+  #    stderr while still exiting 0, so inspect the text rather than the status.
+  referr=$(git -C "$repo" for-each-ref --format='%(objectname)' 2>&1 >/dev/null)
+  if printf '%s' "$referr" | grep -q 'missing object'; then
+    nbad=$(printf '%s' "$referr" | grep -c 'missing object')
+    problems+=("$nbad ref(s) point at missing objects")
+  fi
+
+  # 4. Graph walk: catches refs and commits pointing at objects that are gone.
+  if ! err=$(git -C "$repo" rev-list --objects --all 2>&1 >/dev/null); then
+    problems+=("object graph walk failed: $(printf '%s' "$err" | head -1)")
+  fi
+
+  # 5. Full decompression of every object. This is the load-bearing check.
+  #    Test 1 is vacuous on a fully packed repo, and the walk above reads only
+  #    object HEADERS -- a repo whose pack is shredded (checksum/CRC/inflate
+  #    errors, content unreadable) still exits 0 from rev-list. Verified: only
+  #    a full `cat-file --batch` inflates payloads and actually fails.
+  if ! err=$(git -C "$repo" cat-file --batch-all-objects --unordered --buffer \
+                 --batch 2>&1 >/dev/null); then
+    problems+=("object decompression failed: $(printf '%s' "$err" | head -1)")
+  fi
+
+  # 6. Leftover temp pack => a fetch/gc was interrupted mid-write. Only
+  #    meaningful when no git process is currently running.
+  tmps=$(find "$gitdir/objects/pack" -maxdepth 1 -name 'tmp_pack_*' 2>/dev/null | wc -l)
+  if [[ "$tmps" -gt 0 ]] && ! pgrep -x git >/dev/null 2>&1; then
+    problems+=("$tmps leftover tmp_pack_* (interrupted fetch/gc)")
+  fi
+
+  if [[ $DEEP -eq 1 ]]; then
+    if ! err=$(git -C "$repo" fsck --no-dangling --no-progress 2>&1 >/dev/null); then
+      problems+=("fsck: $(printf '%s' "$err" | head -1)")
+    fi
+  fi
+
+  if [[ ${#problems[@]} -gt 0 ]]; then
+    suspect=$((suspect + 1))
+    SUSPECT_REPORT+="  ${repo/#$HOME/\~}"$'\n'
+    for p in "${problems[@]}"; do SUSPECT_REPORT+="      - $p"$'\n'; done
+  fi
+done
+
+say ""
+if [[ $suspect -eq 0 ]]; then
+  say "git-health: OK -- $scanned repo(s) healthy, $skipped skipped."
+  exit 0
+fi
+
+echo "git-health: $suspect of $scanned scanned repo(s) SUSPECT ($skipped skipped)"
+echo ""
+printf '%s' "$SUSPECT_REPORT"
+cat <<'EOF'
+
+No changes were made -- this scan is report-only by design.
+
+Before touching anything, confirm what is actually lost:
+  git -C <repo> fsck --no-dangling          # full error list
+  git -C <repo> rev-list --objects HEAD     # is real history reachable?
+  git -C <repo> ls-files --stage            # staged blobs may be among the dead
+
+Zero-length objects are not always orphaned debris: they can be blobs you have
+staged but not committed, in which case the working-tree file is the only
+surviving copy. Verify with `git hash-object <file>` against the staged SHA
+before deleting anything, and prefer moving suspect objects aside over `rm`.
+EOF
+exit 1

@@ -40,7 +40,7 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 - **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, plugconf, spell, syntax). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
 - **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
 - **`modules/`** — Lmod modulefiles in `.modules/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants). Load with `module load gcc/15.1.0`.
-- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, etc.) and `.bin/act`. The `bd` script is vendored here.
+- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, `git-health`, etc.) and `.bin/act`. The `bd` script is vendored here. Also ships systemd **user** units in `.config/systemd/user/`.
 - **`python/`** — `.pythonrc`, `.pylintrc`
 - **`miscellanea/`** — `.latexmkrc`
 - **`usr/`** — Desktop application entries in `.local/share/applications/` (machine-specific, see `machines/`)
@@ -154,6 +154,53 @@ bash dotify.sh claude
 
 `/<name>` is then available on this host immediately and on other hosts on
 their next `git pull && bash dotify.sh claude`.
+
+## Git Integrity Scanning (`~/.scripts/git-health`)
+
+Report-only detector for repositories damaged by an unclean WSL2/host shutdown.
+An abrupt reset can lose unflushed writeback while leaving metadata intact, so
+git sees zero-length object files it believes are present and dies on every
+read and write that touches them (`fatal: bad object HEAD`). Full rationale,
+recovery playbook and design notes: `scripts/.scripts/git-health.md`.
+
+| File | Deployed to | Role |
+|---|---|---|
+| `scripts/.scripts/git-health` | `~/.scripts/git-health` | The scanner. Report-only, usable by hand. |
+| `scripts/.scripts/git-health-boot` | `~/.scripts/git-health-boot` | Dirty-boot gate — runs the scanner only after an unclean shutdown |
+| `scripts/.config/systemd/user/git-health-boot.service` | `~/.config/systemd/user/` | systemd **user** unit; arms a marker at start, disarms at clean stop |
+
+```bash
+git-health                 # every repo under $HOME (slow)
+git-health -d 7            # only repos touched in the last 7 days (fast)
+git-health -r ~/fortran    # limit to one tree
+git-health --deep          # additionally run `git fsck`
+```
+
+Exit status: `0` all healthy, `1` at least one suspect, `2` usage error.
+
+Enable the automatic post-crash check once per host:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now git-health-boot.service
+journalctl --user -u git-health-boot -b     # read the results
+```
+
+### Things to know when editing
+
+- **It never repairs, and must stay that way.** Repair needs judgement: during
+  the 2026-07-31 incident that motivated this, 4 of 13 "orphaned" empty objects
+  were blobs staged but not committed — the working-tree files were the only
+  surviving copies. An unattended fixer would have destroyed real work.
+- The unit enforces this structurally, not by good intentions: `ProtectHome=read-only`
+  means the scan *cannot* modify a repository. Do not relax it.
+- `SuccessExitStatus=0 1` is load-bearing — exit 1 means "suspect repos found",
+  a report rather than a unit malfunction.
+- The marker must live in `$XDG_RUNTIME_DIR`, not plain `/run`: a *user* unit
+  writing to root-owned `/run` gets EACCES, the marker never appears, and every
+  boot then looks clean while no crash is ever detected.
+- Both scripts `trap '' PIPE` — a downstream `| head` would otherwise turn the
+  0/1 healthy/suspect status into a SIGPIPE 141 that systemd misreports.
 
 ## HPC Lmod Environments
 

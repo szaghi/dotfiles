@@ -1,0 +1,51 @@
+[Unit]
+# Report-only git integrity scan, triggered only after an unclean shutdown.
+#
+# WHY THIS EXISTS: an abrupt WSL2/host reset can lose unflushed writeback while
+# leaving filesystem metadata intact. Git then sees zero-length object files it
+# believes are present, and dies on every read and write that touches them
+# ("fatal: bad object HEAD"). Git hooks cannot catch this -- a crash runs no
+# hooks -- so the trigger has to be boot, not a git event.
+#
+# DIRTY-BOOT DETECTION: /run is tmpfs and is wiped on every boot. ExecStart
+# arms a marker there; ExecStop removes it during an orderly shutdown. A marker
+# still present at ExecStart means the previous session never ran its stop job,
+# i.e. it died. Only then does the scan run.
+#
+# Inspect results with:  journalctl --user -u git-health-boot -b
+Description=Report-only git repository integrity scan after unclean shutdown
+Documentation=man:git-fsck(1)
+After=default.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# `check` arms the marker and, if it was already armed, runs the scan.
+ExecStart=%h/.scripts/git-health-boot check
+# Runs on orderly shutdown/logout; disarms the marker so the next boot is quiet.
+ExecStop=%h/.scripts/git-health-boot clean
+
+# Exit 1 means "suspect repos found" -- a report, not a unit malfunction.
+# Without this the service would show as failed and could trip other alerting.
+SuccessExitStatus=0 1
+
+# Never let an integrity scan compete with interactive work.
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+
+# Report-only: the scan must never be able to modify a repository.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+NoNewPrivileges=yes
+ReadWritePaths=%t
+
+# Scan repos touched in the last N days. Corruption from a crash lands in
+# whatever was mid-write, so recent activity is the right filter; a full sweep
+# of every repo costs minutes of saturated I/O on every dirty boot.
+Environment=GIT_HEALTH_BOOT_DAYS=14
+
+[Install]
+WantedBy=default.target

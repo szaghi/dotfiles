@@ -1,0 +1,29 @@
+# shellcheck configuration for this repository.
+#
+# Scope: the two rules below are OPTIONAL checks -- they are off unless someone
+# runs `shellcheck -o all`. They are disabled here so that an `-o all` run stays
+# useful (signal, not 40 lines of noise) rather than being abandoned entirely.
+# Every check enabled by default remains enabled; nothing real is suppressed.
+
+# SC2250 -- "prefer ${var} over $var even when not required".
+# Pure cosmetics: bash expands $repo and ${repo} identically, and the brace form
+# only matters when a character that could continue the identifier follows.
+# Honouring it would touch nearly every line of every script here to change no
+# behaviour whatsoever. House style in this repo is bare $var, braces only where
+# they disambiguate (${var}_suffix, ${arr[@]}, ${var:-default}).
+disable=SC2250
+
+# SC2312 -- "consider invoking this command separately to avoid masking its
+# return value".
+# The masking is deliberate wherever it appears here. `find ... 2>/dev/null |
+# wc -l` must count zero for an unreadable directory rather than abort the
+# caller; `stat ... || echo unknown` already handles its own failure. Obeying
+# this rule would make the scripts MORE brittle at exactly the moments they are
+# written to survive -- see scripts/.scripts/git-health.
+disable=SC2312
+
+# NOTE: shellcheck reads .shellcheckrc from the working directory, or from the
+# checked file's directory walking upward. Stow-deployed scripts are covered:
+# verified that `cd /tmp && shellcheck -o all ~/.scripts/git-health-boot` picks
+# this file up, because the symlink resolves back into this repo before the
+# upward walk. Bypass it with `shellcheck --norc` to see the raw output.
