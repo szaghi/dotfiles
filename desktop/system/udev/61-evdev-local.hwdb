@@ -1,0 +1,18 @@
+# Chuwi MiniBook X - SIPODEV/Hantick 0911:5288 touchpad
+#
+# Upstream 60-evdev.hwdb sets fuzz only on ABS_X/ABS_Y (axes 00/01).
+# This is a multitouch device: libinput reads motion from
+# ABS_MT_POSITION_X/Y (axes 35/36 hex), which upstream leaves at fuzz=0,
+# so the axes that actually drive the pointer have no hysteresis.
+#
+# NOTE: the match pattern must differ from upstream's, otherwise hwdb
+# merges the two entries and upstream's properties win. The trailing
+# 'Touchpad:*' (vs upstream's 'Touchpad:dmi:') keeps this entry distinct
+# while still matching the same device.
+#
+# Field order: EVDEV_ABS_<axis>=<min>:<max>:<res>:<fuzz>:<flat>
+evdev:name:XXXX0000:05 0911:5288 Touchpad:*
+ EVDEV_ABS_00=:::8
+ EVDEV_ABS_01=:::8
+ EVDEV_ABS_35=:::8
+ EVDEV_ABS_36=:::8

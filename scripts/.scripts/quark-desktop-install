@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# quark-desktop-install -- apply the parts of the quark desktop setup that stow
+# cannot: root-owned system files and one-shot GUI-managed state.
+#
+# Everything else in the `desktop` package is a plain symlink and needs nothing
+# beyond `dotify.sh desktop`. This script covers the remainder:
+#
+#   1. the touchpad hwdb entry, which lives under /etc and needs root
+#   2. a reminder of the Noctalia template set, which is GUI-managed and has no
+#      supported config-file representation (see the note in the README)
+#
+# Idempotent: re-running it is safe and reports what was already in place.
+#
+# Exit status: 0 = everything applied or already present, 1 = a step failed.
+
+set -uo pipefail
+
+DOT="${DOT:-$HOME/dotfiles}"
+HWDB_SRC="$DOT/desktop/etc/udev/hwdb.d/61-evdev-local.hwdb"
+HWDB_DST="/etc/udev/hwdb.d/61-evdev-local.hwdb"
+TOUCHPAD_NAME="XXXX0000:05 0911:5288 Touchpad"
+
+status=0
+
+say() { printf '%s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+
+# --- 1. touchpad fuzz hwdb -------------------------------------------------
+# libinput reads fuzz only at device init, so a plain `swaymsg reload` does not
+# apply this; it needs `udevadm trigger` or a relogin.
+if [ ! -f "$HWDB_SRC" ]; then
+    warn "hwdb source missing: $HWDB_SRC"
+    status=1
+elif cmp -s "$HWDB_SRC" "$HWDB_DST" 2>/dev/null; then
+    say "touchpad hwdb: already current"
+else
+    say "touchpad hwdb: installing (needs root)"
+    if sudo cp "$HWDB_SRC" "$HWDB_DST" &&
+       sudo systemd-hwdb update; then
+        # Re-trigger the touchpad so the new fuzz takes effect without a relogin.
+        dev=$(grep -l "$TOUCHPAD_NAME" /sys/class/input/event*/device/name 2>/dev/null |
+              head -1 | grep -oE 'event[0-9]+')
+        if [ -n "${dev:-}" ]; then
+            sudo udevadm trigger "/dev/input/$dev" && say "  triggered /dev/input/$dev"
+        else
+            warn "  touchpad device not found; relogin to apply"
+        fi
+    else
+        warn "  hwdb install failed"
+        status=1
+    fi
+fi
+
+# --- 2. verify the fuzz actually landed ------------------------------------
+dev=$(grep -l "$TOUCHPAD_NAME" /sys/class/input/event*/device/name 2>/dev/null |
+      head -1 | grep -oE 'event[0-9]+')
+if [ -n "${dev:-}" ]; then
+    n=$(udevadm info --name="/dev/input/$dev" 2>/dev/null | grep -c 'LIBINPUT_FUZZ')
+    if [ "$n" -eq 4 ]; then
+        say "touchpad fuzz: 4/4 axes set"
+    else
+        warn "touchpad fuzz: $n/4 axes set (expected 4) — relogin may be required"
+    fi
+fi
+
+# --- 3. GUI-managed state ---------------------------------------------------
+# Noctalia stores its enabled-template set in a GUI-managed store with no
+# documented settings.toml representation (a hand-written [templates] section is
+# rejected by `noctalia config validate`). It cannot be provisioned from here.
+if command -v noctalia >/dev/null 2>&1; then
+    say ""
+    say "Noctalia templates are GUI-managed and must be enabled by hand, once:"
+    say "  settings -> Templates: gtk3, gtk4, qt, foot, alacritty, btop, sway"
+    say "Then run: noctalia-retheme"
+fi
+
+exit "$status"

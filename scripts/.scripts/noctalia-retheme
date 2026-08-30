@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Switch Noctalia palette (or re-apply the current one) and re-run the local
+# patches that Noctalia's templates would otherwise clobber.
+#
+#   noctalia-retheme                          re-apply current palette + patches
+#   noctalia-retheme builtin Nord             switch to a builtin scheme
+#   noctalia-retheme community Oxocarbon      switch to a cached community palette
+#   noctalia-retheme --list                   show available schemes
+#
+# Patches applied (see ~/.config/noctalia/patches/README.md):
+#   * qt6ct disabled_colors  — always; Noctalia emits them identical to active
+#   * foot bright0           — only when vim uses a colorscheme that maps
+#                              base03/ANSI-8 to the Normal background (solarized)
+set -euo pipefail
+
+BUILTINS="Catppuccin Dracula Gruvbox Kanagawa Nord Oxocarbon"
+PALETTE_DIR="$HOME/.local/state/noctalia/community-palettes"
+
+if [ "${1:-}" = "--list" ]; then
+    printf 'builtin:\n'
+    for b in $BUILTINS; do printf '  %s\n' "$b"; done
+    printf 'community:\n'
+    for f in "$PALETTE_DIR"/*.json; do
+        [ -e "$f" ] || continue
+        printf '  %s\n' "$(basename "$f" .json)"
+    done
+    printf '\ncurrent: %s\n' "$(noctalia msg color-scheme-get)"
+    exit 0
+fi
+
+if [ $# -ge 2 ]; then
+    printf 'switching palette -> %s %s\n' "$1" "$2"
+    noctalia msg color-scheme-set "$1" "$2"
+    sleep 1
+    # color-scheme-set persists to settings.toml but the daemon keeps rendering
+    # templates from its previously loaded palette; without this reload the
+    # generated files come out with the OLD colours.
+    printf 'reloading daemon config...\n'
+    noctalia msg config-reload
+    sleep 2
+fi
+
+printf 'applying templates...\n'
+noctalia msg templates-apply
+
+# templates-apply returns immediately; Noctalia writes the files asynchronously.
+# Wait until the generated files stop changing before patching them, otherwise the
+# patches read stale content and no-op.
+settle() {
+    # templates-apply returns immediately and Noctalia writes the files
+    # asynchronously (sway is consistently last). Wait until the set of file
+    # checksums stops changing. Content hashing rather than mtime, because
+    # Noctalia skips rewriting a file whose content would be identical.
+    local files=(
+        "$HOME/.config/qt6ct/colors/noctalia.conf"
+        "$HOME/.config/foot/themes/noctalia"
+        "$HOME/.config/sway/noctalia"
+        "$HOME/.config/btop/themes/noctalia.theme"
+        "$HOME/.config/gtk-3.0/noctalia.css"
+    )
+    local prev="" cur="" stable=0
+    sleep 2                             # let the first writes begin
+    for _ in $(seq 1 48); do            # then up to ~12s more
+        cur=$(md5sum "${files[@]}" 2>/dev/null | md5sum)
+        if [ "$cur" = "$prev" ]; then
+            stable=$((stable + 1))
+            [ "$stable" -ge 6 ] && return 0   # ~1.5s unchanged
+        else
+            stable=0
+        fi
+        prev="$cur"
+        sleep 0.25
+    done
+}
+
+settle
+
+printf 'patching qt6ct disabled colors...\n'
+noctalia-qt-dim-disabled || printf '  (skipped)\n'
+
+# foot bright0: only matters when vim's colorscheme paints Normal from ANSI 8.
+# Solarized does; most others set an explicit background instead.
+scheme=$(grep -oP '^\s*colorscheme\s+\K\S+' "$HOME/.vimrc" 2>/dev/null || true)
+case "$scheme" in
+    solarized*)
+        printf 'patching foot bright0 (vim colorscheme is %s)...\n' "$scheme"
+        noctalia-foot-fix-bright0 || printf '  (skipped)\n'
+        ;;
+    *)
+        printf 'skipping foot bright0 patch (vim colorscheme is %s, not solarized)\n' "${scheme:-unset}"
+        ;;
+esac
+
+printf '\ndone. Restart to see changes:\n'
+printf '  foot / alacritty : open a new window\n'
+printf '  GTK / Qt apps    : restart the app\n'
+printf '  sway borders     : swaymsg reload\n'
+printf '  btop             : already signalled by its own hook\n'

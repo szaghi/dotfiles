@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""Restore canonical Solarized base03 in Noctalia's generated foot theme.
+
+Noctalia emits bright0 (ANSI 8) as a lifted slate (#335e69) rather than
+Solarized's canonical #002b36. Solarized's vim colorscheme maps base03 -> ANSI 8
+and uses it as the Normal background, so the lifted value repaints vim's entire
+editor area in washed-out slate instead of near-black.
+
+This sets bright0 equal to the theme's own `background` value, which is correct
+for any Solarized-family palette and a no-op for palettes where they already match.
+
+Trade-off: "bright black" (ANSI 8 / SGR 90) text becomes invisible against the
+background. That is how canonical Solarized behaves.
+
+Re-run after any Noctalia palette change or `noctalia msg templates-apply`.
+Idempotent.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+THEME = Path.home() / ".config/foot/themes/noctalia"
+
+
+def main() -> int:
+    if not THEME.is_file():
+        print(f"error: {THEME} not found", file=sys.stderr)
+        return 1
+
+    lines = THEME.read_text().splitlines(keepends=True)
+
+    background = None
+    for line in lines:
+        if line.startswith("background="):
+            background = line.partition("=")[2].strip()
+            break
+
+    if not background:
+        print("error: no background= line found", file=sys.stderr)
+        return 1
+
+    target = f"bright0={background}\n"
+    for i, line in enumerate(lines):
+        if line.startswith("bright0="):
+            if line == target:
+                print(f"bright0 already {background}; nothing to do")
+                return 0
+            lines[i] = target
+            THEME.write_text("".join(lines))
+            print(f"bright0 -> {background} in {THEME}")
+            return 0
+
+    print("error: no bright0= line found", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

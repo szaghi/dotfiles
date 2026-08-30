@@ -16,3 +16,16 @@ scripts/.config/systemd/user/*.target.wants/
 *api-key*
 *api_key*
 openrouter-ai-key
+
+# Noctalia-generated theme files — rendered from the active palette on every
+# `templates-apply`. Tracking them would put churn in git and, worse, a stow
+# symlink would make Noctalia write its output straight into the repo.
+desktop/.config/sway/noctalia
+desktop/.config/foot/themes/
+desktop/.config/alacritty/themes/
+desktop/.config/gtk-3.0/noctalia.css
+desktop/.config/gtk-4.0/noctalia.css
+desktop/.config/qt6ct/colors/
+desktop/.config/btop/themes/
+desktop/.config/starship.toml
+

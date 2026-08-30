@@ -50,3 +50,9 @@ if [ -f /usr/share/lmod/lmod/init/bash ]; then
   source /usr/share/lmod/lmod/init/bash
 fi
 export MODULEPATH="$HOME/.modules"
+
+# GnuPG — the agent needs to know which terminal to draw the pinentry prompt on.
+# Without this, signing fails with "Inappropriate ioctl for device" (or silently
+# finds no TTY) in any non-graphical context. See ~/.gnupg/gpg-agent.conf.
+GPG_TTY=$(tty)
+export GPG_TTY

@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Dim the disabled_colors row in Noctalia's generated qt6ct palette.
+
+Noctalia's Qt template emits disabled_colors byte-identical to active_colors,
+so disabled widgets are indistinguishable from enabled ones. This blends the
+foreground roles toward the window background, leaving every background role
+untouched so disabled controls stay on the same surface.
+
+Re-run after any Noctalia palette change or `noctalia msg templates-apply`.
+Idempotent: running it twice is a no-op.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+CONF = Path.home() / ".config/qt6ct/colors/noctalia.conf"
+
+# QPalette role order used by qt6ct's *_colors rows.
+ROLES = (
+    "windowText button light midlight dark mid text brightText buttonText "
+    "base window shadow highlight highlightedText link linkVisited "
+    "alternateBase noIdea toolTipBase toolTipText placeholderText accent"
+).split()
+
+# Foreground roles -> how far to blend toward the background (0=unchanged, 1=invisible).
+FADE = {
+    "windowText": 0.36,
+    "text": 0.36,
+    "buttonText": 0.36,
+    "brightText": 0.42,
+    "highlightedText": 0.42,
+    "toolTipText": 0.36,
+    "placeholderText": 0.50,
+}
+WINDOW = "window"      # background the fade blends toward
+HIGHLIGHT = "highlight"  # disabled selection loses its accent
+ALT_BASE = "alternateBase"
+
+
+def _rgb(h: str) -> tuple[int, int, int]:
+    h = h.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def _hex(c: tuple[int, int, int]) -> str:
+    return "#{:02x}{:02x}{:02x}".format(*c)
+
+
+def _blend(fg: str, bg: str, t: float) -> str:
+    a, b = _rgb(fg), _rgb(bg)
+    return _hex(tuple(round(x + (y - x) * t) for x, y in zip(a, b, strict=True)))
+
+
+def dim(active: list[str]) -> list[str]:
+    idx = {r: i for i, r in enumerate(ROLES)}
+    out = list(active)
+    bg = active[idx[WINDOW]]
+    for role, t in FADE.items():
+        out[idx[role]] = _blend(active[idx[role]], bg, t)
+    out[idx[HIGHLIGHT]] = active[idx[ALT_BASE]]
+    return out
+
+
+def main() -> int:
+    if not CONF.is_file():
+        print(f"error: {CONF} not found", file=sys.stderr)
+        return 1
+
+    lines = CONF.read_text().splitlines(keepends=True)
+    active: list[str] | None = None
+    for line in lines:
+        if line.startswith("active_colors="):
+            active = [v.strip() for v in line.partition("=")[2].split(",")]
+            break
+
+    if active is None or len(active) != len(ROLES):
+        print(
+            f"error: could not read a {len(ROLES)}-value active_colors row",
+            file=sys.stderr,
+        )
+        return 1
+
+    new_row = "disabled_colors=" + ", ".join(dim(active)) + "\n"
+
+    changed = False
+    for i, line in enumerate(lines):
+        if line.startswith("disabled_colors="):
+            if line == new_row:
+                print("already dimmed; nothing to do")
+                return 0
+            lines[i] = new_row
+            changed = True
+            break
+
+    if not changed:
+        print("error: no disabled_colors row found", file=sys.stderr)
+        return 1
+
+    CONF.write_text("".join(lines))
+    print(f"dimmed disabled_colors in {CONF}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

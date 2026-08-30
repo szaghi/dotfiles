@@ -1,0 +1,3 @@
+# Not a $HOME path: root-owned system files, installed by
+# ~/.scripts/quark-desktop-install rather than symlinked.
+^/system$

@@ -43,6 +43,7 @@
     - [Per-filetype configuration](#per-filetype-configuration)
     - [Key mappings reference](#key-mappings-reference)
   - [git](#git)
+    - [GPG commit signing](#gpg-commit-signing)
   - [modules — HPC environments](#modules--hpc-environments)
   - [claude](#claude)
     - [Layout](#layout)
@@ -63,6 +64,7 @@
   - [scripts](#scripts)
     - [skills-apply — Claude Code skills sync](#skills-apply--claude-code-skills-sync)
     - [mbox-index — searchable Gmail archive](#mbox-index--searchable-gmail-archive)
+  - [desktop — quark's sway + Noctalia session](#desktop--quarks-sway--noctalia-session)
 - [Extending the dotfiles](#extending-the-dotfiles)
   - [Adding a file to an existing package](#adding-a-file-to-an-existing-package)
   - [Creating a new stow package](#creating-a-new-stow-package)
@@ -94,6 +96,20 @@
 | **lesspipe** | Rich pager for binary files | `pacman -S lesspipe` | `apt install lesspipe` |
 | **python3** | Claude Code status line, helper scripts | `pacman -S python` | `apt install python3` |
 | **curl** | Ollama API calls in `claude_code` helpers | pre-installed | `apt install curl` |
+
+### Desktop — quark only (CachyOS, sway + Noctalia)
+
+Not needed on adam (WSL2, no desktop session).
+
+| Tool | Purpose | Arch / CachyOS |
+|---|---|---|
+| **sway** | Wayland compositor | `pacman -S sway` |
+| **noctalia** | Desktop shell — bar, launcher, notifications, lock screen; renders the colour palette into other apps' configs | AUR / upstream |
+| **foot** | Terminal (`$term`) | `pacman -S foot` |
+| **adw-gtk-theme** | GTK theme the Noctalia hook selects — note the package is **`adw-gtk-theme`**, *not* `adw-gtk3`, which does not exist in the repos | `pacman -S adw-gtk-theme` |
+| **qt6ct** | Qt6 platform theme — reads the generated palette. `qt5ct` is deliberately **not** installed: there is no `qt5-base` on this machine | `pacman -S qt6ct` |
+| **btop** | System monitor, themed via template | `pacman -S btop` |
+| **grim** / **slurp** | Screenshots (`Print`, and region capture) | `pacman -S grim slurp` |
 
 ### HPC toolchains — manual install, loaded via Lmod
 
@@ -663,6 +679,35 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ---
 
+#### GPG commit signing
+
+`commit.gpgsign = true` is set repo-wide in `git/.gitconfig`; the key itself is
+**per machine**, declared in `bash-<machine>/.gitconfig.local` (symlinked to
+`~/.gitconfig.local`). adam and quark therefore carry different keys — a key is
+tied to the machine that holds its secret half, not to the identity.
+
+Two pieces have to be present or signing fails:
+
+1. **The secret key.** A fresh machine has an empty keyring, and `git commit` fails
+   with `gpg: skipped "<id>": No secret key`. Either import the existing key or
+   generate a new one for that machine and update its `.gitconfig.local`:
+
+   ```bash
+   gpg --quick-generate-key "Stefano Zaghi <stefano.zaghi@gmail.com>" ed25519 sign never
+   gpg --list-secret-keys --keyid-format=long     # take the 16-hex id
+   gpg --armor --export <id>                      # paste into GitHub → SSH and GPG keys
+   ```
+
+2. **`GPG_TTY`.** The agent needs to know which terminal to draw the pinentry
+   prompt on; without it signing fails with `Inappropriate ioctl for device`.
+   Exported from `bash/.bash/exports`, with `~/.gnupg/gpg-agent.conf` selecting
+   `pinentry-curses` so it also works over ssh and in a bare TTY.
+
+The revocation certificate generated alongside the key
+(`~/.gnupg/openpgp-revocs.d/<fingerprint>.rev`) is what revokes the key if it is
+ever compromised. It is **not** in this repo and must not be — back it up somewhere
+private and offline.
+
 ### modules — HPC environments
 
 [Lmod](https://lmod.readthedocs.io/) manages compiler toolchains.
@@ -784,7 +829,8 @@ session. It encodes:
   NumPy-style docstrings for scientific code, Makefile as standard dev
   interface, `.venv` always, `git-cliff` for changelogs.
 - **Commit rules** — Conventional Commits; never `Co-authored-by` lines
-  for AI; never auto-commit; GPG signing disabled (no TTY).
+  for AI; never auto-commit. Claude cannot sign: its shell has no TTY, so the
+  pinentry prompt cannot be drawn — commits are written by hand.
 
 **`settings.json`** configures the runtime:
 
@@ -1188,6 +1234,65 @@ steps — is in **[`scripts/.scripts/mbox-index.md`](scripts/.scripts/mbox-index
 ---
 
 ---
+
+### desktop — quark's sway + Noctalia session
+
+Machine-specific (`machines/quark`); adam never stows it. quark runs **CachyOS** with
+**sway** and the **Noctalia** desktop shell, which replaced waybar and supplies the bar,
+launcher, notifications, OSDs and lock screen.
+
+```
+desktop/
+├── .config/
+│   ├── sway/config                     compositor: keybinds, input, borders
+│   ├── foot/foot.ini                   terminal — includes the generated theme
+│   ├── qt6ct/qt6ct.conf                Qt6: Fusion style + custom palette
+│   ├── chrome-flags.conf               Chrome: native Wayland + GTK4
+│   └── noctalia/patches/README.md      why the local patches exist
+├── system/
+│   └── udev/61-evdev-local.hwdb        touchpad fuzz (root-owned, not stowed)
+└── .stow-local-ignore                  keeps system/ out of the stow tree
+```
+
+#### Theming
+
+Noctalia renders the active palette into per-application config files ("templates"),
+which is what keeps foot, alacritty, GTK3/4, Qt6, btop and sway borders on one palette.
+The current scheme is **Solarized dark**.
+
+Those generated files are **gitignored** — they are rebuilt on every palette change, and
+a stow *directory* symlink would make Noctalia write into the repo. `desktop/` therefore
+tracks individual files, never a directory whose siblings Noctalia generates.
+
+Enabling the template set is a **GUI-only** step (settings → Templates: `gtk3, gtk4, qt,
+foot, alacritty, btop, sway`); there is no supported `settings.toml` representation.
+
+#### Switching palettes
+
+```bash
+noctalia-retheme --list                 # schemes + current
+noctalia-retheme builtin Nord           # switch
+noctalia-retheme community Solarized    # switch back
+```
+
+Builtins: Catppuccin, Dracula, Gruvbox, Kanagawa, Nord, Oxocarbon. Afterwards: open a new
+terminal, restart GTK/Qt apps, `swaymsg reload`.
+
+The wrapper exists because `color-scheme-set` alone leaves the daemon rendering the *old*
+palette (it needs an explicit `config-reload`), and `templates-apply` returns before the
+files are written. It also re-applies two patches Noctalia would otherwise clobber:
+`noctalia-qt-dim-disabled` (Qt disabled widgets are emitted identical to enabled ones) and
+`noctalia-foot-fix-bright0` (the lifted ANSI 8 repaints vim's editor background). Rationale
+and measurements: `desktop/.config/noctalia/patches/README.md`.
+
+#### First-time setup
+
+```bash
+bash ~/dotfiles/dotify.sh desktop   # symlinks the configs
+~/.scripts/quark-desktop-install    # touchpad hwdb (root) + verification
+```
+
+Then enable the Noctalia templates in the GUI and run `noctalia-retheme`.
 
 ## Extending the dotfiles
 
