@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v stow &>/dev/null; then
-  echo "ERROR: GNU Stow not found. Install with: sudo apt install stow"
+  echo "ERROR: GNU Stow not found. Install with: pacman -S stow (Arch) or apt install stow (Debian/Ubuntu)"
   exit 1
 fi
 

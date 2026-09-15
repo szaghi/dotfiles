@@ -16,7 +16,7 @@ Three machines:
   2026-09-15 to replace a Windows 11 install. It controls the telescopes, so the
   astronomy stack (INDI, KStars, PHD2) is the reason the machine exists and the
   generic user space is configured around it. Desktop is **niri + Noctalia**, not
-  sway — the `desktop` package is quark's and is not stowed here. See
+  sway, so it stows `desktop-astrobit` and never quark's `desktop`. See
   `machines/astrobit`.
 
 ## Deployment
@@ -25,7 +25,8 @@ Dotfiles are deployed via **GNU Stow** through the `dotify.sh` wrapper:
 
 ```bash
 # Install stow (once)
-sudo apt install stow
+sudo pacman -S stow     # quark, astrobit (CachyOS)
+sudo apt install stow   # adam (WSL2 / Ubuntu)
 
 # Deploy all packages
 bash ~/dotfiles/dotify.sh
@@ -57,6 +58,7 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 - **`python/`** — `.pythonrc`, `.pylintrc`
 - **`miscellanea/`** — `.latexmkrc`
 - **`usr/`** — Desktop application entries in `.local/share/applications/` (machine-specific, see `machines/`)
+- **`desktop-astrobit/`** — astrobit's Wayland desktop (**niri** + foot), machine-specific via `machines/astrobit`. niri's config is modular: `.config/niri/config.kdl` is nothing but `include` lines pointing at `.config/niri/cfg/*.kdl`, and both levels are tracked. Its `foot.ini` is **not** quark's: colours are inlined (Solarized) instead of pulled from a Noctalia-generated theme, and `term=xterm-256color` because the `foot` terminfo is missing on the remote HPC hosts. Editing backups (`*.bak`) stay untracked in `~/.config/`.
 - **`desktop/`** — quark's Wayland desktop (sway + Noctalia + foot + Qt), machine-specific via `machines/quark`. Holds only *authored* config; Noctalia's generated theme files are gitignored on purpose (see below). `desktop/system/` is **not** a stow path — it carries root-owned files installed by `~/.scripts/quark-desktop-install`.
 
 ## Commit Convention
@@ -219,7 +221,8 @@ journalctl --user -u git-health-boot -b     # read the results
 
 ## HPC Lmod Environments
 
-Environment toolchains are managed via Lmod (install: `sudo apt install lmod`).
+Environment toolchains are managed via Lmod (install: `yay -S lmod` on Arch —
+it is an AUR package — or `sudo apt install lmod` on Ubuntu/WSL2).
 Modulefiles live in `modules/.modules/` (deployed to `~/.modules/` via stow).
 Lmod is initialised in `bash/.bash/exports` with `MODULEPATH=$HOME/.modules`.
 

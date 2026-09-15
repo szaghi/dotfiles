@@ -6,10 +6,10 @@
 
 | | My choice |
 |---|---|
-| **OS** | [Arch Linux](https://archlinux.org) + [WSL2](https://learn.microsoft.com/en-us/windows/wsl/) on Windows 11 |
-| **Desktop** | [KDE Plasma](https://kde.org/plasma-desktop/) |
+| **OS** | [CachyOS](https://cachyos.org) (Arch-based) + [WSL2](https://learn.microsoft.com/en-us/windows/wsl/) on Windows 11 |
+| **Desktop** | Wayland: [sway](https://swaywm.org) + [Noctalia](https://github.com/noctalia-dev) on quark · [niri](https://github.com/YaLTeR/niri) on astrobit · none on adam (WSL2) |
 | **Shell** | [bash](https://www.gnu.org/software/bash/) |
-| **Terminal** | [Konsole](https://konsole.kde.org/) (Arch) · [Windows Terminal](https://github.com/microsoft/terminal) (WSL2) |
+| **Terminal** | [foot](https://codeberg.org/dnkl/foot) (Wayland) · [Windows Terminal](https://github.com/microsoft/terminal) (WSL2) |
 | **Editor** | [vim](https://www.vim.org) |
 | **Theme** | [Solarized dark](https://ethanschoonover.com/solarized/) (everywhere) |
 
@@ -67,6 +67,7 @@
     - [skills-apply — Claude Code skills sync](#skills-apply--claude-code-skills-sync)
     - [mbox-index — searchable Gmail archive](#mbox-index--searchable-gmail-archive)
   - [desktop — quark's sway + Noctalia session](#desktop--quarks-sway--noctalia-session)
+  - [desktop-astrobit — astrobit's niri session](#desktop-astrobit--astrobits-niri-session)
 - [Extending the dotfiles](#extending-the-dotfiles)
   - [Adding a file to an existing package](#adding-a-file-to-an-existing-package)
   - [Creating a new stow package](#creating-a-new-stow-package)
@@ -102,7 +103,12 @@
 ### Desktop — quark only (CachyOS, sway + Noctalia)
 
 Not needed on adam (WSL2, no desktop session). Not used on astrobit either: that
-machine runs **niri**, not sway, so it does not stow the `desktop` package.
+machine runs **niri**, not sway, so it stows `desktop-astrobit` instead — niri
+plus a standalone foot config, with no Noctalia templates enabled.
+
+| Tool | Purpose | Arch / CachyOS |
+|---|---|---|
+| **niri** | Wayland compositor — astrobit only | `pacman -S niri` |
 
 | Tool | Purpose | Arch / CachyOS |
 |---|---|---|
@@ -135,10 +141,10 @@ modulefile (see `modules/.modules/<name>/<version>.lua` for the exact `root`).
 | **nvm** | Node.js version manager | [github.com/nvm-sh/nvm](https://github.com/nvm-sh/nvm) | same |
 | **pnpm** | Fast Node package manager | `npm install -g pnpm` | same |
 | **texlive + latexmk** | LaTeX compilation | `pacman -S texlive-core latexmk` | `apt install texlive latexmk` |
-| **ImageMagick** | Image conversion scripts in `scripts/images/` | `pacman -S imagemagick` | `apt install imagemagick` |
+| **ImageMagick** | Image conversion scripts in `scripts/.scripts/` | `pacman -S imagemagick` | `apt install imagemagick` |
 | **ffmpeg** | Video-to-GIF and media helpers | `pacman -S ffmpeg` | `apt install ffmpeg` |
 | **exiftool** | EXIF metadata in image scripts | `pacman -S perl-image-exiftool` | `apt install libimage-exiftool-perl` |
-| **borg** | Automated backup (`scripts/borg-automated-backup/`) | `pacman -S borg` | `apt install borgbackup` |
+| **borg** | Automated backup (`scripts/.scripts/borg-automated-backup.sh`) | `pacman -S borg` | `apt install borgbackup` |
 | **nvidia-smi** | GPU status in `ollama-status` | part of NVIDIA driver | part of NVIDIA driver |
 
 ---
@@ -166,42 +172,43 @@ bash ~/dotfiles/dotify.sh
 
 ### Submodules
 
-One third-party tool is tracked as a git submodule:
-
-| Submodule | Purpose |
-|---|---|
-| `scripts/bd` | `bd` — back-directory navigation |
-
-Initialize it after cloning:
-
-```bash
-git submodule update --init
-```
+None. `bd` (back-directory navigation) used to be a submodule and is now
+vendored at `scripts/.scripts/bd`, so a plain `git clone` is complete — there
+is nothing to initialise.
 
 ---
 
 ## Directory structure
 
+Every top-level directory is a stow package whose internal layout mirrors
+`$HOME`, except `machines/` (host profiles) and the two asset directories.
+
 ```
 dotfiles/
-├── bash/          shell configuration
-├── bin/           standalone binaries (act)
-├── claude/        Claude Code configuration
-├── git/           git configuration and commit template
-├── miscellanea/   single-file configs (latexmkrc, NAS mount script)
-├── modules/       Lmod modulefiles for HPC toolchains
-├── python/        Python env (pythonrc, pylintrc)
-├── scripts/       bundled third-party scripts and image utilities
-├── usr/           user-level service files
-├── vim/           vim configuration and plugins
-└── dotify.sh      deploy script
+├── bash/             shell configuration — common to every host
+├── bash-adam/        adam's overrides (signing key, local LLM settings)
+├── bash-astrobit/    astrobit's overrides
+├── bash-quark/       quark's overrides
+├── claude/           Claude Code configuration, skills and commands
+├── desktop/          quark's Wayland desktop (sway + Noctalia + foot + Qt)
+├── desktop-astrobit/ astrobit's Wayland desktop (niri + foot)
+├── git/              git configuration and commit template
+├── machines/         per-host package and skill lists — not a stow package
+├── miscellanea/      single-file configs (latexmkrc, NAS mount script)
+├── modules/          Lmod modulefiles for HPC toolchains
+├── python/           Python env (pythonrc, pylintrc)
+├── scripts/          scripts, user systemd units and standalone binaries
+├── ssh/              ssh client configuration (config only, never keys)
+├── usr/              desktop application entries (.desktop files)
+├── vim/              vim configuration and plugins
+└── dotify.sh         deploy script
 ```
 
 ---
 
 ### bash
 
-`bash/bashrc` loads modular files from `~/.bash/`:
+`bash/.bashrc` loads modular files from `~/.bash/`:
 
 | File | Purpose |
 |---|---|
@@ -674,8 +681,9 @@ Vim keys still behave as usual.
 
 | File | Deployed to | Purpose |
 |---|---|---|
-| `git/gitconfig` | `~/.gitconfig` | Git identity, aliases, GPG signing |
-| `git/git_commit_message_template` | `~/.git/git_commit_message_template` | Conventional Commits template |
+| `git/.gitconfig` | `~/.gitconfig` | Git identity, aliases, GPG signing |
+| `git/.git-templates/git_commit_message_template` | `~/.git-templates/git_commit_message_template` | Conventional Commits template |
+| `git/.git-templates/hooks/post-commit` | `~/.git-templates/hooks/post-commit` | Post-commit hook shipped with the template directory |
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 `type(scope): description`
@@ -1036,7 +1044,7 @@ Routes through NVIDIA's hosted model catalog at
 
 > **Status: working, but not in practical use.** The harness is complete
 > and verified end-to-end; the blocker is on NVIDIA's side. Read
-> [Latency](#latency-why-this-backend-is-parked) before spending time here.
+> [Latency](#latency--why-this-backend-is-parked) before spending time here.
 
 ```bash
 claude-nvidia                                     # default model
@@ -1302,14 +1310,24 @@ Run `claude-help` at any time for the live version of this reference.
 
 ### scripts
 
+Everything lives flat in `scripts/.scripts/` (deployed to `~/.scripts/`), with
+the sole exception of the Tecplot converters. The per-topic subdirectories this
+table used to list disappeared in the migration to stow.
+
 | Path | Purpose |
 |---|---|
-| `scripts/bd/` | bd back-directory submodule |
-| `scripts/images/` | Image processing utilities (convert, crop, scale, alpha…) |
-| `scripts/iso/` | ISO mount/umount helpers |
-| `scripts/miscellanea/` | Misc scripts (archive, PDF preview, NAS mount…) |
-| `scripts/borg-automated-backup/` | Borg backup automation |
-| `scripts/pdf/` | PDF utilities |
+| `scripts/.scripts/bd` | Back-directory navigation — vendored, formerly a submodule |
+| `scripts/.scripts/{convert,crop,scale,alpha,gray,overlap}_image` | Image processing utilities |
+| `scripts/.scripts/{mountiso,mount_nas.sh}` | ISO and NAS mount helpers |
+| `scripts/.scripts/{archive.sh,md-preview.sh,pps,rainix,rwd}` | Misc helpers (archive, preview, …) |
+| `scripts/.scripts/borg-automated-backup.sh` | Borg backup automation |
+| `scripts/.scripts/{pdf2grey,pdfA4scale,pdfcompress,image2pdf}` | PDF utilities |
+| `scripts/.scripts/tecplot/` | Tecplot format converters |
+| `scripts/.scripts/{git-health,git-health-boot}` | Git integrity scanning — rationale and recovery playbook in `scripts/.scripts/git-health.md` |
+| `scripts/.scripts/{noctalia-retheme,noctalia-qt-dim-disabled,noctalia-foot-fix-bright0}` | Noctalia palette switching and patches — quark |
+| `scripts/.scripts/quark-desktop-install` | Root-owned desktop bits — quark |
+| `scripts/.config/systemd/user/` | systemd **user** units |
+| `scripts/.bin/{act,hpc-login}` | Standalone binaries and HPC login helper |
 | `scripts/.scripts/mbox-index.py` | Index Gmail Takeout MBOX into searchable SQLite ([details](#mbox-index--searchable-gmail-archive)) |
 | `scripts/.scripts/skills-apply` | Declarative install/update/status for Claude Code skills across three classes ([details](#skills-apply--claude-code-skills-sync)) |
 
@@ -1431,6 +1449,45 @@ bash ~/dotfiles/dotify.sh desktop   # symlinks the configs
 ```
 
 Then enable the Noctalia templates in the GUI and run `noctalia-retheme`.
+
+---
+
+### desktop-astrobit — astrobit's niri session
+
+astrobit runs CachyOS with **[niri](https://github.com/YaLTeR/niri)**, a scrollable
+tiling Wayland compositor, installed from the `cachyos-niri-noctalia` preset. It is
+a separate package from `desktop/` because almost nothing is shared with quark:
+different compositor, and a foot config that does not read a generated theme.
+
+| File | Deployed to | Purpose |
+|---|---|---|
+| `.config/niri/config.kdl` | `~/.config/niri/config.kdl` | Nothing but `include` lines |
+| `.config/niri/cfg/*.kdl` | `~/.config/niri/cfg/` | animation, autostart, display, input, keybinds, layout, misc, rules |
+| `.config/foot/foot.ini` | `~/.config/foot/foot.ini` | Terminal — Solarized inlined, not templated |
+
+#### Why the config is split in two levels
+
+niri's own config is a single `config.kdl`; the split into `cfg/*.kdl` with
+`include` lines comes from the preset and is kept because it makes a single
+concern (keybinds, window rules) editable without scrolling through the rest.
+Both levels are tracked, and stow links them **file by file** — the directories
+in `~/.config/` stay real. That is deliberate: if the Noctalia templates are
+ever enabled here, the daemon will write `~/.config/niri/noctalia` next to the
+symlinks instead of straight into this repository, which is the same rule
+`desktop/` follows for quark.
+
+Editing backups (`*.bak`) left in `~/.config/niri/cfg/` are untracked on purpose.
+
+#### Differences from quark's foot
+
+- **Colours are inlined** (Solarized dark, `[colors-dark]`) rather than pulled in
+  with `include=~/.config/foot/themes/noctalia`: no Noctalia template is enabled
+  on this host, so there is no generated theme file to include.
+- **`term=xterm-256color`** instead of the default `term=foot`, because the
+  `foot` terminfo entry does not exist on the remote HPC hosts and an unknown
+  `TERM` breaks curses applications over ssh.
+- Plain `monospace` at size 12: no Nerd Font is installed here, and the prompt
+  degrades gracefully without the powerline glyphs.
 
 ## Extending the dotfiles
 
