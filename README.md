@@ -101,7 +101,8 @@
 
 ### Desktop — quark only (CachyOS, sway + Noctalia)
 
-Not needed on adam (WSL2, no desktop session).
+Not needed on adam (WSL2, no desktop session). Not used on astrobit either: that
+machine runs **niri**, not sway, so it does not stow the `desktop` package.
 
 | Tool | Purpose | Arch / CachyOS |
 |---|---|---|
@@ -685,8 +686,10 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 `commit.gpgsign = true` is set repo-wide in `git/.gitconfig`; the key itself is
 **per machine**, declared in `bash-<machine>/.gitconfig.local` (symlinked to
-`~/.gitconfig.local`). adam and quark therefore carry different keys — a key is
-tied to the machine that holds its secret half, not to the identity.
+`~/.gitconfig.local`). adam, quark and astrobit therefore carry three different
+keys — a key is tied to the machine that holds its secret half, not to the
+identity. All three are uploaded to the same GitHub account; GitHub accepts any
+number of GPG keys and verifies a commit against whichever one signed it.
 
 Two pieces have to be present or signing fails:
 

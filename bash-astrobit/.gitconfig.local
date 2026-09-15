@@ -1,0 +1,4 @@
+# Machine-specific git config — astrobit (GMKtec NucBox G5, telescope control)
+# Included by ~/.gitconfig via [include] path = ~/.gitconfig.local
+[user]
+	signingkey = C3A0125E8B35E4A4

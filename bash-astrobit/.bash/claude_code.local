@@ -1,0 +1,29 @@
+# claude_code.local — astrobit (GMKtec NucBox G5, Intel N97, 12 GB RAM)
+# Sourced at the end of ~/.bash/claude_code by the base file.
+# No CUDA, no discrete GPU — Intel UHD iGPU only, so CPU inference throughout.
+#
+# This is the weakest of the three hosts: 4 cores, no AVX-512, and the RAM is
+# shared with the telescope stack (INDI/KStars) that this machine exists for.
+# Local inference is therefore a fallback, not the daily driver — prefer the
+# cloud wrappers (claude-sonnet / claude-opus) here and keep the local models
+# small enough that a capture session is never starved of memory.
+
+# ── OLLAMA MODEL DEFAULTS ─────────────────────────────────────────────────────
+# 3B Q4_K_M sits around 2.5 GB resident; 7B (~5 GB) is usable only when nothing
+# else is running, which on this machine is rarely true.
+OLLAMA_DEFAULT_MODEL="qwen2.5-coder:3b"
+OLLAMA_LIGHT_MODEL="qwen2.5-coder:1.5b"
+OLLAMA_PLAN_MODEL="qwen2.5-coder:3b"
+OLLAMA_EXEC_MODEL="qwen2.5-coder:3b"
+
+# Drop the model as soon as it goes idle: VRAM is not the constraint here, RAM
+# shared with the observing session is.
+export OLLAMA_KEEP_ALIVE="2m"
+
+# ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
+# CPU-only inference — no GPU layers.
+LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:-0}"
+# Small context: the KV cache is the part that grows without bound and this
+# machine has no headroom to spare.
+LLAMACPP_CTX="${LLAMACPP_CTX:-4096}"
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/models/qwen2.5-coder-3b-q4_k_m.gguf}"

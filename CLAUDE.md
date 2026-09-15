@@ -6,12 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Personal dotfiles for Stefano Zaghi — a Linux/WSL2 workstation setup focused on HPC (Fortran/C/MPI), scientific computing (Python), LaTeX, and vim-based development. The primary shell is bash; the editor is vim.
 
-Two machines:
+Three machines:
 
 - **adam** — WSL2 workstation, no desktop session.
 - **quark** — Chuwi Minibook X N150 running **CachyOS** with a **sway + Noctalia**
   Wayland desktop. Its desktop configuration lives in the `desktop` package
   (machine-specific, see `machines/quark`).
+- **astrobit** — GMKtec NucBox G5 (Intel N97, 12 GB) running **CachyOS**, added
+  2026-09-15 to replace a Windows 11 install. It controls the telescopes, so the
+  astronomy stack (INDI, KStars, PHD2) is the reason the machine exists and the
+  generic user space is configured around it. Desktop is **niri + Noctalia**, not
+  sway — the `desktop` package is quark's and is not stowed here. See
+  `machines/astrobit`.
 
 ## Deployment
 
