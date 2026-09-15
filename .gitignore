@@ -6,6 +6,14 @@ vim/view/
 vim/.vim/undo/
 vim/vim
 bash/.bash/private
+
+# perplexity-search is a class-A skill (sources tracked here) whose class-C
+# manifest entry builds a .venv *inside* the skill directory — so the venv
+# lands in this repo by design. python's own venv writes a `.gitignore` with
+# `*` inside it, which already hides it from status; declaring it here makes
+# that explicit rather than accidental, and covers any future skill built the
+# same way.
+claude/.claude/skills/*/.venv/
 claude/.claude/.credentials.json
 claude/.claude/.env
 scripts/.bin/hpc-login-venv
