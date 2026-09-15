@@ -41,6 +41,25 @@ IKLLAMA_CTX="${IKLLAMA_CTX:-131072}"
 # at call time (see _lls_start_llama_generic) so overrides set in claude_code.local
 # after this file are picked up correctly.
 
+# ── NVIDIA NIM SETTINGS (override in claude_code.local) ──────────────────────
+# NVIDIA's HOSTED catalog (build.nvidia.com -> integrate.api.nvidia.com) speaks
+# only the OpenAI API: /v1/messages returns 404 there. Claude Code speaks the
+# Anthropic Messages API, so unlike claude-openrouter / claude-zai (whose
+# upstreams are Anthropic-compatible and need only two env vars) this backend
+# REQUIRES a local translation proxy. That proxy is a server with a lifecycle,
+# which is why nvidia is a llm-local-server backend rather than a bare wrapper.
+#
+# Self-hosted NIM containers DO expose /v1/messages natively on port 8000 and
+# need no proxy — that is a different product and not what an API key buys.
+NVIDIA_PROXY_VENV="${NVIDIA_PROXY_VENV:-${HOME}/.local/share/claude-nvidia-proxy}"
+NVIDIA_PROXY_HOST="${NVIDIA_PROXY_HOST:-127.0.0.1}"
+NVIDIA_PROXY_PORT="${NVIDIA_PROXY_PORT:-8787}"
+NVIDIA_DEFAULT_MODEL="${NVIDIA_DEFAULT_MODEL:-deepseek-ai/deepseek-v4-flash-0731}"
+# nvd-claude-nim serves its liveness probe at /healthz — NOT /health, which is
+# what llama.cpp uses and returns 404 here. Kept in a variable so the proxy's
+# convention lives in exactly one place.
+NVIDIA_PROXY_HEALTH_PATH="${NVIDIA_PROXY_HEALTH_PATH:-/healthz}"
+
 # ── LOCAL BACKEND DEFAULT (override in claude_code.local) ─────────────────────
 LOCAL_DEFAULT_BACKEND="${LOCAL_DEFAULT_BACKEND:-ollama}"
 
@@ -83,6 +102,58 @@ claude-zai() {
 claude-zai-fast()    { claude-zai "glm-4.5-air" "$@"; }
 claude-zai-turbo()   { claude-zai "glm-5-turbo" "$@"; }
 claude-zai-premium() { claude-zai "glm-5.1"     "$@"; }
+
+# ── NVIDIA (build.nvidia.com hosted catalog) ─────────────────────────────────
+#
+# claude-nvidia [MODEL] [-- CLAUDE_ARGS...]
+#
+# Unlike claude-openrouter / claude-zai this is NOT a bare env-var wrapper: the
+# hosted NVIDIA catalog speaks only OpenAI, so a local Anthropic->OpenAI proxy
+# sits in between. That proxy is managed as the "nvidia" backend of
+# llm-local-server, and claude-nvidia auto-starts it exactly as claude-local
+# does for ollama/llama/ikllama.
+#
+#   claude-nvidia                                   # $NVIDIA_DEFAULT_MODEL
+#   claude-nvidia deepseek-ai/deepseek-v4-flash-0731
+#   claude-nvidia --no-autostop                     # leave the proxy running
+#   llm-local-server status --backend nvidia
+#
+# Key: $NVIDIA_API_KEY or ~/.nvidia-api-key (get one at build.nvidia.com).
+claude-nvidia() {
+    local model="" autostop=1
+    local -a claude_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)        model="$2"; shift 2 ;;
+            --no-autostop)  autostop=0; shift   ;;
+            --)             shift; claude_args+=("$@"); break ;;
+            -*)             claude_args+=("$1"); shift ;;
+            *)              [[ -z "$model" ]] && model="$1" || claude_args+=("$1"); shift ;;
+        esac
+    done
+
+    local -a a=(--backend nvidia)
+    [[ -n "$model" ]] && a+=(--model "$model")
+    (( autostop )) || a+=(--no-autostop)
+    claude-local "${a[@]}" -- "${claude_args[@]}"
+}
+
+# List what the hosted catalog actually serves, so a model id can be checked
+# before it is passed to claude-nvidia.
+nvidia-models() {
+    local filter="${1:-}"
+    curl -sf --max-time 20 "https://integrate.api.nvidia.com/v1/models" \
+        | python3 -c "
+import json,sys
+try:
+    ids=sorted(m['id'] for m in json.load(sys.stdin)['data'])
+except Exception:
+    sys.exit('Error: could not parse NVIDIA model list')
+f=${filter@Q}.lower()
+ids=[i for i in ids if f in i.lower()] if f else ids
+print('\\n'.join(ids)); print(f'({len(ids)} models)')
+" || { printf 'Error: could not reach integrate.api.nvidia.com\n' >&2; return 1; }
+}
 
 # ── CNR IAC INSTITUTE ACCOUNT ─────────────────────────────────────────────────
 # Second Claude Code account (CNR IAC Pro plan, bound to the institute email),
@@ -181,8 +252,8 @@ claude-local() {
 
     # Validate backend
     case "$backend" in
-        ollama|llama|ikllama) ;;
-        *) printf 'Error: unknown backend "%s" (ollama|llama|ikllama)\n' "$backend" >&2; return 1 ;;
+        ollama|llama|ikllama|nvidia) ;;
+        *) printf 'Error: unknown backend "%s" (ollama|llama|ikllama|nvidia)\n' "$backend" >&2; return 1 ;;
     esac
 
     if (( autostart )); then
@@ -223,6 +294,23 @@ claude-local() {
             local m="${model:-ikllama}"
             ANTHROPIC_BASE_URL="http://${IKLLAMA_HOST}:${IKLLAMA_PORT}" \
             CLAUDE_LOCAL_GPUS="$n_gpus" \
+            claude --model "$m" "${claude_args[@]}"
+            rc=$?
+            ;;
+        nvidia)
+            local nurl="http://${NVIDIA_PROXY_HOST}:${NVIDIA_PROXY_PORT}"
+            if ! curl -sf --max-time 2 "${nurl}${NVIDIA_PROXY_HEALTH_PATH}" &>/dev/null; then
+                printf 'NVIDIA proxy not reachable at %s\n' "$nurl" >&2
+                return 1
+            fi
+            local m="${model:-$NVIDIA_DEFAULT_MODEL}"
+            # ANTHROPIC_AUTH_TOKEN (not _API_KEY) is what Claude Code sends as a
+            # bearer token to a custom base URL; the proxy holds the real nvapi-
+            # key. API_KEY is blanked so a personal Anthropic key can never leak
+            # to a third-party endpoint. No trailing /v1 on the base URL.
+            ANTHROPIC_BASE_URL="$nurl" \
+            ANTHROPIC_AUTH_TOKEN="nvidia-proxy" \
+            ANTHROPIC_API_KEY="" \
             claude --model "$m" "${claude_args[@]}"
             rc=$?
             ;;
@@ -282,6 +370,21 @@ _local_autostart() {
                     ${model:+--model "$model"} ${ctx:+--ctx "$ctx"} || return 1
             fi
             ;;
+        nvidia)
+            # Deliberately NOT calling _stop_other: that exists to free VRAM
+            # between competing local engines. NVIDIA inference is remote and
+            # the proxy is a few MB of Python, so it coexists with a running
+            # local backend — stopping ollama to reach a cloud model would be
+            # pure loss.
+            local nvidia_up=0
+            curl -sf --max-time 2 \
+                "http://${NVIDIA_PROXY_HOST}:${NVIDIA_PROXY_PORT}${NVIDIA_PROXY_HEALTH_PATH}" \
+                &>/dev/null && nvidia_up=1
+            if (( ! nvidia_up )); then
+                llm-local-server start --backend nvidia \
+                    ${model:+--model "$model"} || return 1
+            fi
+            ;;
     esac
 }
 
@@ -323,6 +426,9 @@ _lls_parse_backend() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --backend) backend="$2"; shift 2 ;;
+            ollama|llama|ikllama|nvidia)
+                printf 'Error: backend must be given as "--backend %s", not positionally\n' "$1" >&2
+                return 1 ;;
             *)         extra_args+=("$1"); shift ;;
         esac
     done
@@ -339,6 +445,9 @@ _lls_start() {
             --ctx)     ctx="$2";     shift 2 ;;
             --gpus)    gpus="$2";    shift 2 ;;
             --)        shift; extra_args+=("$@"); break ;;
+            ollama|llama|ikllama|nvidia)
+                printf 'Error: backend must be given as "--backend %s", not positionally\n' "$1" >&2
+                return 1 ;;
             *)         extra_args+=("$1"); shift ;;
         esac
     done
@@ -346,6 +455,7 @@ _lls_start() {
 
     case "$backend" in
         ollama)  _lls_start_ollama  "$model" "$gpus" "${extra_args[@]}" ;;
+        nvidia)  _lls_start_nvidia  "$model" "$gpus" "${extra_args[@]}" ;;
         llama)   _lls_start_llama   "$model" "$ctx"  "${extra_args[@]}" ;;
         ikllama) _lls_start_ikllama "$model" "$ctx"  "${extra_args[@]}" ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
@@ -381,6 +491,60 @@ _lls_start_ollama() {
 
     _lls_wait_http "http://${OLLAMA_HOST}/api/tags" "Ollama" 60 "/tmp/ollama.log" || return 1
 
+}
+
+# Resolve the NVIDIA API key: env first, then ~/.nvidia-api-key. Mirrors the
+# key handling of claude-openrouter / claude-zai.
+_nvidia_api_key() {
+    local key="${NVIDIA_API_KEY:-}"
+    [[ -z "$key" && -r "$HOME/.nvidia-api-key" ]] && key=$(<"$HOME/.nvidia-api-key")
+    key="${key//[$'\t\r\n ']/}"
+    if [[ -z "$key" ]]; then
+        printf 'Error: no NVIDIA API key (set NVIDIA_API_KEY or ~/.nvidia-api-key)\n' >&2
+        printf 'Get one at https://build.nvidia.com — keys look like nvapi-...\n' >&2
+        return 1
+    fi
+    printf '%s' "$key"
+}
+
+# Idempotent venv bootstrap. The WSL2 system Python is externally managed, so
+# the proxy gets its own venv (same convention as the pdf/latex skills).
+_nvidia_proxy_bootstrap() {
+    local venv="$NVIDIA_PROXY_VENV"
+    [[ -x "${venv}/bin/nim" ]] && return 0
+    printf 'Bootstrapping NVIDIA proxy venv at %s\n' "$venv" >&2
+    python3 -m venv "$venv" || { printf 'Error: venv creation failed\n' >&2; return 1; }
+    "${venv}/bin/pip" install --quiet --upgrade pip || return 1
+    "${venv}/bin/pip" install --quiet nvd-claude-nim || {
+        printf 'Error: pip install nvd-claude-nim failed\n' >&2; return 1; }
+    printf 'Proxy installed.\n' >&2
+}
+
+_lls_start_nvidia() {
+    local model="$1"; shift 2   # $2 (gpus) is meaningless here: inference is remote
+    local -a extra_args=("$@")
+
+    local url="http://${NVIDIA_PROXY_HOST}:${NVIDIA_PROXY_PORT}"
+    if curl -sf --max-time 2 "${url}${NVIDIA_PROXY_HEALTH_PATH}" &>/dev/null; then
+        printf 'NVIDIA proxy already running at %s\n' "$url"
+        return 0
+    fi
+
+    _nvidia_proxy_bootstrap || return 1
+    local key; key=$(_nvidia_api_key) || return 1
+
+    printf 'Starting NVIDIA proxy on %s\n' "$url"
+    printf '  model  : %s\n' "${model:-$NVIDIA_DEFAULT_MODEL}"
+    printf '  upstream: integrate.api.nvidia.com\n'
+
+    NVIDIA_API_KEY="$key" \
+    PROXY_HOST="$NVIDIA_PROXY_HOST" \
+    PROXY_PORT="$NVIDIA_PROXY_PORT" \
+    DEFAULT_NVIDIA_MODEL="${model:-$NVIDIA_DEFAULT_MODEL}" \
+    "${NVIDIA_PROXY_VENV}/bin/nim" proxy &>/tmp/nvidia-proxy.log &
+    disown
+
+    _lls_wait_http "${url}${NVIDIA_PROXY_HEALTH_PATH}" "NVIDIA proxy" 60 "/tmp/nvidia-proxy.log" || return 1
 }
 
 _lls_start_llama()   { _lls_start_llama_generic "llama"   "$@"; }
@@ -458,7 +622,7 @@ _lls_start_llama_generic() {
 
 _lls_stop() {
     local backend extra_args=()
-    _lls_parse_backend "$@"
+    _lls_parse_backend "$@" || return 1
 
     case "$backend" in
         ollama)
@@ -468,6 +632,13 @@ _lls_stop() {
             ;;
         llama)   _lls_stop_llama_generic "llama"   "$LLAMACPP_PORT" ;;
         ikllama) _lls_stop_llama_generic "ikllama" "$IKLLAMA_PORT"  ;;
+        nvidia)
+            # Match the venv path, not a bare "nim proxy": the latter would also
+            # match an unrelated editor buffer or a Nim-lang toolchain process.
+            pkill -f "${NVIDIA_PROXY_VENV}/bin/nim proxy" 2>/dev/null \
+                && printf 'NVIDIA proxy stopped.\n' \
+                || printf 'NVIDIA proxy not running.\n'
+            ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
 }
@@ -510,20 +681,20 @@ _lls_status_llama_generic() {
 
 _lls_restart() {
     local backend extra_args=()
-    _lls_parse_backend "$@"
+    _lls_parse_backend "$@" || return 1
     _lls_stop --backend "$backend"
     sleep 1
     _lls_start --backend "$backend" "${extra_args[@]}"
 }
 
 _lls_status() {
-    # If --backend is passed, narrow to that one; otherwise report all three.
+    # If --backend is passed, narrow to that one; otherwise report all four.
     local explicit_backend="" arg
     for arg in "$@"; do [[ "$arg" == "--backend" ]] && explicit_backend=1; done
 
     if [[ -n "$explicit_backend" ]]; then
         local backend extra_args=()
-        _lls_parse_backend "$@"
+        _lls_parse_backend "$@" || return 1
         _lls_status_one "$backend" || return 1
     else
         _lls_status_one ollama
@@ -531,6 +702,8 @@ _lls_status() {
         _lls_status_one llama
         printf '\n'
         _lls_status_one ikllama
+        printf '\n'
+        _lls_status_one nvidia
     fi
 
     printf '\n=== GPU status ===\n'
@@ -556,6 +729,17 @@ _lls_status_one() {
             ;;
         llama)   _lls_status_llama_generic "llama"   "$LLAMACPP_HOST" "$LLAMACPP_PORT" "llama-server"    ;;
         ikllama) _lls_status_llama_generic "ikllama" "$IKLLAMA_HOST"  "$IKLLAMA_PORT"  "ik_llama-server" ;;
+        nvidia)
+            printf '=== NVIDIA proxy process ===\n'
+            pgrep -af "${NVIDIA_PROXY_VENV}/bin/nim proxy" || printf 'Not running\n'
+            printf '\n=== Endpoint ===\n'
+            local nurl="http://${NVIDIA_PROXY_HOST}:${NVIDIA_PROXY_PORT}"
+            if curl -sf --max-time 2 "${nurl}${NVIDIA_PROXY_HEALTH_PATH}" &>/dev/null; then
+                printf 'Healthy at %s  (model: %s)\n' "$nurl" "$NVIDIA_DEFAULT_MODEL"
+            else
+                printf 'Cannot reach NVIDIA proxy at %s\n' "$nurl"
+            fi
+            ;;
         *) printf 'Error: unknown backend "%s"\n' "$backend" >&2; return 1 ;;
     esac
 }
@@ -1614,7 +1798,11 @@ _lls_wait_http() {
     local url="$1" label="$2" timeout="${3:-60}" logfile="${4:-}"
     # Patterns that indicate a terminal load failure — abort early when seen,
     # rather than waiting the full timeout for /health to never come.
+    # llama.cpp-family failures, plus Python-proxy failures (nvidia backend):
+    # a uvicorn/httpx crash produces none of the GGML patterns, so without the
+    # second group a dead proxy would burn the full timeout.
     local err_re='out of memory|cudaMalloc failed|unable to load model|failed to (allocate|load|create context)|llama_kv_cache_init: failed|error: failed|GGML_ASSERT|terminate called|panic:'
+    err_re+='|Traceback \(most recent call last\)|ModuleNotFoundError|ImportError|address already in use|\[Errno 98\]|Invalid API key|401 Unauthorized|403 Forbidden'
     local i http_code
     for i in $(seq 1 "$timeout"); do
         http_code=$(curl -so /dev/null --max-time 2 -w "%{http_code}" "$url" 2>/dev/null)
@@ -1677,6 +1865,15 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-zai-premium'              'glm-5.1'
 
     printf '\n'
+    printf "  ${b}NVIDIA${r}  build.nvidia.com catalog · via local translation proxy\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-nvidia'                   "default: $NVIDIA_DEFAULT_MODEL"
+    printf '  %-36s%s\n' 'claude-nvidia MODEL'             'any id from nvidia-models'
+    printf '  %-36s%s\n' 'claude-nvidia --no-autostop'     'leave the proxy running'
+    printf '  %-36s%s\n' 'nvidia-models [filter]'          'list served models (e.g. nvidia-models deepseek)'
+    printf '  %-36s%s\n' ''                                'key: $NVIDIA_API_KEY or ~/.nvidia-api-key'
+
+    printf '\n'
     printf "  ${b}LOCAL${r}  privacy-first · auto-starts/stops backend\n"
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'claude-local'                    'run via default backend (ollama)'
@@ -1697,8 +1894,9 @@ claude-help() {
     printf '  %-52s%s\n' 'llm-local-server start --backend llama --ctx 128k'   'llama-server with ctx'
     printf '  %-52s%s\n' 'llm-local-server start --backend ikllama --ctx 128k' 'ik_llama-server with ctx'
     printf '  %-52s%s\n' 'llm-local-server stop'                               'stop default backend'
-    printf '  %-52s%s\n' 'llm-local-server stop --backend ollama|llama|ikllama' 'stop specific backend'
+    printf '  %-52s%s\n' 'llm-local-server stop --backend ollama|llama|ikllama|nvidia' 'stop specific backend'
     printf '  %-52s%s\n' 'llm-local-server restart [opts]'                     'stop + start'
+    printf '  %-52s%s\n' 'llm-local-server start --backend nvidia'             'NVIDIA translation proxy'
     printf '  %-52s%s\n' 'llm-local-server status'                             'all backends + GPU'
     printf '  %-52s%s\n' 'llm-local-server status --backend ikllama'           'narrow to one backend'
 

@@ -55,6 +55,8 @@
     - [Cloud: Anthropic](#cloud-anthropic)
     - [Cloud: OpenRouter](#cloud-openrouter)
     - [Cloud: Z.ai](#cloud-zai)
+    - [Cloud: NVIDIA (build.nvidia.com)](#cloud-nvidia-buildnvidiacom)
+      - [Latency — why this backend is parked](#latency--why-this-backend-is-parked)
     - [Local: three backends (ollama, llama.cpp, ik\_llama.cpp)](#local-three-backends-ollama-llamacpp-ik_llamacpp)
     - [Local server management (llm-local-server)](#local-server-management-llm-local-server)
     - [Ollama utilities](#ollama-utilities)
@@ -94,8 +96,8 @@
 | **rsync** | `synccp` / `syncmv` shell functions | `pacman -S rsync` | `apt install rsync` |
 | **bc** | Arithmetic in shell functions | `pacman -S bc` | `apt install bc` |
 | **lesspipe** | Rich pager for binary files | `pacman -S lesspipe` | `apt install lesspipe` |
-| **python3** | Claude Code status line, helper scripts | `pacman -S python` | `apt install python3` |
-| **curl** | Ollama API calls in `claude_code` helpers | pre-installed | `apt install curl` |
+| **python3** | Claude Code status line, helper scripts, NVIDIA proxy venv (needs `python3-venv` on Debian/Ubuntu) | `pacman -S python` | `apt install python3 python3-venv` |
+| **curl** | Ollama / proxy health checks in `claude_code` helpers | pre-installed | `apt install curl` |
 
 ### Desktop — quark only (CachyOS, sway + Noctalia)
 
@@ -969,14 +971,19 @@ Overall flow:
   claude                     claude-local                 llm-local-server
   claude-sonnet              (ollama|llama|ikllama)       ollama-{pull,create,…}
   claude-opus                                             llama-{models,alias,info}
-  claude-plan
-  claude-openrouter
+  claude-plan                  claude-nvidia              nvidia-models
+  claude-openrouter            (proxy backend)
   claude-zai[-fast|-turbo|-premium]
 ```
 
 `claude-local` auto-starts the requested backend and auto-stops any
 *other* local backend currently running — only one of ollama/llama/ikllama
 is live at a time. `llm-local-server` is the lower-level management verb.
+
+`claude-nvidia` is the odd one out: it reaches a *cloud* catalog but is
+built on the *local* machinery, because NVIDIA's hosted API needs a
+translation proxy running on this host. See
+[Cloud: NVIDIA](#cloud-nvidia-buildnvidiacom).
 
 #### Cloud: Anthropic
 
@@ -1018,6 +1025,122 @@ the GLM model family.
 
 - API key: `~/.z-ai-key` (gitignored) or `ZAI_API_KEY` env override
 - Endpoint: `https://api.z.ai/api/anthropic`
+
+#### Cloud: NVIDIA (build.nvidia.com)
+
+Routes through NVIDIA's hosted model catalog at
+[build.nvidia.com](https://build.nvidia.com/).
+
+> **Status: working, but not in practical use.** The harness is complete
+> and verified end-to-end; the blocker is on NVIDIA's side. Read
+> [Latency](#latency-why-this-backend-is-parked) before spending time here.
+
+```bash
+claude-nvidia                                     # default model
+claude-nvidia deepseek-ai/deepseek-v4-flash-0731  # explicit model
+claude-nvidia --no-autostop                       # leave the proxy running
+nvidia-models                                     # list the served catalog
+nvidia-models deepseek                            # filter it
+```
+
+- API key: `~/.nvidia-api-key` (gitignored) or `NVIDIA_API_KEY` env override
+- Upstream: `https://integrate.api.nvidia.com`
+- Default model: `$NVIDIA_DEFAULT_MODEL` (currently `deepseek-ai/deepseek-v4-flash-0731`)
+
+**Why this one needs a proxy.** OpenRouter and Z.ai are two-env-var
+wrappers because their endpoints are already Anthropic-compatible.
+NVIDIA's *hosted* catalog is not — it serves only the OpenAI API, and
+`/v1/messages` returns `404` there. Claude Code speaks the Anthropic
+Messages API, so a local translation proxy
+([`nvd-claude-nim`](https://pypi.org/project/nvd-claude-nim/)) sits in
+between:
+
+```
+claude  ──Anthropic /v1/messages──▶  127.0.0.1:8787  ──OpenAI /v1/chat/completions──▶  integrate.api.nvidia.com
+                                     (local proxy)
+```
+
+That proxy is a server with a lifecycle, so it is managed as a fourth
+`llm-local-server` backend rather than as a bare wrapper. `claude-nvidia`
+auto-starts it exactly as `claude-local` auto-starts ollama:
+
+```bash
+llm-local-server start  --backend nvidia
+llm-local-server status --backend nvidia
+llm-local-server stop   --backend nvidia
+```
+
+Two deliberate asymmetries with the local backends:
+
+- **It does not evict other backends.** `claude-local` stops any other
+  local engine to free VRAM. NVIDIA inference is remote and the proxy is
+  a few MB of Python, so it coexists with a running ollama — stopping a
+  local model to reach a cloud one would be pure loss.
+- **`--gpus` is meaningless** and ignored: no inference happens on this
+  machine.
+
+The proxy installs itself on first use into a dedicated venv at
+`~/.local/share/claude-nvidia-proxy` (the WSL2 system Python is
+externally managed). No manual setup beyond the key:
+
+```bash
+printf '%s' 'nvapi-...' > ~/.nvidia-api-key && chmod 600 ~/.nvidia-api-key
+```
+
+> **Note.** NVIDIA's own
+> [Claude Code documentation](https://docs.nvidia.com/nim/large-language-models/latest/ai-assistant-integrations/claude-code.html)
+> describes *self-hosted* NIM containers, which do expose
+> `/v1/messages` natively on port 8000 and need no proxy at all. That is
+> a different product from the hosted catalog an API key buys, and its
+> instructions do not apply here.
+
+##### Latency — why this backend is parked
+
+The pipeline is verified working. A plain round-trip returns correctly
+translated Anthropic JSON:
+
+```json
+{"content": [{"type": "thinking", ...}, {"type": "text", "text": "ROUNDTRIP OK"}],
+ "stop_reason": "end_turn",
+ "usage": {"input_tokens": 13, "output_tokens": 25}}
+```
+
+What makes it unusable is latency variance on NVIDIA's side. Measured on
+2026-09-15, same account, same model, requests minutes apart:
+
+| Request | Result |
+|---|---|
+| `/v1/models` (catalog) | HTTP 200 in **0.19 s**, every time |
+| Short completion, no tools | a few seconds — then, unchanged, **no response in 55 s** |
+| Completion with `tools` | **no response in 190 s** |
+| Short completion, retried later | HTTP 200, `nvcf-status: fulfilled` |
+
+The catalog endpoint always answers instantly, so this is neither
+network nor auth: it is queueing on NVIDIA's NVCF backend, where hosted
+catalog models run on shared capacity. An interactive coding agent
+issues many sequential requests, and a multi-minute stall on any one of
+them makes the session unworkable.
+
+**Therefore this backend is kept but not used.** For day-to-day work
+prefer `claude-local` — no shared queue, predictable latency. The reason
+to keep the NVIDIA path is access to models too large for 2×12 GB, for
+one-off non-interactive questions where a long wait is acceptable.
+
+**Not verified: tool calling.** Every tool-enabled request fell into the
+latency window, so whether tool calls survive the Anthropic→OpenAI
+translation is untested. Claude Code is unusable as an agent without it,
+so assume nothing here until it is measured.
+
+Other findings worth keeping:
+
+- `deepseek-ai/deepseek-coder-6.7b-instruct` is listed in the catalog but
+  returns `404 Not found for account` — listed does not mean enabled.
+  Check a model id with `nvidia-models` *and* one real request before
+  setting it as a default.
+- The proxy's liveness probe is `/healthz`, **not** the `/health` that
+  llama.cpp uses. It is held in `$NVIDIA_PROXY_HEALTH_PATH` so the
+  convention lives in one place; probing the wrong path makes a perfectly
+  healthy proxy look like a 60-second startup timeout.
 
 #### Local: three backends (ollama, llama.cpp, ik\_llama.cpp)
 
@@ -1073,11 +1196,17 @@ llm-local-server start                                  # start default backend
 llm-local-server start --backend llama --ctx 128k       # start llama-server with custom ctx
 llm-local-server stop                                   # stop default backend
 llm-local-server stop --backend llama                   # stop specific backend
+llm-local-server start --backend nvidia                 # start the NVIDIA translation proxy
 llm-local-server restart [opts]                         # stop + start
 llm-local-server status                                 # process + loaded model + GPU usage
 ```
 
 `status` shows the PID, the bound port, and `nvidia-smi` GPU memory/utilization.
+With no `--backend` it reports all four backends.
+
+The backend must be given as `--backend <name>`, never positionally:
+`llm-local-server start ollama` is rejected with an explicit error rather
+than being silently forwarded to the server process.
 
 #### Ollama utilities
 
@@ -1127,6 +1256,7 @@ export LLAMACPP_DEFAULT_MODEL="qwen3-coder-30b"
 export LLAMACPP_CTX=262144
 export LLAMACPP_GPU_LAYERS=-1
 export CUDA_VISIBLE_DEVICES="0,1"
+export NVIDIA_DEFAULT_MODEL="deepseek-ai/deepseek-v4-flash-0731"
 ```
 
 Deploy it via its own machine-specific stow package (e.g.
@@ -1154,6 +1284,11 @@ Deploy it via its own machine-specific stow package (e.g.
 | `IKLLAMA_GPU_LAYERS` | `99` | GPU layers (ik\_llama.cpp treats `-1` as 0, so a large sentinel is used) |
 | `IKLLAMA_CTX` | `131072` | Default context window |
 | `IKLLAMA_DEFAULT_MODEL` / `IKLLAMA_MODELS_DIR` | fall back to `LLAMACPP_*` | Resolved lazily at call time |
+| `NVIDIA_API_KEY` / `~/.nvidia-api-key` | *(required)* | NVIDIA auth (`nvapi-…`, from build.nvidia.com) |
+| `NVIDIA_DEFAULT_MODEL` | `deepseek-ai/deepseek-v4-flash-0731` | Default model for `claude-nvidia` |
+| `NVIDIA_PROXY_HOST` / `NVIDIA_PROXY_PORT` | `127.0.0.1` / `8787` | Local translation-proxy bind |
+| `NVIDIA_PROXY_VENV` | `~/.local/share/claude-nvidia-proxy` | Venv holding `nvd-claude-nim` (auto-created) |
+| `NVIDIA_PROXY_HEALTH_PATH` | `/healthz` | Proxy liveness probe (**not** `/health`, which llama.cpp uses) |
 | `OPENROUTER_API_KEY` / `~/.openrouter-ai-key` | *(required)* | OpenRouter auth |
 | `ZAI_API_KEY` / `~/.z-ai-key` | *(required)* | Z.ai auth |
 | `CLAUDE_LOCAL_GPUS` | *(optional)* | Shown in status line (`<N>×GPU`) when set by `claude-local --gpus N` |

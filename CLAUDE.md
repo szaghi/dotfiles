@@ -65,17 +65,18 @@ Types: `feat`, `fix`, `build`, `ci`, `test`, `docs`, `refactor`, `perf`, `style`
 
 ## Claude Code / Ollama Setup (`bash/.bash/claude_code`)
 
-This file (sourced by `~/.bashrc`) configures Claude Code over three local backends plus cloud:
+This file (sourced by `~/.bashrc`) configures Claude Code over four `llm-local-server` backends (three local engines plus the NVIDIA translation proxy) and several cloud providers:
 
 - **`claude-local`** — default backend (Ollama). Override with `--backend llama` or `--backend ikllama`.
 - **`claude-local --backend llama`** — mainline llama.cpp server (port 8080).
 - **`claude-local --backend ikllama`** — ik_llama.cpp fork (port 8081); aggressive CPU/hybrid optimizations and newer quant types (IQ4_KS, IQ2_KS), faster on MoE models that spill to RAM.
 - **`claude-sonnet`** / **`claude-opus`** / **`claude-plan`** — Cloud Anthropic API
 - **`claude-openrouter`** / **`claude-zai`** — Other cloud providers (OpenRouter, Z.ai)
+- **`claude-nvidia`** — NVIDIA hosted catalog (build.nvidia.com). Unlike the other cloud wrappers its endpoint is OpenAI-only (`/v1/messages` 404s), so it runs through a local Anthropic→OpenAI proxy managed as a fourth `llm-local-server` backend (`nvidia`, port 8787). `nvidia-models [filter]` lists the served catalog. **Working but parked:** NVIDIA's shared NVCF capacity gives multi-minute stalls on individual requests (measured 2026-09-15: same request 3 s, then no response in 55 s, then 200 OK), which makes an interactive agent unworkable. Kept for large models on one-off non-interactive questions; prefer `claude-local` for daily work. Tool calling through the translation proxy is **untested** — every tool request hit the latency window.
 - **`llm-local-server start|stop|restart|status --backend <name>`** — manage a specific server
 - **`claude-help`** — print the full quick-reference
 
-`claude-local` auto-starts the requested backend and stops any other local backend that's running, so only one of ollama/llama/ikllama is live at a time. Shared state lives in `~/.bash/claude_code`; machine-specific overrides (GPU IDs, binary paths, model defaults) in `~/.bash/claude_code.local`.
+`claude-local` auto-starts the requested backend and stops any other local backend that's running, so only one of ollama/llama/ikllama is live at a time. The `nvidia` backend is exempt from that eviction — it holds no VRAM, so it coexists with a running local engine. The backend is always a `--backend <name>` flag, never positional. Shared state lives in `~/.bash/claude_code`; machine-specific overrides (GPU IDs, binary paths, model defaults) in `~/.bash/claude_code.local`.
 
 ## Claude Code Skills (`claude/.claude/skills/`, `~/.scripts/skills-apply`)
 
