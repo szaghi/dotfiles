@@ -1,0 +1,44 @@
+// ────────────── Input Configuration ──────────────
+// https://github.com/YaLTeR/niri/wiki/Configuration:-Input
+
+input {
+    keyboard {
+        xkb {
+            // Physical keyboard is ANSI US. Kept as plain "us": the intl
+            // variants turn apostrophe and backtick into dead keys, which
+            // is a constant nuisance when writing code.
+            layout "us"
+
+            // caps:super  -> Caps Lock becomes an extra Super, i.e. niri's Mod
+            //                key. Caps Lock loses its locking behaviour.
+            // custom:it   -> personal XKB option defined in ~/.config/xkb,
+            //                so Italian can be typed without switching layout:
+            //                  AltGr + a e i o u        -> a e i o u grave
+            //                  AltGr + Shift + vowel    -> the same uppercase
+            //                  AltGr + ' then vowel     -> acute (dead key)
+            //                  AltGr + 5 / 0            -> euro / degree
+            //                libxkbcommon fixes its include path when the
+            //                context is created and drops directories that do
+            //                not exist, so after creating ~/.config/xkb the
+            //                compositor must be restarted before this option
+            //                resolves — otherwise it is silently ignored.
+            options "caps:super,custom:it"
+        }
+        numlock // Enable numlock on startup
+    }
+
+    touchpad {
+        tap // Enable tap-to-click
+        natural-scroll // Enable natural (macOS-style) scrolling
+    }
+
+    mouse {
+        // If you want to disable Mouse Acceleration,
+        // uncomment the lines below.
+        //accel-profile "flat"
+        //accel-speed 0.0
+    }
+
+    focus-follows-mouse // Automatically focus windows under the mouse pointer
+    workspace-auto-back-and-forth // Enable workspace back & forth switching
+}
