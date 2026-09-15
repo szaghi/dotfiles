@@ -78,6 +78,23 @@ update      = "uv tool upgrade <pypi-pkg>"
 uninstall   = "uv tool uninstall <pypi-pkg>"
 ```
 
+Two rules make the entry survive a partial install, both learned the hard way:
+
+- **`check` must test every piece the install produces**, not just the most
+  obvious one. A clone-plus-symlink skill whose `check` only tests the clone
+  reports "already installed" while `~/.claude/skills/` holds nothing, and
+  `skills-apply` then has no way to notice, let alone repair.
+- **`install` must be idempotent**, because it is what runs once `check` fails.
+  A bare `git clone` aborts on an existing directory and never reaches the
+  `ln -sfn` that would have fixed things, so guard it:
+
+  ```toml
+  install = "{ test -d <clone>/.git || git clone --depth 1 <url> <clone>; } && ln -sfn <clone> ~/.claude/skills/<name>"
+  ```
+
+  The `&&` still stops the chain if the clone genuinely fails (no network),
+  while a clone that is merely already present falls through to the link.
+
 Then add the skill name to each `machines/<host>.skills` that should sync
 it (omit on hosts that should skip it).
 
