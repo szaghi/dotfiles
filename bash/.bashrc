@@ -28,7 +28,16 @@ shopt -s nocaseglob;
 shopt -s cdspell;
 
 # make less more friendly for non-text input files, see lesspipe(1)
-[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)";
+# Debian/Ubuntu install the wrapper as `lesspipe`, Arch as `lesspipe.sh`. Both
+# print the shell code to eval, but testing only the Debian path meant lesspipe
+# stayed inert on the Arch hosts even with the package installed.
+for _lesspipe in lesspipe lesspipe.sh; do
+	if command -v "$_lesspipe" >/dev/null 2>&1; then
+		eval "$(SHELL=/bin/sh "$_lesspipe")";
+		break;
+	fi;
+done;
+unset _lesspipe;
 
 # enable some Bash 4 features when possible:
 for option in autocd globstar; do
