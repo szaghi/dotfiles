@@ -1,0 +1,4 @@
+# Not a $HOME path: root-owned system files (modprobe, NetworkManager, EDID
+# firmware), installed by ~/.scripts/astrobit-system-install rather than
+# symlinked. Same arrangement as desktop/system for quark.
+^/system$

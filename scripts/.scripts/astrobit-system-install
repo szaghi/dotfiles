@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# astrobit-system-install -- apply the parts of the astrobit setup that stow
+# cannot: root-owned system files under /etc and /lib.
+#
+# Everything else in the `desktop-astrobit` package is a plain symlink and needs
+# nothing beyond `dotify.sh desktop-astrobit`. This script covers the remainder:
+#
+#   1. the WiFi power-save settings, on both levels (driver + mac80211)
+#   2. the virtual EDID blob, plus the Limine kernel command line that loads it
+#
+# Idempotent: re-running it is safe and reports what was already in place.
+#
+# Exit status: 0 = everything applied or already present, 1 = a step failed.
+
+set -uo pipefail
+
+DOT="${DOT:-$HOME/dotfiles}"
+SYS="$DOT/desktop-astrobit/system"
+status=0
+
+die()  { printf 'ERROR: %s\n' "$1" >&2; status=1; }
+note() { printf '  %s\n' "$1"; }
+
+[[ $EUID -eq 0 ]] || { echo "Run as root: sudo $0"; exit 1; }
+[[ -d "$SYS" ]]   || { echo "Not found: $SYS"; exit 1; }
+
+# ── 1. WiFi power save ───────────────────────────────────────────────────────
+#
+# The RTL8821CE is the weak point of this machine. Its rtw88 driver defaults to
+# Deep Power Save, which parks parts of the radio between beacons; the wakeups
+# cost tens of milliseconds, which a 30 fps UDP stream does not forgive. On a
+# link measured at -45 dBm with zero tx retries, that was the sole cause of the
+# Moonlight stutter and drops carried over from the Windows install.
+#
+# Two levels, both required: NetworkManager drives mac80211's power save, while
+# Deep PS lives in the driver and is reachable only as a module parameter.
+echo "==> WiFi power save"
+for pair in \
+    "modprobe.d/rtw88-no-deep-ps.conf:/etc/modprobe.d" \
+    "NetworkManager/conf.d/wifi-powersave-off.conf:/etc/NetworkManager/conf.d"
+do
+    src="$SYS/${pair%%:*}"; dstdir="${pair##*:}"; dst="$dstdir/$(basename "$src")"
+    if [[ ! -f "$src" ]]; then die "missing $src"; continue; fi
+    if cmp -s "$src" "$dst"; then
+        note "already current: $dst"
+    else
+        install -Dm644 "$src" "$dst" && note "installed: $dst" || die "install failed: $dst"
+    fi
+done
+
+# ── 2. Virtual EDID ──────────────────────────────────────────────────────────
+#
+# niri has neither virtual outputs nor a headless mode: unplug the monitor and
+# it loses its only output, leaving nothing to draw on and nothing for Sunshine
+# to capture. The blob below makes the kernel advertise a permanent 1920x1080
+# display on HDMI-A-2 -- a resolution deliberately lower than the 3440x1440
+# ultrawide, since it is what gets streamed.
+#
+# Two kernel parameters are needed, and each does a distinct job:
+#   drm.edid_firmware  -- which EDID to use
+#   video=HDMI-A-2:e   -- force the connector enabled even when nothing is
+#                         detected; without it the kernel disables the port and
+#                         never consults the EDID at all.
+echo "==> Virtual EDID"
+EDID_SRC="$SYS/firmware/edid/astrobit-1920x1080.bin"
+EDID_DST="/lib/firmware/edid/astrobit-1920x1080.bin"
+if [[ ! -f "$EDID_SRC" ]]; then
+    die "missing $EDID_SRC"
+elif cmp -s "$EDID_SRC" "$EDID_DST"; then
+    note "already current: $EDID_DST"
+else
+    install -Dm644 "$EDID_SRC" "$EDID_DST" && note "installed: $EDID_DST" || die "install failed"
+fi
+
+echo "==> Limine kernel command line"
+CMD='drm.edid_firmware=HDMI-A-2:edid/astrobit-1920x1080.bin video=HDMI-A-2:e'
+if grep -q 'edid_firmware' /etc/default/limine 2>/dev/null; then
+    note "already present in /etc/default/limine"
+else
+    cp /etc/default/limine "/etc/default/limine.bak-$(date +%F-%H%M)"
+    if sed -i "s|^\(KERNEL_CMDLINE\[default\]+=\"\)\(.*\)\"$|\1\2 ${CMD}\"|" /etc/default/limine; then
+        note "appended to /etc/default/limine (backup kept)"
+        if command -v limine-update >/dev/null 2>&1; then
+            limine-update && note "limine config regenerated" || die "limine-update failed"
+        else
+            die "limine-update not found -- regenerate the bootloader config by hand"
+        fi
+    else
+        die "could not edit /etc/default/limine"
+    fi
+fi
+
+# ── Verification ─────────────────────────────────────────────────────────────
+echo "==> Current state"
+note "power_save:       $(iw dev wlan0 get power_save 2>/dev/null | awk '{print $3}')  (want: off)"
+note "disable_lps_deep: $(cat /sys/module/rtw88_core/parameters/disable_lps_deep 2>/dev/null)  (want: Y)"
+note "output:           $(niri msg outputs 2>/dev/null | awk '/Current mode/{print $3; exit}')  (want: 1920x1080)"
+
+echo
+if [[ $status -eq 0 ]]; then
+    echo "Done. Module parameters and kernel command line apply on next boot."
+else
+    echo "Finished with errors -- see above."
+fi
+exit $status

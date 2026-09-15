@@ -1478,6 +1478,51 @@ symlinks instead of straight into this repository, which is the same rule
 
 Editing backups (`*.bak`) left in `~/.config/niri/cfg/` are untracked on purpose.
 
+#### Remote desktop: Sunshine
+
+astrobit is normally headless, reached through a web service; ssh covers most
+failures. Sunshine is the third fallback, for when the fault is *in the GUI* —
+a modal dialog blocking Ekos, a mount connection wizard. It therefore streams
+the **live niri session**: a dedicated RDP session would open a clean desktop
+next to the broken one, useless precisely when it is needed.
+
+| File | Tracked | Why |
+|---|---|---|
+| `.config/sunshine/sunshine.conf` | yes | Hand-written; Sunshine does not rewrite it |
+| `.config/sunshine/apps.json` | yes | The web UI *does* rewrite this — edits there show up as a diff |
+| `sunshine_state.json`, `credentials/`, `*.log` | **no** | Web-UI password, TLS keypair, pairing state — per machine, never in git |
+
+`capture` and `encoder` are deliberately **not** set: forcing `capture = wlgrab`
+makes startup fail with *"Could not initialize display with the given hw device
+type"*. Autodetect picks wlgrab (niri does expose `zwlr_screencopy_manager_v1`,
+despite being smithay rather than wlroots) and VAAPI on its own.
+
+Resolution, frame rate and bitrate are **client-side** settings: `fps`,
+`resolutions` and `min_bitrate` are not Sunshine options and are silently
+ignored. Set them in Moonlight on quark — 1920x1080, 30 fps, ~15 Mbps.
+
+#### Root-owned parts: `astrobit-system-install`
+
+`desktop-astrobit/system/` is outside the stow tree (excluded by
+`.stow-local-ignore`). Run `sudo ~/.scripts/astrobit-system-install` after
+stowing to install the WiFi power-save settings and the virtual EDID. Idempotent.
+
+Two things it configures deserve their reasons recorded:
+
+- **WiFi power save, on two levels.** The RTL8821CE's `rtw88` driver enables
+  Deep Power Save by default, parking parts of the radio between beacons. On a
+  link measured at -45 dBm with *zero* tx retries, that alone produced the
+  Moonlight stutter and disconnections inherited from the Windows install.
+  NetworkManager (`wifi.powersave = 2`) covers mac80211; Deep PS is reachable
+  only as a module parameter, so it needs a reboot. quark needs the same fix
+  with different knobs — Intel `iwlwifi`, where `power_save` is already off but
+  `iwlmvm.power_scheme` defaults to 2 (balanced) and must be 1 (active).
+- **Virtual EDID.** niri has no virtual outputs and no headless mode: unplug the
+  monitor and it loses its only output. The blob advertises a permanent
+  1920x1080 on HDMI-A-2 — lower than the real 3440x1440 ultrawide, because this
+  is what gets streamed. It replaces the real EDID *always*, so the physical
+  monitor also runs at 1080p.
+
 #### Differences from quark's foot
 
 - **Colours are inlined** (Solarized dark, `[colors-dark]`) rather than pulled in
