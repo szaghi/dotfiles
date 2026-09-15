@@ -17,7 +17,7 @@
 set -uo pipefail
 
 DOT="${DOT:-$HOME/dotfiles}"
-HWDB_SRC="$DOT/desktop/etc/udev/hwdb.d/61-evdev-local.hwdb"
+HWDB_SRC="$DOT/desktop/system/udev/hwdb.d/61-evdev-local.hwdb"
 HWDB_DST="/etc/udev/hwdb.d/61-evdev-local.hwdb"
 TOUCHPAD_NAME="XXXX0000:05 0911:5288 Touchpad"
 
@@ -50,6 +50,68 @@ else
         warn "  hwdb install failed"
         status=1
     fi
+fi
+
+# --- 1b. WiFi power save ---------------------------------------------------
+# Moonlight suffers from client-side power save as much as Sunshine does on the
+# server: the card sleeps between beacons and the stream's UDP packets arrive
+# late or not at all. Measured on astrobit, whose Realtek card showed the same
+# symptom the Windows install had -- the network was never the problem.
+#
+# quark's card is Intel (iwlwifi), so the knobs differ from astrobit's Realtek:
+# iwlwifi.power_save is already off by default here, and what keeps power save
+# on is iwlmvm.power_scheme, which defaults to 2 (balanced) and must be 1
+# (active). Do NOT add d0i3_disable: it does not exist in this kernel.
+#
+# Two levels again: NetworkManager drives mac80211 and applies at once, while
+# the module parameter needs a reboot. Note that dropping the file into
+# conf.d is NOT enough on its own -- NM only consults it for profiles that
+# express no preference, and `nmcli device reapply` reapplies IP settings, not
+# radio ones. The profile itself must carry powersave=2, which is what the
+# nmcli call below does.
+for pair in \
+    "modprobe.d/iwlwifi-no-powersave.conf:/etc/modprobe.d" \
+    "NetworkManager/conf.d/wifi-powersave-off.conf:/etc/NetworkManager/conf.d"
+do
+    src="$DOT/desktop/system/${pair%%:*}"
+    dst="${pair##*:}/$(basename "$src")"
+    if [ ! -f "$src" ]; then
+        warn "wifi: source missing: $src"
+        status=1
+    elif cmp -s "$src" "$dst" 2>/dev/null; then
+        say "wifi $(basename "$dst"): already current"
+    else
+        say "wifi $(basename "$dst"): installing (needs root)"
+        sudo install -Dm644 "$src" "$dst" || { warn "  install failed"; status=1; }
+    fi
+done
+
+wifi_con=$(nmcli -t -f NAME,DEVICE connection show --active 2>/dev/null |
+           awk -F: '$2 ~ /^wl/ {print $1; exit}')
+if [ -n "${wifi_con:-}" ]; then
+    # `nmcli -t` prints the symbolic name ("disable"), while the non-terse form
+    # prints "2 (disable)" -- match both so re-runs stay idempotent instead of
+    # bouncing the connection every time.
+    cur=$(nmcli -t -f 802-11-wireless.powersave connection show "$wifi_con" 2>/dev/null |
+          cut -d: -f2 | tr -d ' ')
+    case "$cur" in
+        disable|2|"2(disable)") already=yes ;;
+        *) already=no ;;
+    esac
+    if [ "$already" = yes ]; then
+        say "wifi profile: powersave already disabled"
+    else
+        say "wifi profile: disabling power save on '$wifi_con' (needs root)"
+        if sudo nmcli connection modify "$wifi_con" 802-11-wireless.powersave 2; then
+            sudo nmcli connection up "$wifi_con" >/dev/null &&
+                say "  reactivated (a running ssh session may have dropped)"
+        else
+            warn "  could not modify the connection profile"
+            status=1
+        fi
+    fi
+else
+    warn "wifi: no active wireless connection found"
 fi
 
 # --- 2. verify the fuzz actually landed ------------------------------------

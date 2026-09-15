@@ -1405,10 +1405,26 @@ desktop/
 │   ├── qt6ct/qt6ct.conf                Qt6: Fusion style + custom palette
 │   ├── chrome-flags.conf               Chrome: native Wayland + GTK4
 │   └── noctalia/patches/README.md      why the local patches exist
-├── system/
-│   └── udev/61-evdev-local.hwdb        touchpad fuzz (root-owned, not stowed)
+├── system/                             root-owned, not stowed; paths mirror /
+│   ├── udev/hwdb.d/61-evdev-local.hwdb touchpad fuzz
+│   ├── modprobe.d/iwlwifi-no-powersave.conf
+│   └── NetworkManager/conf.d/wifi-powersave-off.conf
 └── .stow-local-ignore                  keeps system/ out of the stow tree
 ```
+
+#### WiFi power save
+
+Disabled here for the same reason as on astrobit — client-side power save hurts
+Moonlight as much as the server side hurts Sunshine — but with different knobs.
+quark's card is Intel (`iwlwifi`), where `power_save` is already off by default;
+the culprit is `iwlmvm.power_scheme`, which defaults to 2 (balanced) and must be
+1 (active). Do **not** add `d0i3_disable`: it does not exist in this kernel.
+
+Dropping a file into `NetworkManager/conf.d` is not sufficient on its own. NM
+consults that default only for profiles expressing no preference, and
+`nmcli device reapply` reapplies IP settings rather than radio ones — so the
+connection profile itself has to carry `powersave=2`, which is what
+`quark-desktop-install` sets.
 
 #### Theming
 
@@ -1445,7 +1461,7 @@ and measurements: `desktop/.config/noctalia/patches/README.md`.
 
 ```bash
 bash ~/dotfiles/dotify.sh desktop   # symlinks the configs
-~/.scripts/quark-desktop-install    # touchpad hwdb (root) + verification
+~/.scripts/quark-desktop-install    # touchpad hwdb + WiFi power save (root)
 ```
 
 Then enable the Noctalia templates in the GUI and run `noctalia-retheme`.
