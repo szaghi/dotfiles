@@ -35,7 +35,7 @@
     - [Incrementing columns (VisIncr)](#incrementing-columns-visincr)
     - [Auto-pairs (lexima)](#auto-pairs-lexima)
     - [Buffer and file navigation (dirvish, bbye, tagbar)](#buffer-and-file-navigation-dirvish-bbye-tagbar)
-    - [Folding (FoldFocus, native markers)](#folding-foldfocus-native-markers)
+    - [Folding (native markers)](#folding-native-markers)
     - [LaTeX (vimtex)](#latex-vimtex)
     - [Markdown (markdown-preview)](#markdown-markdown-preview)
     - [Encryption (gnupg)](#encryption-gnupg)
@@ -266,14 +266,18 @@ an IDE-grade experience that stays 100% Vim (no Neovim required).
 | LSP & linting | [yegappan/lsp](https://github.com/yegappan/lsp), [ALE](https://github.com/dense-analysis/ale) |
 | Git | [vim-fugitive](https://github.com/tpope/vim-fugitive), [vim-gitgutter](https://github.com/airblade/vim-gitgutter) |
 | Fuzzy finders | [fzf](https://github.com/junegunn/fzf) + [fzf.vim](https://github.com/junegunn/fzf.vim) |
-| Navigation | [easymotion](https://github.com/easymotion/vim-easymotion), [vim-dirvish](https://github.com/justinmk/vim-dirvish), [tagbar](https://github.com/majutsushi/tagbar), [vim-bbye](https://github.com/moll/vim-bbye), [vim-foldfocus](https://github.com/vasconcelloslf/vim-foldfocus) |
+| Navigation | [easymotion](https://github.com/easymotion/vim-easymotion), [vim-dirvish](https://github.com/justinmk/vim-dirvish), [tagbar](https://github.com/majutsushi/tagbar), [vim-bbye](https://github.com/moll/vim-bbye) |
 | Text editing | [vim-surround](https://github.com/tpope/vim-surround), [vim-repeat](https://github.com/tpope/vim-repeat), [vim-commentary](https://github.com/tpope/vim-commentary), [vim-unimpaired](https://github.com/tpope/vim-unimpaired), [lexima](https://github.com/cohama/lexima.vim), [VisIncr](https://github.com/vim-scripts/VisIncr) |
 | Alignment | [tabular](https://github.com/godlygeek/tabular), [vim-easy-align](https://github.com/junegunn/vim-easy-align), [vim-maketable](https://github.com/mattn/vim-maketable) |
 | Languages | [vimtex](https://github.com/lervag/vimtex), [markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim), [python-syntax](https://github.com/vim-python/python-syntax) |
 | Utilities | [vim-gnupg](https://github.com/jamessan/vim-gnupg), [HowMuch](https://github.com/sk1418/HowMuch), [plugconf](https://github.com/niboan/plugconf) |
 
 Per-plugin config lives in `vim/.vim/plugconf/*.vim` (loaded by [plugconf](https://github.com/niboan/plugconf)
-after `plug#end()`).
+after `plug#end()`). The file must be named after the plugin's **directory**
+(`vim-fugitive.vim`, not `fugitive.vim`), otherwise it is silently skipped, and
+plugconf only sees plugins on the runtimepath at `plug#end()`: on-demand
+plugins (`'for'`, `'on'`) are configured in `.vimrc` instead. `mapleader` is set
+before `plug#begin`, so `<leader>` in plugconf mappings is `,`.
 
 #### Language Server Protocol (LSP)
 
@@ -303,7 +307,7 @@ after a distro upgrade or on a fresh machine.
 | `gd` | `:LspGotoDefinition` |
 | `gr` | `:LspShowReferences` (populates quickfix) |
 | `K` | `:LspHover` — docs in a floating popup under the cursor (dismissed on motion) |
-| `<leader>rn` | `:LspRename` — rename symbol across project |
+| `<leader>lr` | `:LspRename` — rename symbol across project (not `,rn`: it would make `,r` wait) |
 | `<leader>la` | `:LspCodeAction` — quick-fixes and refactors |
 | `<leader>lf` | `:LspFormat` — format buffer via LSP |
 | `[d` / `]d` | Previous / next diagnostic |
@@ -365,6 +369,13 @@ shows per-hunk change indicators in the `signcolumn`.
 | `<leader>gl` | `:Git log --oneline --decorate --all` |
 | `<leader>gc` | `:Git commit` |
 | `<leader>gp` | `:Git push` |
+| `]c` / `[c` | Next / previous hunk (native `]c` `[c` in diff mode) |
+| `<leader>gh` | Preview hunk |
+| `<leader>ga` | Stage hunk |
+| `<leader>gu` | Undo (reset) hunk |
+
+gitgutter's own `<leader>h*` maps are disabled (`plugconf/vim-gitgutter.vim`):
+they made `<leader>h` (`:History`) wait `timeoutlen`. The keys match Neovim.
 
 Example — stage a hunk, commit, push from inside Vim without leaving the buffer:
 
@@ -544,17 +555,13 @@ Requires `ctags` (`apt install exuberant-ctags` or `universal-ctags`).
 For Fortran/Python/LaTeX the LSP symbol lookup (`gd`, `gr`) is usually
 more accurate; tagbar is the fallback for filetypes without an LSP.
 
-#### Folding (FoldFocus, native markers)
+#### Folding (native markers)
 
 `.vimrc` sets `foldmethod=marker` globally so `{{{` / `}}}` triple-brace
 markers define folds. Fold column shows as a 1-col gutter.
-[vim-foldfocus](https://github.com/vasconcelloslf/vim-foldfocus) (Python
-and Fortran only) opens the current fold in an isolated split for
-distraction-free editing:
 
 | Key | Action |
 |---|---|
-| `<C-f>` | Open current fold in a vertical split (FoldFocus) |
 | `za` | Native: toggle fold under cursor |
 | `zR` / `zM` | Native: open all / close all folds |
 
@@ -595,8 +602,11 @@ suffix.
 :MarkdownPreviewStop   " stop the preview server
 ```
 
-Dark theme by default (`g:mkdp_theme = 'dark'`); see `vim/.vim/plugconf/markdown-preview.vim`
-for all tunables (TOC, KaTeX math, Mermaid, PlantUML, custom CSS).
+Dark theme (`g:mkdp_theme = 'dark'`) and the preview stays open when leaving
+the buffer (`g:mkdp_auto_close = 0`). Both are set in `.vimrc`, not plugconf:
+the plugin loads on demand (markdown only), and plugconf only configures
+plugins already on the runtimepath at `plug#end()`. All other tunables (TOC,
+KaTeX math, Mermaid, PlantUML, custom CSS) keep the plugin defaults.
 
 #### Encryption (gnupg)
 
@@ -682,7 +692,6 @@ Vim keys still behave as usual.
 | Key | Action |
 |---|---|
 | `<F3>` | Toggle tagbar |
-| `<C-f>` | FoldFocus — current fold in vsplit (Python/Fortran only) |
 
 ---
 
@@ -778,25 +787,24 @@ to vim. Differences and additions:
 |---|---|---|
 | `,f ,b ,r ,t ,h ,/` | fzf-lua: files, buffers, live grep, tags, recent files, lines | fzf.vim |
 | `gd` `gr` `K` | definition, references (quickfix), hover | same |
-| `,lr` | LSP rename | `\rn` (see below) |
-| `,la` `,lf` `,ld` | code action, format, line diagnostics | `\la` `\lf` — |
+| `,lr` | LSP rename | same |
+| `,la` `,lf` | code action, format | same |
+| `,ld` | line diagnostics | — |
 | `[d` `]d` | previous / next diagnostic, with float | same |
 | `<Tab>` / `<CR>` | complete / accept (else autopairs) | same |
-| `,,s ,,w ,,j ,,k ,,l ,,h` | flash jumps | documented, never loaded |
+| `,,s ,,w ,,j ,,k ,,l ,,h` | flash jumps | same keys (easymotion) |
 | `-` | oil: parent directory | dirvish |
-| `,gs ,gb ,gd ,gl ,gc ,gp` | fugitive | documented, never loaded |
-| `]c` `[c` `,gh` `,ga` `,gu` | hunk next/prev, preview, stage, reset | gitgutter `,h*` |
+| `,gs ,gb ,gd ,gl ,gc ,gp` | fugitive | same |
+| `]c` `[c` `,gh` `,ga` `,gu` | hunk next/prev, preview, stage, reset | same (gitgutter) |
 | `,gD` `,gH` | diffview: working tree, file history | — |
 | `<F3>` | aerial outline | tagbar |
 | `,xx ,xb ,xs ,xq` | trouble: diagnostics, buffer diagnostics, symbols, quickfix | — |
 | `,T` | search TODO comments | — |
 | `,m` | toggle in-buffer markdown rendering | — |
 
-Rename is `,lr`, not `,rn`: `,r` is grep, and a `,rn` map would make `,r` wait
-`timeoutlen` in every LSP buffer. In vim the plugconf `<leader>` maps are
-defined before `mapleader` is set, so they sit on `\`, and the fugitive and
-easymotion plugconf files never load at all (plugconf looks for
-`vim-fugitive.vim`, `vim-easymotion.vim`).
+Both editors share this keymap. Rename is `,lr`, not `,rn`, in both: `,r` is
+grep, and a `,rn` map would make `,r` wait `timeoutlen` in every LSP buffer;
+for the same reason hunk keys live under `,g`, not gitgutter's default `,h*`.
 
 #### Things to know
 

@@ -51,7 +51,7 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 
 - **`bash/`** — Shell config: `.bashrc`, `.bash_profile`, `.inputrc`, `.bash/{aliases,exports,functions,paths,optprogs,claude_code,compilers,prompt}`. The `bd` back-directory completion is vendored at `.bash/completions/bd`.
 - **`claude/`** — Claude Code config in `.claude/`: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/`. Secrets (`.credentials.json`, `.env`) are gitignored.
-- **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, plugconf, spell, syntax). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
+- **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, ftdetect, plugconf). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
 - **`nvim/`** — Neovim config in `.config/nvim/` (lazy.nvim, Lua), a port of the vim setup that runs **alongside** vim; see "Neovim" below.
 - **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
 - **`modules/`** — Lmod modulefiles in `.modules/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants). Load with `module load gcc/15.1.0`.
@@ -441,8 +441,10 @@ Add the package name to `machines/<hostname>` (one name per line).
 - **Tabs**: 3 spaces, expanded (4 for Python, per ftplugin)
 - **Navigation**: `<C-Right>`/`<C-Left>` next/prev buffer · `qq` close buffer (Bdelete) · `<F2>` toggle wrap · `<leader><leader>{s,w,j,k,h,l}` easymotion jumps
 - **Finders (fzf.vim)**: `<leader>f` files · `<leader>b` buffers · `<leader>r` ripgrep · `<leader>t` tags · `<leader>h` history · `<leader>/` lines
-- **LSP (yegappan/lsp)**: `gd` goto-def · `gr` refs · `K` hover · `<leader>rn` rename · `<leader>la` code-action · `<leader>lf` format · `[d`/`]d` prev/next diagnostic · `<Tab>` completion
-- **Git (fugitive)**: `<leader>gs` status · `<leader>gb` blame · `<leader>gd` diff · `<leader>gl` log · `<leader>gc` commit · `<leader>gp` push
+- **LSP (yegappan/lsp)**: `gd` goto-def · `gr` refs · `K` hover · `<leader>lr` rename · `<leader>la` code-action · `<leader>lf` format · `[d`/`]d` prev/next diagnostic · `<Tab>` completion
+- **Git (fugitive + gitgutter)**: `<leader>gs` status · `<leader>gb` blame · `<leader>gd` diff · `<leader>gl` log · `<leader>gc` commit · `<leader>gp` push · `]c`/`[c` next/prev hunk · `<leader>gh` preview · `<leader>ga` stage · `<leader>gu` undo hunk
+- **No prefix collisions.** A `<leader>x` map must not be a prefix of another (`,r` vs `,rn`, `,h` vs `,hp`): vim then waits `timeoutlen` on the short one. vim and nvim share the same keymap.
+- **plugconf naming.** `vim/.vim/plugconf/<name>.vim` must match the plugin's *directory* name (`vim-fugitive.vim`), or it is silently skipped; on-demand plugins (`'for'`/`'on'`) are invisible to plugconf and are configured in `.vimrc`. `mapleader` must stay before `plug#begin`.
 - **LSP servers**: `fortls` (Fortran), `basedpyright` (Python), `texlab` (LaTeX), `bash-language-server` (bash). Install via `~/.scripts/install-vim-lsp.sh`.
 - **ALE** handles linting (ruff, gfortran, shellcheck) and formats Python on save via `ruff_format`. LSP diagnostics are separate (`let g:ale_disable_lsp = 1`).
 - Trailing whitespace and multiple blank lines are auto-stripped on save for most filetypes

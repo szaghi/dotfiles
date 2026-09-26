@@ -10,7 +10,10 @@ set nocompatible
 " if the plug block is ever reordered or disabled.
 filetype plugin indent on
 
-" Set localleader BEFORE plug#begin — plugins (e.g. vimtex) read it at load time.
+" Set leader and localleader BEFORE plug#begin — plugconf#load() defines the
+" plugconf/*.vim mappings right after plug#end(), and plugins (e.g. vimtex) read
+" the leaders at load time. <leader> in a mapping is expanded when it is defined.
+let mapleader = ","
 let maplocalleader = ","
 
 " Plugins handling with vim-plug and plugconf {{{
@@ -25,9 +28,6 @@ Plug 'mengelbrecht/lightline-bufferline'
 Plug 'majutsushi/tagbar'
 Plug 'moll/vim-bbye'
 Plug 'justinmk/vim-dirvish'
-
-" selection
-Plug 'vasconcelloslf/vim-foldfocus', { 'for':  ['python','fortran'] }
 
 " spell check and languages
 Plug 'lervag/vimtex', { 'for': 'tex' }
@@ -63,6 +63,12 @@ Plug 'niboan/plugconf'
 
 call plug#end()
 call plugconf#load()
+
+" plugconf only sees plugins on the runtimepath at plug#end(), so on-demand
+" ('for'/'on') plugins are configured here instead.
+" markdown-preview: only the values that differ from the plugin defaults.
+let g:mkdp_auto_close = 0
+let g:mkdp_theme = 'dark'
 " }}}
 
 " Highlighting and colors {{{
@@ -103,7 +109,6 @@ let g:lightline#bufferline#unnamed      = '[No Name]'
 " }}}
 
 " Editing behaviour {{{
-let mapleader = ","                                                      " leader symbol
 set cursorline                                                           " enable cursorline
 set nowrap                                                               " don't wrap lines
 set tabstop=3                                                            " a tab is 3 spaces
@@ -152,7 +157,7 @@ set foldcolumn=1                                                         " add a
 set foldmethod=marker                                                    " detect triple-{ style fold markers
 set foldlevelstart=0                                                     " start out with everything folded
 set foldopen=block,hor,insert,jump,mark,percent,quickfix,search,tag,undo " which commands trigger auto-unfold
-set fileformats="unix,dos,mac"                                           " file formats
+set fileformats=unix,dos,mac                                             " file formats (unquoted: a " starts a comment)
 set termencoding=utf-8                                                   " file encoding
 set showtabline=2                                                        " show tabline
 " Ensure undodir exists (silent on re-run).

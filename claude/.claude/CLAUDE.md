@@ -58,6 +58,20 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
   `~/fortran/StringiFor` or `~/fortran/PENF` as the reference — verify the
   path exists with `ls` before using it
 
+## WSL ↔ Windows Interop
+- **Windows ParaView reading HDF5/XDMF from the WSL filesystem** (`\\wsl$\<distro>\...`, `\\wsl.localhost\...`,
+  or a drive mapped to them): the XDMF opens with no warning but the data is **empty**. HDF5 (1.10+) locks every
+  file it opens, and the lock fails on WSL's 9P / Plan 9 file server. It is not a path problem: a mapped drive
+  letter alone does not help. **Fix:** a Windows *user* environment variable `HDF5_USE_FILE_LOCKING=FALSE`, then
+  restart ParaView. Safe for read-only viewing, and no copies to NTFS needed. Applies to any Windows HDF5 reader
+  (VisIt, h5py on Windows, …).
+- **Mapping WSL to a drive letter:** run `net use W: \\wsl$\<distro>` from a **non-elevated** prompt, mapping the
+  share root. A mapping made from an Administrator prompt is invisible to Explorer and to desktop apps (UAC split
+  token). Mapping a subfolder through `\\wsl.localhost\...` can fail with "network name is no longer available".
+- **Checking Windows state from inside WSL is unreliable:** Windows processes started from WSL (`cmd.exe`,
+  `powershell.exe`) may not see the WSL share or drives mapped in the desktop logon session. Ask the user to check
+  in Explorer or the app instead.
+
 ## Fortran Conventions
 
 Detailed Fortran rules — source-file conventions, kind discipline, modern syntax, OOP

@@ -91,7 +91,8 @@ augroup END
 nnoremap <silent> gd           :LspGotoDefinition<CR>
 nnoremap <silent> gr           :LspShowReferences<CR>
 nnoremap <silent> K            :LspHover<CR>
-nnoremap <silent> <leader>rn   :LspRename<CR>
+" ,lr not ,rn: ,r is :Rg, and a ,rn map would make ,r wait 'timeoutlen'
+nnoremap <silent> <leader>lr   :LspRename<CR>
 nnoremap <silent> <leader>la   :LspCodeAction<CR>
 nnoremap <silent> <leader>lf   :LspFormat<CR>
 nnoremap <silent> [d           :LspDiagPrev<CR>
