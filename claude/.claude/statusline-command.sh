@@ -46,6 +46,8 @@ def time_until(ts):
 
 fh_reset = time_until(rl.get('five_hour', {}).get('resets_at'))
 sd_reset = time_until(rl.get('seven_day', {}).get('resets_at'))
+sd_at    = rl.get('seven_day', {}).get('resets_at')
+sd_start = str(int(sd_at) - 7 * 86400) if sd_at else ''
 
 print(f'_cwd={chr(39)}{cwd}{chr(39)}')
 print(f'_model={chr(39)}{model}{chr(39)}')
@@ -54,7 +56,60 @@ print(f'_fh={chr(39)}{fh}{chr(39)}')
 print(f'_sd={chr(39)}{sd}{chr(39)}')
 print(f'_fh_reset={chr(39)}{fh_reset}{chr(39)}')
 print(f'_sd_reset={chr(39)}{sd_reset}{chr(39)}')
+print(f'_sd_start={chr(39)}{sd_start}{chr(39)}')
 " 2>/dev/null)"
+
+# ── Tokens used in the current 7-day window ─────────────────────────────────
+# Anthropic reports the weekly limit only as a percentage; the token count is
+# summed from the local transcripts (~/.claude/projects/**/*.jsonl) since the
+# window start (resets_at - 7d). Only claude-* models count, so local and
+# proxied backends are excluded. Usage from other machines or claude.ai is not
+# visible here. The scan takes ~0.3 s, so it runs in the background at most
+# once a minute and the status line prints the cached result.
+_tok7d_py='
+import glob, json, os, sys
+from datetime import datetime
+start = int(sys.argv[1])
+seen = {}
+for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursive=True):
+    if os.path.getmtime(f) < start:
+        continue
+    with open(f, "rb") as fh:
+        for line in fh:
+            if b"\"usage\"" not in line:
+                continue
+            try:
+                d = json.loads(line)
+                m = d["message"]
+                if d.get("type") != "assistant" or not str(m.get("model", "")).startswith("claude-"):
+                    continue
+                t = datetime.fromisoformat(d["timestamp"].replace("Z", "+00:00")).timestamp()
+            except (ValueError, KeyError, TypeError, AttributeError):
+                continue
+            if t < start:
+                continue
+            u = m.get("usage") or {}
+            # streamed replies repeat the same message id: count each once
+            seen[m.get("id") or d.get("uuid")] = (u.get("output_tokens") or 0,
+                sum(u.get(k) or 0 for k in ("input_tokens", "output_tokens",
+                    "cache_creation_input_tokens", "cache_read_input_tokens")))
+print(start, sum(v[0] for v in seen.values()), sum(v[1] for v in seen.values()))
+'
+_tok7d=""
+if [ -n "$_sd_start" ]; then
+    cdir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
+    cache="$cdir/tok7d"
+    mkdir -p "$cdir"
+    read -r c_start c_out c_all 2>/dev/null < "$cache"
+    if [ "$c_start" != "$_sd_start" ] || [ -z "$(find "$cache" -mmin -1 2>/dev/null)" ]; then
+        ( flock -n 9 || exit 0
+          python3 -c "$_tok7d_py" "$_sd_start" > "$cache.tmp" && mv "$cache.tmp" "$cache"
+        ) 9>"$cdir/tok7d.lock" >/dev/null 2>&1 &
+    fi
+    _hum() { awk -v n="$1" 'BEGIN{ split("k M G T", u); s=""; for (i=0; n>=1000 && i<4; i++) { n/=1000; s=u[i+1] }
+                                   printf (n<10 && s!="") ? "%.1f%s" : "%.0f%s", n, s }'; }
+    [ "$c_start" = "$_sd_start" ] && _tok7d="$(_hum "$c_all") tok (out $(_hum "$c_out"))"
+fi
 
 # ── Colour helper (green/yellow/orange/red by percentage) ───────────────────
 _pct_color() {
@@ -120,6 +175,7 @@ if [ -n "$_fh" ] || [ -n "$_sd" ]; then
     if [ -n "$_sd" ]; then
         r+="${white}7d:$(_pct_color "$_sd")${_sd}%${reset}"
         [ -n "$_sd_reset" ] && r+="${dim}(${_sd_reset})${reset}"
+        [ -n "$_tok7d" ] && r+=" ${white}${_tok7d}${reset}"
     fi
     rate_part="$r"
 fi
