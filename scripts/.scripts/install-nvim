@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Install Neovim and the external tools its config relies on, alongside vim.
+# Safe to re-run — each step is idempotent. Never touches vim.
+#
+# Tools installed:
+#   nvim             — pinned release       (Arch: pacman; Ubuntu: upstream tarball)
+#   ripgrep (rg)     — fzf-lua live_grep    (pacman / apt, requires sudo)
+#   fd               — fzf-lua files        (pacman / apt, requires sudo)
+#   tree-sitter CLI  — nvim-treesitter main (pacman / npm in nvm scope)
+#
+# Ubuntu layout: each release unpacks into ~/.local/opt/nvim-v<version>/ and
+# ~/.local/bin/nvim is a symlink to the active one. Older versions are kept, so
+# a rollback is re-pointing one symlink. Bump NVIM_VERSION and NVIM_SHA256
+# together (digest from the GitHub release asset page).
+#
+# LSP servers are shared with vim and provisioned by install-vim-lsp.sh.
+
+set -euo pipefail
+
+NVIM_VERSION=0.12.5
+NVIM_SHA256=bce0f56eda1f1b1db6eee8f4133d7a38813ea07933837dd1777411ca384c6875
+
+log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33mWARN:\033[0m %s\n' "$*" >&2; }
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+install_arch() {
+   log "Arch/CachyOS: installing via pacman (needs sudo)..."
+   sudo pacman -S --needed neovim ripgrep fd tree-sitter-cli
+}
+
+install_nvim_tarball() {
+   local arch prefix link
+   arch=$(uname -m)
+   if [[ $arch != "x86_64" ]]; then
+      warn "nvim: unsupported arch $arch — install manually"
+      return 1
+   fi
+   prefix="$HOME/.local/opt/nvim-v$NVIM_VERSION"
+   link="$HOME/.local/bin/nvim"
+   if [[ -x $prefix/bin/nvim ]]; then
+      log "nvim v$NVIM_VERSION already unpacked in $prefix"
+   else
+      local tarball=nvim-linux-x86_64.tar.gz
+      local url="https://github.com/neovim/neovim/releases/download/v$NVIM_VERSION/$tarball"
+      local tmpdir
+      tmpdir=$(mktemp -d)
+      trap 'rm -rf "$tmpdir"' RETURN
+      log "Downloading $url..."
+      curl -fsSL -o "$tmpdir/$tarball" "$url"
+      echo "$NVIM_SHA256  $tmpdir/$tarball" | sha256sum --check --quiet
+      mkdir -p "$prefix"
+      tar -xzf "$tmpdir/$tarball" -C "$prefix" --strip-components=1
+      log "nvim v$NVIM_VERSION unpacked in $prefix"
+   fi
+   mkdir -p "$(dirname "$link")"
+   ln -sfn "$prefix/bin/nvim" "$link"
+   log "$link -> $prefix/bin/nvim"
+}
+
+install_apt() {
+   local pkg=$1 bin=${2:-$1}
+   if have "$bin"; then
+      log "$bin already installed: $(command -v "$bin")"
+   else
+      log "Installing $pkg via apt (needs sudo)..."
+      sudo apt-get install -y "$pkg"
+   fi
+}
+
+install_ubuntu() {
+   install_nvim_tarball
+   install_apt ripgrep rg
+   install_apt fd-find fdfind
+   # Debian renames fd to fdfind (name clash); expose the upstream name.
+   if ! have fd && have fdfind; then
+      ln -sfn "$(command -v fdfind)" "$HOME/.local/bin/fd"
+      log "$HOME/.local/bin/fd -> $(command -v fdfind)"
+   fi
+   if have tree-sitter; then
+      log "tree-sitter already installed: $(command -v tree-sitter)"
+   else
+      log "Installing tree-sitter-cli via npm (nvm scope, no sudo)..."
+      npm install -g tree-sitter-cli
+   fi
+}
+
+if [[ -f /etc/arch-release ]]; then
+   install_arch
+else
+   install_ubuntu
+fi
+
+log "Done: $(nvim --version | head -1)"

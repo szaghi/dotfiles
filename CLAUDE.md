@@ -52,6 +52,7 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 - **`bash/`** — Shell config: `.bashrc`, `.bash_profile`, `.inputrc`, `.bash/{aliases,exports,functions,paths,optprogs,claude_code,compilers,prompt}`. The `bd` back-directory completion is vendored at `.bash/completions/bd`.
 - **`claude/`** — Claude Code config in `.claude/`: `CLAUDE.md` (global instructions), `settings.json`, `settings.local.json`, `statusline-command.sh`, `commands/`. Secrets (`.credentials.json`, `.env`) are gitignored.
 - **`vim/`** — Vim config: `.vimrc` + `.vim/` directory (per-filetype rc files, colors, plugconf, spell, syntax). Plugins managed via vim-plug in `.vim/plugged/` (gitignored).
+- **`nvim/`** — Neovim config in `.config/nvim/` (lazy.nvim, Lua), a port of the vim setup that runs **alongside** vim; see "Neovim" below.
 - **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
 - **`modules/`** — Lmod modulefiles in `.modules/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants). Load with `module load gcc/15.1.0`.
 - **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, `git-health`, etc.) and `.bin/act`. The `bd` script is vendored here. Also ships systemd **user** units in `.config/systemd/user/`.
@@ -360,6 +361,41 @@ Pywalfox's extension + native host, and Chrome's UI is not styleable by external
 config. `desktop/.config/chrome-flags.conf` gets it as far as native Wayland (sharper
 at the 1.5x scale) plus GTK4 integration, so it follows `adw-gtk3-dark`. Its tab strip
 will not be Solarized.
+
+## Neovim (`nvim/`)
+
+Neovim is installed and configured **alongside** vim. The vim setup stays
+exactly as it is; the two editors share no mutable state. Full description,
+migration table and key map: README.md → nvim.
+
+```bash
+~/.scripts/install-nvim         # pinned nvim (sha256-checked) + rg, fd, tree-sitter CLI
+bash ~/dotfiles/dotify.sh nvim  # link ~/.config/nvim
+```
+
+### Things to know when editing
+
+- **Never couple the two configs.** No `source ~/.vimrc`, no `~/.vim` on
+  nvim's runtimepath, no `undodir` pointing at `~/.vim/undo`. vim-plug on a
+  shared `~/.vim/plugged` would race, and yegappan/lsp is Vim9script.
+  `$EDITOR`, git `core.editor` and difftool stay `vim`.
+- One spec per plugin (family) in `lua/plugins/`; plugins on trial live in
+  `extras.lua`. Commit `lazy-lock.json` whenever it changes.
+- No mason: LSP servers come from `~/.scripts/install-vim-lsp.sh` and are
+  shared with vim. `nvim-lspconfig` is only a source of `lsp/*.lua` defaults.
+- No icons: the terminal font has no Nerd Font glyphs, so every new plugin
+  must be configured with ASCII/Unicode (`icons_enabled`, `use_icons`,
+  `nerd_font`, …).
+- Per-filetype *options* go in `after/ftplugin/` (the runtime ftplugin would
+  override `ftplugin/`); only variables the runtime must read early
+  (`b:fortran_fixed_source`) go in `ftplugin/`.
+- The treesitter FileType autocmd runs after the filetype plugins, so its
+  folds win wherever a parser has fold queries. LaTeX is excluded from
+  treesitter highlighting on purpose (vimtex).
+- Rename is `,lr`, not `,rn`: `,r` is grep and must not wait `timeoutlen`.
+- Headless testing needs care: `VeryLazy` never fires without a UI (load the
+  plugin explicitly), and `feedkeys(..., "x")` leaves insert mode before
+  async LSP completion replies.
 
 ## Adding New Dotfiles
 

@@ -42,6 +42,13 @@
     - [Arithmetic (HowMuch)](#arithmetic-howmuch)
     - [Per-filetype configuration](#per-filetype-configuration)
     - [Key mappings reference](#key-mappings-reference)
+  - [nvim](#nvim)
+    - [Coexistence with vim](#coexistence-with-vim)
+    - [Install and first start](#install-and-first-start)
+    - [Config layout](#config-layout)
+    - [From vim to Neovim](#from-vim-to-neovim)
+    - [Neovim key mappings](#neovim-key-mappings)
+    - [Things to know](#things-to-know)
   - [git](#git)
     - [GPG commit signing](#gpg-commit-signing)
   - [modules — HPC environments](#modules--hpc-environments)
@@ -85,6 +92,7 @@
 | **git** | Version control | `pacman -S git` | `apt install git` |
 | **bash** ≥ 4.4 | Shell (uses `autocd`, `globstar`, `histappend`) | pre-installed | `apt install bash` |
 | **vim** | Editor | `pacman -S vim` | `apt install vim` |
+| **neovim** ≥ 0.11 | Second editor, alongside vim | `~/.scripts/install-nvim` (pacman) | `~/.scripts/install-nvim` (upstream tarball; apt's 0.9 is too old) |
 | **GNU Stow** | Symlink manager — deploys packages | `pacman -S stow` | `apt install stow` |
 | **Lmod** | Environment module system | `yay -S lmod` (AUR) | `apt install lmod` |
 | **dircolors** | Colour-coded `ls` output (reads `~/.dircolors.256dark`) | coreutils (pre-installed) | coreutils (pre-installed) |
@@ -196,6 +204,7 @@ dotfiles/
 ├── machines/         per-host package and skill lists — not a stow package
 ├── miscellanea/      single-file configs (latexmkrc, NAS mount script)
 ├── modules/          Lmod modulefiles for HPC toolchains
+├── nvim/             Neovim configuration (lazy.nvim), independent of vim/
 ├── python/           Python env (pythonrc, pylintrc)
 ├── scripts/          scripts, user systemd units and standalone binaries
 ├── ssh/              ssh client configuration (config only, never keys)
@@ -674,6 +683,135 @@ Vim keys still behave as usual.
 |---|---|
 | `<F3>` | Toggle tagbar |
 | `<C-f>` | FoldFocus — current fold in vsplit (Python/Fortran only) |
+
+---
+
+### nvim
+
+Neovim runs **alongside** vim, not instead of it. The `nvim/` package is a
+port of the vim setup to Lua and Neovim-native plugins, with the same leader
+keys; it never reads a vim file.
+
+#### Coexistence with vim
+
+The two editors share no mutable state:
+
+| Resource | vim | Neovim |
+|---|---|---|
+| config | `~/.vimrc`, `~/.vim/` | `~/.config/nvim/` (this package) |
+| plugins | `~/.vim/plugged` (vim-plug) | `~/.local/share/nvim/lazy` (lazy.nvim) |
+| treesitter parsers | — | `~/.local/share/nvim/site` |
+| undo | `~/.vim/undo` | `~/.local/state/nvim/undo` |
+| history | `~/.viminfo` | `~/.local/state/nvim/shada` |
+| `$EDITOR`, git `core.editor`, difftool | `vim` | unchanged: still vim |
+| LSP servers, fzf, rg, ruff, shellcheck | shared binaries | shared (stateless processes) |
+
+Do **not** "reuse" the vim config with `set rtp^=~/.vim | source ~/.vimrc`
+(`:h nvim-from-vim`): both editors would then run vim-plug on the same
+`~/.vim/plugged`, yegappan/lsp is Vim9script and fails in Neovim, and Neovim's
+undo files would land in vim's undo directory.
+
+#### Install and first start
+
+```bash
+~/.scripts/install-nvim         # nvim (pinned, sha256-checked) + rg, fd, tree-sitter CLI
+bash ~/dotfiles/dotify.sh nvim  # link ~/.config/nvim
+nvim                            # bootstraps lazy.nvim, plugins and parsers
+```
+
+On Ubuntu the release unpacks into `~/.local/opt/nvim-v<version>/` and
+`~/.local/bin/nvim` points at it; older versions stay on disk, so a rollback
+is one `ln -sfn`. Upgrade by bumping `NVIM_VERSION` and `NVIM_SHA256` in the
+script. On Arch/CachyOS the script uses pacman.
+
+Plugin revisions are pinned in `lazy-lock.json` (committed). `:Lazy update`
+moves them forward; `:Lazy restore` returns to the lockfile.
+
+#### Config layout
+
+```
+nvim/.config/nvim/
+├── init.lua                   requires config.options, keymaps, autocmds, lazy
+├── lazy-lock.json             plugin revisions
+├── lua/config/                options, keymaps, autocmds, lazy.nvim bootstrap
+├── lua/plugins/               one spec per plugin (family); extras.lua = on trial
+├── ftplugin/fortran.lua       fixed/free form, before the runtime reads it
+├── after/ftplugin/            per-filetype options (fortran, python, tex)
+└── queries/fortran/           rainbow-delimiters query (none upstream)
+```
+
+#### From vim to Neovim
+
+| vim | Neovim | Notes |
+|---|---|---|
+| vim-plug + plugconf | lazy.nvim | one spec file per plugin replaces plugconf |
+| yegappan/lsp | native `vim.lsp.config` / `vim.lsp.enable` + nvim-lspconfig (data only) | same servers, no mason |
+| ALE | `ruff server`, bash-language-server, conform.nvim | ruff fix + format on save for Python |
+| manual `<Tab>` omni-completion | same `<Tab>` via `vim.lsp.completion` | no auto-popup, as before |
+| solarized (16-colour) | maxmx03/solarized.nvim (24-bit) | no dependence on the terminal palette |
+| lightline + bufferline | lualine | buffer tabline degrades full path → short path → filename |
+| fzf.vim | fzf-lua | also serves `vim.ui.select` (code actions) |
+| dirvish | oil.nvim | editable directory buffer; deletes go to trash |
+| easymotion | flash.nvim | same `,,` keys |
+| surround / commentary / repeat | nvim-surround / built-in `gc` / not needed | |
+| unimpaired | built-in `[b ]b [q ]q [<Space>` | |
+| lexima | nvim-autopairs | |
+| gitgutter | gitsigns | |
+| tagbar | aerial.nvim | symbols from LSP, then treesitter |
+| vim-bbye | snacks.bufdelete | |
+| rainbow_parentheses | rainbow-delimiters | custom Fortran query |
+| python-syntax, regex syntax | treesitter | not for LaTeX (vimtex keeps its syntax) |
+| fugitive, vimtex, markdown-preview, gnupg, easy-align, VisIncr, HowMuch, maketable | kept | |
+| tabular, FoldFocus | dropped | easy-align covers tabular |
+
+New, on trial (`lua/plugins/extras.lua`): trouble.nvim, diffview.nvim,
+todo-comments.nvim, render-markdown.nvim. Also which-key.nvim and
+nvim-treesitter-context.
+
+#### Neovim key mappings
+
+Leader = `,`. Core editing keys (`/`, `<C-e>`, `<A-arrows>`, `<F2>`, `<C-N>`,
+`<leader>v`, `<C-J>`, visual `v`, `<C-Right>`/`<C-Left>`, `qq`) are identical
+to vim. Differences and additions:
+
+| Key | Action | vim |
+|---|---|---|
+| `,f ,b ,r ,t ,h ,/` | fzf-lua: files, buffers, live grep, tags, recent files, lines | fzf.vim |
+| `gd` `gr` `K` | definition, references (quickfix), hover | same |
+| `,lr` | LSP rename | `\rn` (see below) |
+| `,la` `,lf` `,ld` | code action, format, line diagnostics | `\la` `\lf` — |
+| `[d` `]d` | previous / next diagnostic, with float | same |
+| `<Tab>` / `<CR>` | complete / accept (else autopairs) | same |
+| `,,s ,,w ,,j ,,k ,,l ,,h` | flash jumps | documented, never loaded |
+| `-` | oil: parent directory | dirvish |
+| `,gs ,gb ,gd ,gl ,gc ,gp` | fugitive | documented, never loaded |
+| `]c` `[c` `,gh` `,ga` `,gu` | hunk next/prev, preview, stage, reset | gitgutter `,h*` |
+| `,gD` `,gH` | diffview: working tree, file history | — |
+| `<F3>` | aerial outline | tagbar |
+| `,xx ,xb ,xs ,xq` | trouble: diagnostics, buffer diagnostics, symbols, quickfix | — |
+| `,T` | search TODO comments | — |
+| `,m` | toggle in-buffer markdown rendering | — |
+
+Rename is `,lr`, not `,rn`: `,r` is grep, and a `,rn` map would make `,r` wait
+`timeoutlen` in every LSP buffer. In vim the plugconf `<leader>` maps are
+defined before `mapleader` is set, so they sit on `\`, and the fugitive and
+easymotion plugconf files never load at all (plugconf looks for
+`vim-fugitive.vim`, `vim-easymotion.vim`).
+
+#### Things to know
+
+- **Icons are off everywhere.** The terminal font (Cascadia Mono) has no Nerd
+  Font glyphs; every plugin is configured with ASCII or plain Unicode.
+- **WSL clipboard.** `"+y` copies via OSC 52 (UTF-8 safe); `"+p` pastes via
+  PowerShell with UTF-8 output forced. `clipboard` stays empty, as in vim.
+- **Treesitter for Fortran** parses the 189 first-party `~/fortran/adam`
+  files with 0 errors (cpp and OpenACC/OpenMP included). Folds come from
+  treesitter wherever a parser exists; `config/autocmds.lua` is the fallback.
+- **fortls diagnostics are dropped**, as in vim (spurious errors on
+  FoBiS-fetched and FORD shadow trees).
+- **`v:errmsg` may read `E31` after opening markdown.** It comes from Neovim's
+  own markdown ftplugin undo (`sil! nunmap`), reproduces with `nvim --clean`,
+  and never shows a message.
 
 ---
 
