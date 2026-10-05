@@ -44,8 +44,8 @@ IKLLAMA_CTX="${IKLLAMA_CTX:-131072}"
 # ── NVIDIA NIM SETTINGS (override in claude_code.local) ──────────────────────
 # NVIDIA's HOSTED catalog (build.nvidia.com -> integrate.api.nvidia.com) speaks
 # only the OpenAI API: /v1/messages returns 404 there. Claude Code speaks the
-# Anthropic Messages API, so unlike claude-openrouter / claude-zai (whose
-# upstreams are Anthropic-compatible and need only two env vars) this backend
+# Anthropic Messages API, so unlike claude-zai (whose upstream is
+# Anthropic-compatible and needs only two env vars) this backend
 # REQUIRES a local translation proxy. That proxy is a server with a lifecycle,
 # which is why nvidia is a llm-local-server backend rather than a bare wrapper.
 #
@@ -68,21 +68,6 @@ LOCAL_DEFAULT_BACKEND="${LOCAL_DEFAULT_BACKEND:-ollama}"
 claude-sonnet() { claude --model "sonnet" "$@"; }
 claude-opus()   { claude --model "opus"   "$@"; }
 claude-plan()   { claude --permission-mode plan --model "opusplan" "$@"; }
-
-OPENROUTER_DEFAULT_MODEL="qwen/qwen3.6-plus-preview:free"
-
-claude-openrouter() {
-    local model="${1:-$OPENROUTER_DEFAULT_MODEL}"
-    local key="${OPENROUTER_API_KEY:-$(cat "$HOME/.openrouter-ai-key" 2>/dev/null)}"
-    if [[ -z "$key" ]]; then
-        printf 'Error: no OpenRouter API key (set OPENROUTER_API_KEY or ~/.openrouter-ai-key)\n' >&2
-        return 1
-    fi
-    ANTHROPIC_AUTH_TOKEN="$key" \
-    ANTHROPIC_BASE_URL="https://openrouter.ai/api" \
-    ANTHROPIC_API_KEY="" \
-    claude --model "$model" "${@:2}"
-}
 
 ZAI_DEFAULT_MODEL="glm-5-turbo"
 
@@ -107,7 +92,7 @@ claude-zai-premium() { claude-zai "glm-5.1"     "$@"; }
 #
 # claude-nvidia [MODEL] [-- CLAUDE_ARGS...]
 #
-# Unlike claude-openrouter / claude-zai this is NOT a bare env-var wrapper: the
+# Unlike claude-zai this is NOT a bare env-var wrapper: the
 # hosted NVIDIA catalog speaks only OpenAI, so a local Anthropic->OpenAI proxy
 # sits in between. That proxy is managed as the "nvidia" backend of
 # llm-local-server, and claude-nvidia auto-starts it exactly as claude-local
@@ -519,7 +504,7 @@ _lls_start_ollama() {
 }
 
 # Resolve the NVIDIA API key: env first, then ~/.nvidia-api-key. Mirrors the
-# key handling of claude-openrouter / claude-zai.
+# key handling of claude-zai.
 _nvidia_api_key() {
     local key="${NVIDIA_API_KEY:-}"
     [[ -z "$key" && -r "$HOME/.nvidia-api-key" ]] && key=$(<"$HOME/.nvidia-api-key")
@@ -1884,10 +1869,6 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-cnr login --no-sso'       'authenticate without SSO (plain subscription)'
     printf '  %-36s%s\n' 'claude-cnr status'               'show which account the isolated config is on'
     printf '  %-36s%s\n' 'claude-cnr'                      'research-account session (shares skills, memory, sessions)'
-    printf '\n'
-    printf "  ${b}OPENROUTER${r}  cloud free-tier · key: ~/.openrouter-ai-key\n"
-    printf '%s\n' "$sep"
-    printf '  %-36s%s\n' 'claude-openrouter [model]'       'default: qwen3.6-plus-preview:free'
     printf '\n'
     printf "  ${b}Z.AI${r}  cloud API · key: ~/.z-ai-key\n"
     printf '%s\n' "$sep"

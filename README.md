@@ -60,7 +60,6 @@
     - [Skills — three-class machinery (skills-apply)](#skills--three-class-machinery-skills-apply)
     - [Claude CLI wrappers — overview](#claude-cli-wrappers--overview)
     - [Cloud: Anthropic](#cloud-anthropic)
-    - [Cloud: OpenRouter](#cloud-openrouter)
     - [Cloud: Z.ai](#cloud-zai)
     - [Cloud: NVIDIA (build.nvidia.com)](#cloud-nvidia-buildnvidiacom)
       - [Latency — why this backend is parked](#latency--why-this-backend-is-parked)
@@ -937,8 +936,8 @@ Because `~/.modules` is a stow symlink pointing into the repo, the new file is
 ### claude
 
 Configuration and wrappers for [Claude Code](https://claude.ai/code), a CLI
-coding agent. The setup provides a single mental model over three cloud
-providers (Anthropic, OpenRouter, Z.ai) and three local inference backends
+coding agent. The setup provides a single mental model over two cloud
+providers (Anthropic, Z.ai) and three local inference backends
 (Ollama, llama.cpp, ik\_llama.cpp), plus project-aware context, persona
 instructions and a custom Solarized status line.
 
@@ -1074,9 +1073,9 @@ summary:
 
 | Class | Examples | Lifecycle owner | Where declared |
 |---|---|---|---|
-| **A. Custom user-authored** | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image` | git + stow | `claude/.claude/skills/<name>/` (real source dirs) |
+| **A. Custom user-authored** | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing` | git + stow | `claude/.claude/skills/<name>/` (real source dirs) |
 | **B. Plugin / marketplace** | `frontend-design`, `skill-creator`, `cli-anything`, `document-skills` | `claude plugin` CLI | `settings.json` → `enabledPlugins` |
-| **C. Third-party loose** | `perplexity-search` | upstream installers (pipx, venv, `curl \| bash`…) | `claude/.claude/skills/manifest.toml` |
+| **C. Third-party loose** | `pdf-deps`, `book-to-skill`, `stop-slop`, … | upstream installers (pipx, venv, `curl \| bash`…) | `claude/.claude/skills/manifest.toml` |
 
 Per-host filtering of class C: `machines/<hostname>.skills` (one skill name
 per line, blanks and `#` comments allowed). A missing file means "install
@@ -1129,7 +1128,7 @@ Overall flow:
   claude-sonnet              (ollama|llama|ikllama)       ollama-{pull,create,…}
   claude-opus                                             llama-{models,alias,info}
   claude-plan                  claude-nvidia              nvidia-models
-  claude-openrouter            (proxy backend)
+                               (proxy backend)
   claude-zai[-fast|-turbo|-premium]
 ```
 
@@ -1152,21 +1151,6 @@ Uses your standard Anthropic subscription (no extra key file).
 | `claude-sonnet` | Force Sonnet (`claude --model sonnet`) |
 | `claude-opus` | Force Opus (`claude --model opus`) |
 | `claude-plan` | Read-only plan mode (Opus) → auto-switches to Sonnet on execute (`--permission-mode plan --model opusplan`) |
-
-#### Cloud: OpenRouter
-
-Routes through [OpenRouter](https://openrouter.ai/), giving access to
-100+ models including free tiers.
-
-```bash
-claude-openrouter                           # default model
-claude-openrouter google/gemma-3-27b-it:free
-claude-openrouter anthropic/claude-3.5-sonnet
-```
-
-- API key: `~/.openrouter-ai-key` (gitignored) or `OPENROUTER_API_KEY` env override
-- Endpoint: `https://openrouter.ai/api` (the Anthropic SDK appends `/v1/messages`)
-- Default model: `$OPENROUTER_DEFAULT_MODEL` (currently `qwen/qwen3.6-plus-preview:free`)
 
 #### Cloud: Z.ai
 
@@ -1204,8 +1188,8 @@ nvidia-models deepseek                            # filter it
 - Upstream: `https://integrate.api.nvidia.com`
 - Default model: `$NVIDIA_DEFAULT_MODEL` (currently `deepseek-ai/deepseek-v4-flash-0731`)
 
-**Why this one needs a proxy.** OpenRouter and Z.ai are two-env-var
-wrappers because their endpoints are already Anthropic-compatible.
+**Why this one needs a proxy.** Z.ai is a two-env-var
+wrapper because its endpoint is already Anthropic-compatible.
 NVIDIA's *hosted* catalog is not — it serves only the OpenAI API, and
 `/v1/messages` returns `404` there. Claude Code speaks the Anthropic
 Messages API, so a local translation proxy
@@ -1446,7 +1430,6 @@ Deploy it via its own machine-specific stow package (e.g.
 | `NVIDIA_PROXY_HOST` / `NVIDIA_PROXY_PORT` | `127.0.0.1` / `8787` | Local translation-proxy bind |
 | `NVIDIA_PROXY_VENV` | `~/.local/share/claude-nvidia-proxy` | Venv holding `nvd-claude-nim` (auto-created) |
 | `NVIDIA_PROXY_HEALTH_PATH` | `/healthz` | Proxy liveness probe (**not** `/health`, which llama.cpp uses) |
-| `OPENROUTER_API_KEY` / `~/.openrouter-ai-key` | *(required)* | OpenRouter auth |
 | `ZAI_API_KEY` / `~/.z-ai-key` | *(required)* | Z.ai auth |
 | `CLAUDE_LOCAL_GPUS` | *(optional)* | Shown in status line (`<N>×GPU`) when set by `claude-local --gpus N` |
 

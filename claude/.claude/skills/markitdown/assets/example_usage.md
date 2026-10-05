@@ -95,16 +95,8 @@ with open("data_tables.md", "w") as f:
 
 ```python
 from markitdown import MarkItDown
-from openai import OpenAI
 
-# With AI descriptions for images
-client = OpenAI()
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-sonnet-4.6",
-    llm_prompt="Describe this scientific slide, focusing on data and key findings"
-)
-
+md = MarkItDown()
 result = md.convert("conference_talk.pptx")
 
 # Save with metadata
@@ -115,72 +107,6 @@ output = f"""# Conference Talk
 
 with open("talk_notes.md", "w") as f:
     f.write(output)
-```
-
-## AI-Enhanced Conversions
-
-### Detailed Image Descriptions
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-# Initialize OpenRouter client
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-# Scientific diagram analysis
-scientific_prompt = """
-Analyze this scientific figure. Describe:
-- Type of visualization (graph, microscopy, diagram, etc.)
-- Key data points and trends
-- Axes, labels, and legends
-- Scientific significance
-Be technical and precise.
-"""
-
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-sonnet-4.6",  # recommended for scientific vision
-    llm_prompt=scientific_prompt
-)
-
-# Convert paper with figures
-result = md.convert("paper_with_figures.pdf")
-print(result.text_content)
-```
-
-### Different Prompts for Different Files
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-# Initialize OpenRouter client
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-# Scientific papers - use Claude for technical analysis
-scientific_md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-sonnet-4.6",
-    llm_prompt="Describe scientific figures with technical precision"
-)
-
-# Presentations - use GPT-4o for visual understanding
-presentation_md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-sonnet-4.6",
-    llm_prompt="Summarize slide content and key visual elements"
-)
-
-# Use appropriate instance for each file
-paper_result = scientific_md.convert("research.pdf")
-slides_result = presentation_md.convert("talk.pptx")
 ```
 
 ## Batch Processing

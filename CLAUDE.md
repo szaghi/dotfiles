@@ -81,7 +81,7 @@ This file (sourced by `~/.bashrc`) configures Claude Code over four `llm-local-s
 - **`claude-local --backend ikllama`** — ik_llama.cpp fork (port 8081); aggressive CPU/hybrid optimizations and newer quant types (IQ4_KS, IQ2_KS), faster on MoE models that spill to RAM.
 - **`claude-sonnet`** / **`claude-opus`** / **`claude-plan`** — Cloud Anthropic API
 - **`claude-iac`** / **`claude-cnr`** — extra subscription accounts (CNR IAC Pro; CNR research "Claude for Science", `stefano.zaghi@cnr.it`), each in its own `CLAUDE_CONFIG_DIR` (`~/.claude-iac`, `~/.claude-cnr` — not `~/.claude-science`, which belongs to another tool). Only credentials and `.claude.json` are per-account; instructions, skills, agents, hooks, plugins, settings and `projects/` (memory + transcripts, so `--resume` crosses accounts) are symlinks into `~/.claude`. First use: `claude-<acct> login`.
-- **`claude-openrouter`** / **`claude-zai`** — Other cloud providers (OpenRouter, Z.ai)
+- **`claude-zai`** — Z.ai cloud provider (GLM models, Anthropic-compatible endpoint)
 - **`claude-nvidia`** — NVIDIA hosted catalog (build.nvidia.com). Unlike the other cloud wrappers its endpoint is OpenAI-only (`/v1/messages` 404s), so it runs through a local Anthropic→OpenAI proxy managed as a fourth `llm-local-server` backend (`nvidia`, port 8787). `nvidia-models [filter]` lists the served catalog. **Working but parked:** NVIDIA's shared NVCF capacity gives multi-minute stalls on individual requests (measured 2026-09-15: same request 3 s, then no response in 55 s, then 200 OK), which makes an interactive agent unworkable. Kept for large models on one-off non-interactive questions; prefer `claude-local` for daily work. Tool calling through the translation proxy is **untested** — every tool request hit the latency window.
 - **`llm-local-server start|stop|restart|status --backend <name>`** — manage a specific server
 - **`claude-help`** — print the full quick-reference
@@ -98,9 +98,9 @@ script. Full design in `claude/.claude/skills/README.md`.
 
 | Class | Owner | Declared in | Examples |
 |---|---|---|---|
-| **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `generate-image`, `remotion-infographics` |
+| **A. Custom user-authored** | git + stow | `claude/.claude/skills/<name>/` (real source dirs) | `fobis`, `research-lookup`, `markdown-mermaid-writing`, `markitdown`, `scientific-writing`, `remotion-infographics` |
 | **B. Plugin / marketplace** | `claude plugin` CLI | `settings.json` → `enabledPlugins` | `frontend-design`, `skill-creator`, `cli-anything`, `document-skills` |
-| **C. Third-party loose** | upstream installers | `claude/.claude/skills/manifest.toml` | `perplexity-search` (`.venv` + `litellm`) |
+| **C. Third-party loose** | upstream installers | `claude/.claude/skills/manifest.toml` | `pdf-deps` (`.venv`), `book-to-skill`, `stop-slop` |
 
 Per-host filtering of class C: `machines/<hostname>.skills` (one skill name
 per line; blanks and `#` comments allowed). Missing file = install every

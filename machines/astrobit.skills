@@ -1,5 +1,4 @@
 # Class-C (manifest) skills to install on: astrobit (telescope control)
 # Deliberately minimal — this host drives the telescopes, it is not a writing
 # or video machine: no latex-document-skill, no remotion-best-practices.
-perplexity-search
 stop-slop

@@ -1,22 +1,26 @@
 # Research Lookup Skill
 
-This skill provides real-time research information lookup using Perplexity's Sonar Pro Search model through OpenRouter.
+This skill provides real-time research information lookup using the Parallel Chat API (`core` model).
 
 ## Setup
 
-1. **Get OpenRouter API Key:**
-   - Visit [openrouter.ai](https://openrouter.ai)
-   - Create account and generate API key
-   - Add credits to your account
+1. **Get a Parallel API Key:**
+   - Visit [parallel.ai](https://parallel.ai)
+   - Create an account and generate an API key
 
-2. **Configure Environment:**
+2. **Install the client:**
    ```bash
-   export OPENROUTER_API_KEY="your_api_key_here"
+   pip install openai
    ```
 
-3. **Test Setup:**
+3. **Configure Environment:**
    ```bash
-   python scripts/research_lookup.py --model-info
+   export PARALLEL_API_KEY="your_api_key_here"
+   ```
+
+4. **Test Setup:**
+   ```bash
+   python scripts/research_lookup.py --help
    ```
 
 ## Usage
@@ -49,9 +53,7 @@ The research lookup tool is automatically available in Claude Code when you:
 - **Current Information:** Focuses on recent publications (2020-2024)
 - **Complete Citations:** Provides full bibliographic information with DOIs
 - **Multiple Formats:** Supports various query types and research needs
-- **High Search Context:** Always uses high search context for deeper, more comprehensive research
 - **Quality Prioritization:** Automatically prioritizes highly-cited papers from top venues
-- **Cost Effective:** Typically $0.01-0.05 per research query
 
 ## Paper Quality Prioritization
 
@@ -114,7 +116,6 @@ Each research result includes:
 - **Summary:** Brief overview of key findings
 - **Key Studies:** 3-5 most relevant recent papers
 - **Citations:** Complete bibliographic information
-- **Usage Stats:** Token usage for cost tracking
 - **Timestamp:** When the research was performed
 
 ## Integration with Scientific Writing
@@ -129,17 +130,15 @@ This skill enhances the scientific writing process by providing:
 
 ## Troubleshooting
 
-**"API key not found"**
-- Ensure `OPENROUTER_API_KEY` environment variable is set
-- Check that you have credits in your OpenRouter account
+**"PARALLEL_API_KEY not set"**
+- Ensure the `PARALLEL_API_KEY` environment variable is set
 
-**"Model not available"**
-- Verify your API key has access to Perplexity models
-- Check OpenRouter status page for service issues
+**"The 'openai' package is required"**
+- Install it with `pip install openai` (the Parallel Chat API is OpenAI SDK compatible)
 
 **"Rate limit exceeded"**
-- Add delays between requests using `--delay` option
-- Check your OpenRouter account limits
+- The Parallel Chat API allows 300 requests/min; space out batch queries
+- `batch_lookup()` takes a `delay` argument (seconds between requests)
 
 **"No relevant results"**
 - Try more specific or broader queries
@@ -148,9 +147,8 @@ This skill enhances the scientific writing process by providing:
 
 ## Cost Management
 
-- Monitor usage through OpenRouter dashboard
-- Typical costs: $0.01-0.05 per research query
+- Monitor usage through the Parallel dashboard
 - Batch processing available for multiple queries
-- Consider query specificity to optimize token usage
+- Consider query specificity to keep reports focused
 
 This skill is designed for academic and research purposes, providing high-quality, cited information to support scientific writing and research activities.

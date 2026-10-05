@@ -12,16 +12,6 @@
 # Use `check` to detect whether the skill is already installed so install can
 # be idempotent.
 
-[skills.perplexity-search]
-description = "Perplexity web search via OpenRouter (Python skill with .venv)"
-# A .venv with litellm installed is the install marker. The SKILL.md and
-# scripts live in the dotfiles repo (this skill ships its own Python sources),
-# so install only needs to build the .venv and populate it.
-check     = "test -x ~/.claude/skills/perplexity-search/.venv/bin/python"
-install   = "python3 -m venv ~/.claude/skills/perplexity-search/.venv && ~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet litellm python-dotenv"
-update    = "~/.claude/skills/perplexity-search/.venv/bin/pip install --quiet --upgrade litellm python-dotenv"
-uninstall = "rm -rf ~/.claude/skills/perplexity-search/.venv"
-
 [skills.mattpocock-skills]
 description = "Matt Pocock's engineering/productivity skills bundle (diagnose, grill-with-docs, tdd, to-prd, ...)"
 # Bundle install: one git clone at ~/.local/share/claude-skills/mattpocock-skills,

@@ -17,7 +17,6 @@ MarkItDown is a Python tool developed by Microsoft for converting various file f
 - Convert documents to clean, structured Markdown
 - Token-efficient format for LLM processing
 - Supports 15+ file formats
-- Optional AI-enhanced image descriptions
 - OCR for images and scanned documents
 - Speech transcription for audio files
 
@@ -88,31 +87,7 @@ with open("document.pdf", "rb") as f:
 
 ## Advanced Features
 
-### 1. AI-Enhanced Image Descriptions
-
-Use LLMs via OpenRouter to generate detailed image descriptions (for PPTX and image files):
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-# Initialize OpenRouter client (OpenAI-compatible API)
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-opus-4.8",  # recommended for scientific vision
-    llm_prompt="Describe this image in detail for scientific documentation"
-)
-
-result = md.convert("presentation.pptx")
-print(result.text_content)
-```
-
-### 2. Azure Document Intelligence
+### 1. Azure Document Intelligence
 
 For enhanced PDF conversion with Microsoft Document Intelligence:
 
@@ -130,7 +105,7 @@ result = md.convert("complex_document.pdf")
 print(result.text_content)
 ```
 
-### 3. Plugin System
+### 2. Plugin System
 
 MarkItDown supports 3rd-party plugins for extending functionality:
 
@@ -213,30 +188,7 @@ for pdf_file in pdf_dir.glob("*.pdf"):
     print(f"Converted: {pdf_file.name}")
 ```
 
-### 4. Convert PowerPoint with AI Descriptions
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-# Use OpenRouter for access to multiple AI models
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-opus-4.8",  # recommended for presentations
-    llm_prompt="Describe this slide image in detail, focusing on key visual elements and data"
-)
-
-result = md.convert("presentation.pptx")
-with open("presentation.md", "w") as f:
-    f.write(result.text_content)
-```
-
-### 5. Batch Convert with Different Formats
+### 4. Batch Convert with Different Formats
 
 ```python
 from markitdown import MarkItDown
@@ -263,7 +215,7 @@ for file in files:
         print(f"✗ Error converting {file}: {e}")
 ```
 
-### 6. Extract YouTube Video Transcription
+### 5. Extract YouTube Video Transcription
 
 ```python
 from markitdown import MarkItDown
@@ -291,7 +243,6 @@ docker run --rm -i markitdown:latest < ~/document.pdf > output.md
 
 - **Simple documents**: Use basic `MarkItDown()`
 - **Complex PDFs**: Use Azure Document Intelligence
-- **Visual content**: Enable AI image descriptions
 - **Scanned documents**: Ensure OCR dependencies are installed
 
 ### 2. Handle Errors Gracefully
@@ -373,20 +324,6 @@ for paper in papers_dir.glob("*.pdf"):
     content += result.text_content
     
     output_file.write_text(content)
-
-# For AI-enhanced conversion with figures
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-md_ai = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-opus-4.8",
-    llm_prompt="Describe scientific figures with technical precision"
-)
 ```
 
 ### Extract Tables for Analysis
@@ -431,22 +368,17 @@ print(result.text_content)
 - **PDF files**: Large PDFs may take time; consider page ranges if supported
 - **Image OCR**: OCR processing is CPU-intensive
 - **Audio transcription**: Requires additional compute resources
-- **AI image descriptions**: Requires API calls (costs may apply)
 
 ## Next Steps
 
 - See `references/api_reference.md` for complete API documentation
 - Check `references/file_formats.md` for format-specific details
 - Review `scripts/batch_convert.py` for automation examples
-- Explore `scripts/convert_with_ai.py` for AI-enhanced conversions
 
 ## Resources
 
 - **MarkItDown GitHub**: https://github.com/microsoft/markitdown
 - **PyPI**: https://pypi.org/project/markitdown/
-- **OpenRouter**: https://openrouter.ai (for AI-enhanced conversions)
-- **OpenRouter API Keys**: https://openrouter.ai/keys
-- **OpenRouter Models**: https://openrouter.ai/models
 - **MCP Server**: markitdown-mcp (for Claude Desktop integration)
 - **Plugin Development**: See `packages/markitdown-sample-plugin`
 

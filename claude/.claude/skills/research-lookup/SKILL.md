@@ -1,9 +1,9 @@
 ---
 name: research-lookup
-description: Look up current research information using the Parallel Chat API (primary) or Perplexity sonar-pro-search (academic paper searches). Automatically routes queries to the best backend. Use for finding papers, gathering research data, and verifying scientific information.
+description: Look up current research information using the Parallel Chat API (core model). Use for finding papers, gathering research data, and verifying scientific information.
 allowed-tools: Read Write Edit Bash
 license: MIT license
-compatibility: PARALLEL_API_KEY and OPENROUTER_API_KEY required
+compatibility: PARALLEL_API_KEY required (Parallel Chat API, openai Python package)
 metadata:
     skill-author: K-Dense Inc.
 ---
@@ -12,12 +12,7 @@ metadata:
 
 ## Overview
 
-This skill provides real-time research information lookup with **intelligent backend routing**:
-
-- **Parallel Chat API** (`core` model): Default backend for all general research queries. Provides comprehensive, multi-source research reports with inline citations via the OpenAI-compatible Chat API at `https://api.parallel.ai`.
-- **Perplexity sonar-pro-search** (via OpenRouter): Used only for academic-specific paper searches where scholarly database access is critical.
-
-The skill automatically detects query type and routes to the optimal backend.
+This skill provides real-time research information lookup through the **Parallel Chat API** (`core` model): comprehensive, multi-source research reports with inline citations via the OpenAI-compatible Chat API at `https://api.parallel.ai`. Every query, general or academic, goes to this one backend.
 
 ## When to Use This Skill
 
@@ -45,63 +40,11 @@ python scripts/generate_schematic.py "your diagram description" -o figures/outpu
 
 ---
 
-## Automatic Backend Selection
-
-The skill automatically routes queries to the best backend based on content:
-
-### Routing Logic
-
-```
-Query arrives
-    |
-    +-- Contains academic keywords? (papers, DOI, journal, peer-reviewed, etc.)
-    |       YES --> Perplexity sonar-pro-search (academic search mode)
-    |
-    +-- Everything else (general research, market data, technical info, analysis)
-            --> Parallel Chat API (core model)
-```
-
-### Academic Keywords (Routes to Perplexity)
-
-Queries containing these terms are routed to Perplexity for academic-focused search:
-
-- Paper finding: `find papers`, `find articles`, `research papers on`, `published studies`
-- Citations: `cite`, `citation`, `doi`, `pubmed`, `pmid`
-- Academic sources: `peer-reviewed`, `journal article`, `scholarly`, `arxiv`, `preprint`
-- Review types: `systematic review`, `meta-analysis`, `literature search`
-- Paper quality: `foundational papers`, `seminal papers`, `landmark papers`, `highly cited`
-
-### Everything Else (Routes to Parallel)
-
-All other queries go to the Parallel Chat API (core model), including:
-
-- General research questions
-- Market and industry analysis
-- Technical information and documentation
-- Current events and recent developments
-- Comparative analysis
-- Statistical data retrieval
-- Complex analytical queries
-
-### Manual Override
-
-You can force a specific backend:
-
-```bash
-# Force Parallel Deep Research
-python research_lookup.py "your query" --force-backend parallel
-
-# Force Perplexity academic search
-python research_lookup.py "your query" --force-backend perplexity
-```
-
----
-
 ## Core Capabilities
 
-### 1. General Research Queries (Parallel Chat API)
+### 1. General Research Queries
 
-**Default backend.** Provides comprehensive, multi-source research with citations via the Chat API (`core` model).
+Comprehensive, multi-source research with citations via the Chat API (`core` model).
 
 ```
 Query Examples:
@@ -119,9 +62,9 @@ Query Examples:
 - Multiple perspectives and data points
 - Source URLs for verification
 
-### 2. Academic Paper Search (Perplexity sonar-pro-search)
+### 2. Academic Paper Search
 
-**Used for academic-specific queries.** Prioritizes scholarly databases and peer-reviewed sources.
+Phrase the query to ask for scholarly, peer-reviewed sources explicitly; DOIs and academic URLs in the report are extracted into the `Additional References` section.
 
 ```
 Query Examples:
@@ -134,8 +77,7 @@ Query Examples:
 
 **Response includes:**
 - Summary of key findings from academic literature
-- 5-8 high-quality citations with authors, titles, journals, years, DOIs
-- Citation counts and venue tier indicators
+- Citations with authors, titles, journals, years, and DOIs where the report provides them
 - Key statistics and methodology highlights
 - Research gaps and future directions
 
@@ -196,11 +138,8 @@ Query Examples:
 ### Environment Variables
 
 ```bash
-# Primary backend (Parallel Chat API) - REQUIRED
+# Parallel Chat API - REQUIRED
 export PARALLEL_API_KEY="your_parallel_api_key"
-
-# Academic search backend (Perplexity) - REQUIRED for academic queries
-export OPENROUTER_API_KEY="your_openrouter_api_key"
 ```
 
 ### API Specifications
@@ -213,21 +152,14 @@ export OPENROUTER_API_KEY="your_openrouter_api_key"
 - Rate limits: 300 req/min
 - Python package: `openai`
 
-**Perplexity sonar-pro-search:**
-- Model: `perplexity/sonar-pro-search` (via OpenRouter)
-- Search mode: Academic (prioritizes peer-reviewed sources)
-- Search context: High (comprehensive research)
-- Response time: 5-15 seconds
-
 ### Command-Line Usage
 
 ```bash
-# Auto-routed research (recommended) — ALWAYS save to sources/
+# Research query — ALWAYS save to sources/
 python research_lookup.py "your query" -o sources/research_YYYYMMDD_HHMMSS_<topic>.md
 
-# Force specific backend — ALWAYS save to sources/
-python research_lookup.py "your query" --force-backend parallel -o sources/research_<topic>.md
-python research_lookup.py "your query" --force-backend perplexity -o sources/papers_<topic>.md
+# Paper search — ALWAYS save to sources/
+python research_lookup.py "find papers on <topic>" -o sources/papers_<topic>.md
 
 # JSON output — ALWAYS save to sources/
 python research_lookup.py "your query" --json -o sources/research_<topic>.json
@@ -246,10 +178,10 @@ This is non-negotiable. Research results are expensive to obtain and critical fo
 
 ### Saving Rules
 
-| Backend | `-o` Flag Target | Filename Pattern |
-|---------|-----------------|------------------|
-| Parallel Deep Research | `sources/research_<topic>.md` | `research_YYYYMMDD_HHMMSS_<brief_topic>.md` |
-| Perplexity (academic) | `sources/papers_<topic>.md` | `papers_YYYYMMDD_HHMMSS_<brief_topic>.md` |
+| Query type | `-o` Flag Target | Filename Pattern |
+|------------|-----------------|------------------|
+| General research | `sources/research_<topic>.md` | `research_YYYYMMDD_HHMMSS_<brief_topic>.md` |
+| Paper search | `sources/papers_<topic>.md` | `papers_YYYYMMDD_HHMMSS_<brief_topic>.md` |
 | Batch queries | `sources/batch_<topic>.md` | `batch_research_YYYYMMDD_HHMMSS_<brief_topic>.md` |
 
 ### How to Save
@@ -271,10 +203,6 @@ python research_lookup.py "Find papers on transformer attention mechanisms in Ne
 python research_lookup.py "CRISPR clinical trials" --json \
   -o sources/research_20250217_143000_crispr_trials.json
 
-# Forced backend — save to sources/
-python research_lookup.py "AI regulation landscape" --force-backend parallel \
-  -o sources/research_20250217_144000_ai_regulation.md
-
 # Batch queries — save to sources/
 python research_lookup.py --batch "mRNA vaccines efficacy" "mRNA vaccines safety" \
   -o sources/batch_research_20250217_144500_mrna_vaccines.md
@@ -289,8 +217,7 @@ Each output format preserves citations differently:
 | Text (default) | `Sources (N):` section with `[title] (date) + URL` + `Additional References (N):` with DOIs and academic URLs | Standard use — human-readable with all citations |
 | JSON (`--json`) | Full citation objects: `url`, `title`, `date`, `snippet`, `doi`, `type` | When you need maximum citation metadata |
 
-**For Parallel backend**, saved files include: research report + Sources list (title, URL) + Additional References (DOIs, academic URLs).
-**For Perplexity backend**, saved files include: academic summary + Sources list (title, date, URL, snippet) + Additional References (DOIs, academic URLs).
+Saved files include: research report + Sources list (title, URL) + Additional References (DOIs, academic URLs).
 
 **Use `--json` when you need to:**
 - Parse citation metadata programmatically
@@ -344,7 +271,7 @@ This skill enhances scientific writing by providing:
 | General web search | `parallel-web` skill (`parallel_web.py search`) |
 | Citation verification | `parallel-web` skill (`parallel_web.py extract`) |
 | Deep research (any topic) | `research-lookup` or `parallel-web` skill |
-| Academic paper search | `research-lookup` (auto-routes to Perplexity) |
+| Academic paper search | `research-lookup` |
 | Google Scholar search | `citation-management` skill |
 | PubMed search | `citation-management` skill |
 | DOI to BibTeX | `citation-management` skill |
@@ -356,19 +283,19 @@ This skill enhances scientific writing by providing:
 
 **Known Limitations:**
 - Parallel Chat API (core model): Complex queries may take up to 5 minutes
-- Perplexity: Information cutoff, may not access full text behind paywalls
-- Both: Cannot access proprietary or restricted databases
+- May not access full text behind paywalls
+- Cannot access proprietary or restricted databases
 
-**Fallback Behavior:**
-- If the selected backend's API key is missing, tries the other backend
-- If both backends fail, returns structured error response
+**Error Behavior:**
+- If `PARALLEL_API_KEY` is missing, exits with an error before any request
+- If the API call fails, returns a structured error response (`success: false`, `error`)
 - Rephrase queries for better results if initial response is insufficient
 
 ---
 
 ## Usage Examples
 
-### Example 1: General Research (Routes to Parallel)
+### Example 1: General Research
 
 **Query**: "Recent advances in transformer attention mechanisms 2025"
 
@@ -376,15 +303,15 @@ This skill enhances scientific writing by providing:
 
 **Response**: Comprehensive markdown report with citations from authoritative sources, covering recent papers, key innovations, and performance benchmarks.
 
-### Example 2: Academic Paper Search (Routes to Perplexity)
+### Example 2: Academic Paper Search
 
 **Query**: "Find papers on CRISPR off-target effects in clinical trials"
 
-**Backend**: Perplexity sonar-pro-search (academic mode)
+**Backend**: Parallel Chat API (core model)
 
-**Response**: Curated list of 5-8 high-impact papers with full citations, DOIs, citation counts, and venue tier indicators.
+**Response**: Report on the relevant literature with cited sources; DOIs and academic URLs are listed under `Additional References`.
 
-### Example 3: Comparative Analysis (Routes to Parallel)
+### Example 3: Comparative Analysis
 
 **Query**: "Compare and contrast mRNA vaccines vs traditional vaccines for cancer treatment"
 
@@ -392,7 +319,7 @@ This skill enhances scientific writing by providing:
 
 **Response**: Detailed comparative report with data from multiple sources, structured analysis, and cited evidence.
 
-### Example 4: Market Data (Routes to Parallel)
+### Example 4: Market Data
 
 **Query**: "Global AI adoption in healthcare statistics 2025"
 
@@ -404,10 +331,8 @@ This skill enhances scientific writing by providing:
 
 ## Summary
 
-This skill serves as the primary research interface with intelligent dual-backend routing:
+This skill serves as the primary research interface:
 
-- **Parallel Chat API** (default, `core` model): Comprehensive, multi-source research for any topic
-- **Perplexity sonar-pro-search**: Academic-specific paper searches only
-- **Automatic routing**: Detects academic queries and routes appropriately
-- **Manual override**: Force any backend when needed
+- **Parallel Chat API** (`core` model): Comprehensive, multi-source research for any topic, including paper searches
+- **Saved results**: Every lookup goes to `sources/` with citations preserved
 - **Complementary**: Works alongside `parallel-web` skill for web search and URL extraction

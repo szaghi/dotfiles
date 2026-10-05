@@ -7,12 +7,10 @@ vim/.vim/undo/
 vim/vim
 bash/.bash/private
 
-# perplexity-search is a class-A skill (sources tracked here) whose class-C
-# manifest entry builds a .venv *inside* the skill directory — so the venv
-# lands in this repo by design. python's own venv writes a `.gitignore` with
-# `*` inside it, which already hides it from status; declaring it here makes
-# that explicit rather than accidental, and covers any future skill built the
-# same way.
+# A class-C manifest entry may build a .venv *inside* a stowed skill directory,
+# which lands it in this repo. python's own venv writes a `.gitignore` with `*`
+# inside it, which already hides it from status; declaring it here makes that
+# explicit rather than accidental.
 claude/.claude/skills/*/.venv/
 
 # Sunshine keeps its web-UI credentials, its TLS keypair and its pairing state
@@ -34,7 +32,6 @@ scripts/.config/systemd/user/sunshine.service
 *secret*
 *api-key*
 *api_key*
-openrouter-ai-key
 
 # Noctalia-generated theme files — rendered from the active palette on every
 # `templates-apply`. Tracking them would put churn in git and, worse, a stow

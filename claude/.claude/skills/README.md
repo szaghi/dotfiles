@@ -107,7 +107,6 @@ convention as the default so new hosts opt-out rather than opt-in.
 
 ```text
 # machines/adam.skills      (WSL2 workstation — full set)
-perplexity-search
 mattpocock-skills
 book-to-skill
 pdf-deps
@@ -115,7 +114,6 @@ latex-document-skill
 stop-slop
 
 # machines/quark.skills     (Chuwi N150 laptop — no mattpocock bundle)
-perplexity-search
 book-to-skill
 pdf-deps
 latex-document-skill
@@ -159,10 +157,9 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | Skill | Class | Notes |
 |---|---|---|
 | `fobis/` | A | `/fobis` slash command — FoBiS.py build tool expert |
-| `generate-image/` | A | FLUX / Nano Banana image generation |
 | `markdown-mermaid-writing/` | A | Markdown + Mermaid diagram authoring |
 | `markitdown/` | A | Convert PDF / DOCX / PPTX / etc. to Markdown |
-| `research-lookup/` | A | Parallel Chat API + Perplexity research backend |
+| `research-lookup/` | A | Parallel Chat API research backend |
 | `scientific-writing/` | A | IMRAD manuscript / reporting-guideline workflow |
 | `darktable-raw/` | A | darktable 4.6 manual as a knowledge base (modules, scene-referred pipeline, darktable-cli) |
 | `darktable-operator/` | A | RAW post-processing workflow — Claude drives darktable-cli; prompt-controlled edit values via XMP patching (see its `USER-GUIDE.md`) |
@@ -170,7 +167,6 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `skill-creator@claude-plugins-official` | B | Create / evaluate / optimize skills |
 | `cli-anything@cli-anything` | B | CLI-Anything plugin (HKUDS/CLI-Anything) |
 | `document-skills@anthropic-agent-skills` | B | Official Anthropic pdf / xlsx / docx / pptx skills (Python deps via `pdf-deps` venv) |
-| `perplexity-search` | C | `.venv` + `litellm` — Perplexity search via OpenRouter |
 | `mattpocock-skills` | C | Matt Pocock skill bundle (diagnose, tdd, grill-*, …) — host: adam only |
 | `book-to-skill` | C | Convert books / documents into structured skills |
 | `pdf-deps` | C | Isolated venv (pypdf, pdfplumber, reportlab, …) backing the class-B `pdf` skill |
@@ -209,7 +205,7 @@ are the skills exported to the public `claude-skills-hpc` repository by
   manifest and `json` to parse `settings.json`. Older Python works only if
   `tomli` is pip-installed as a fallback.
 - The per-skill install commands declare their own dependencies (e.g.
-  perplexity-search needs system `python3` with `venv` support).
+  pdf-deps needs system `python3` with `venv` support).
 
 ## When something looks wrong
 

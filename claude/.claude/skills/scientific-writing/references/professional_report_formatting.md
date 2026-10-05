@@ -654,7 +654,6 @@ Before finalizing your report, verify:
 
 - `venue-templates` - For journal manuscripts and conference papers
 - `scientific-schematics` - For generating diagrams and figures
-- `generate-image` - For creating illustrations and graphics
 
 ### External Resources
 

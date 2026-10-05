@@ -62,7 +62,7 @@ python scripts/generate_schematic.py "Graphical abstract for [paper title]: [bri
 
 ### Additional Figures (GENERATE EXTENSIVELY)
 
-**⚠️ CRITICAL: Use BOTH scientific-schematics AND generate-image EXTENSIVELY throughout all documents.**
+**⚠️ CRITICAL: Use scientific-schematics EXTENSIVELY throughout all documents.**
 
 Every document should be richly illustrated. Generate figures liberally - when in doubt, add a visual.
 
@@ -94,20 +94,6 @@ python scripts/generate_schematic.py "your diagram description" -o figures/outpu
 - Comparison matrices, timeline diagrams
 - Any technical concept that benefits from schematic visualization
 
-**Use generate-image EXTENSIVELY for visual content:**
-```bash
-python scripts/generate_image.py "your image description" -o figures/output.png
-```
-
-- Photorealistic illustrations of concepts
-- Medical/anatomical illustrations
-- Environmental/ecological scenes
-- Equipment and lab setup visualizations
-- Artistic visualizations, infographics
-- Cover images, header graphics
-- Product mockups, prototype visualizations
-- Any visual that enhances understanding or engagement
-
 The AI will automatically:
 - Create publication-quality images with proper formatting
 - Review and refine through multiple iterations
@@ -121,7 +107,7 @@ The AI will automatically:
 - Comparison → generate a comparison diagram
 - Reader benefit → generate a visual
 
-For detailed guidance, refer to the scientific-schematics and generate-image skill documentation.
+For detailed guidance, refer to the scientific-schematics skill documentation.
 
 ---
 

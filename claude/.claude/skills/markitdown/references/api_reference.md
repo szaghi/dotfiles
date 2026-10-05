@@ -22,8 +22,8 @@ md = MarkItDown(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `llm_client` | OpenAI client | `None` | OpenAI-compatible client for AI image descriptions |
-| `llm_model` | str | `None` | Model name (e.g., "anthropic/claude-opus-4.8") for image descriptions |
+| `llm_client` | OpenAI client | `None` | OpenAI-compatible client for optional LLM image descriptions |
+| `llm_model` | str | `None` | Model name passed to `llm_client` for image descriptions |
 | `llm_prompt` | str | `None` | Custom prompt for image description |
 | `docintel_endpoint` | str | `None` | Azure Document Intelligence endpoint |
 | `enable_plugins` | bool | `False` | Enable 3rd-party plugins |
@@ -218,59 +218,6 @@ class MyConverter(DocumentConverter):
         return "# Converted Content\n\n..."
 ```
 
-## AI-Enhanced Conversions
-
-### Using OpenRouter for Image Descriptions
-
-```python
-from markitdown import MarkItDown
-from openai import OpenAI
-
-# Initialize OpenRouter client (OpenAI-compatible API)
-client = OpenAI(
-    api_key="your-openrouter-api-key",
-    base_url="https://openrouter.ai/api/v1"
-)
-
-# Create MarkItDown with AI support
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-opus-4.8",  # recommended for scientific vision
-    llm_prompt="Describe this image in detail for scientific documentation"
-)
-
-# Convert files with images
-result = md.convert("presentation.pptx")
-```
-
-### Available Models via OpenRouter
-
-Popular models with vision support:
-- `anthropic/claude-opus-4.8` - **Recommended for scientific vision**
-- `google/gemini-3-pro-preview` - Gemini Pro Vision
-
-See https://openrouter.ai/models for the complete list.
-
-### Custom Prompts
-
-```python
-# For scientific diagrams
-scientific_prompt = """
-Analyze this scientific diagram or chart. Describe:
-1. The type of visualization (graph, chart, diagram, etc.)
-2. Key data points or trends
-3. Labels and axes
-4. Scientific significance
-Be precise and technical.
-"""
-
-md = MarkItDown(
-    llm_client=client,
-    llm_model="anthropic/claude-opus-4.8",
-    llm_prompt=scientific_prompt
-)
-```
-
 ## Azure Document Intelligence
 
 ### Setup
@@ -390,7 +337,6 @@ with ThreadPoolExecutor(max_workers=4) as executor:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API key for image descriptions | `sk-or-v1-...` |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | Azure DI authentication | `key123...` |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | Azure DI endpoint | `https://...` |
 
