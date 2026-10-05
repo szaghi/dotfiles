@@ -41,8 +41,9 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
   (`fobis build --mode <name>`, `fobis fetch`, `fobis rule --ex <rule>`,
   `fobis build --lmodes`) rather than parsing fobos files with awk/sed.
 - The legacy short-dash forms (`FoBiS.py build -mode X`, `-lmodes`, `-ex`,
-  `-ls`) are no longer accepted in FoBiS 3.8+ — always emit the new form when
-  writing scripts, CI, or docs.
+  `-ls`) are deprecated in FoBiS 3.8+: they are still translated to the
+  double-dash forms, not rejected — always emit the new form when writing
+  scripts, CI, or docs.
 - Do NOT substitute make/cmake unless the user explicitly asks
 - Dependency management uses `fobis fetch`, not git submodules
 
