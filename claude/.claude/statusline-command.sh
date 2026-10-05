@@ -66,10 +66,38 @@ print(f'_sd_start={chr(39)}{sd_start}{chr(39)}')
 # proxied backends are excluded. Usage from other machines or claude.ai is not
 # visible here. The scan takes ~0.3 s, so it runs in the background at most
 # once a minute and the status line prints the cached result.
+#
+# Per account: claude-iac / claude-cnr share projects/ with the personal
+# ~/.claude (see bash/.bash/claude_code), so a transcript alone does not say
+# which subscription paid for it. Each account's CLAUDE_CONFIG_DIR keeps its
+# own history.jsonl, one line per prompt with sessionId + timestamp: a reply
+# belongs to the account that sent the latest prompt of its session at or
+# before the reply, which stays correct when a session is resumed under
+# another account. Sessions with no prompt in any history (e.g. `claude -p`)
+# fall back to the personal account.
 _tok7d_py='
-import glob, json, os, sys
+import bisect, glob, json, os, sys
 from datetime import datetime
-start = int(sys.argv[1])
+start, me = int(sys.argv[1]), os.path.realpath(sys.argv[2])
+home = os.path.realpath(os.path.expanduser("~/.claude"))
+prompts = {}  # sessionId -> sorted [(t, config_dir)]
+for h in glob.glob(os.path.expanduser("~/.claude*/history.jsonl")):
+    acct = os.path.realpath(os.path.dirname(h))
+    with open(h, "rb") as fh:
+        for line in fh:
+            try:
+                e = json.loads(line)
+                prompts.setdefault(e["sessionId"], []).append((e["timestamp"] / 1000, acct))
+            except (ValueError, KeyError, TypeError):
+                continue
+for v in prompts.values():
+    v.sort()
+def owner(sid, t):
+    v = prompts.get(sid)
+    if not v:
+        return home
+    i = bisect.bisect_right(v, (t, "\uffff")) - 1
+    return v[max(i, 0)][1]
 seen = {}
 for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursive=True):
     if os.path.getmtime(f) < start:
@@ -86,7 +114,7 @@ for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursiv
                 t = datetime.fromisoformat(d["timestamp"].replace("Z", "+00:00")).timestamp()
             except (ValueError, KeyError, TypeError, AttributeError):
                 continue
-            if t < start:
+            if t < start or owner(d.get("sessionId"), t) != me:
                 continue
             u = m.get("usage") or {}
             # streamed replies repeat the same message id: count each once
@@ -97,14 +125,16 @@ print(start, sum(v[0] for v in seen.values()), sum(v[1] for v in seen.values()))
 '
 _tok7d=""
 if [ -n "$_sd_start" ]; then
+    acct_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    acct="$(basename "$acct_dir")"
     cdir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
-    cache="$cdir/tok7d"
+    cache="$cdir/tok7d-${acct#.}"
     mkdir -p "$cdir"
     read -r c_start c_out c_all 2>/dev/null < "$cache"
     if [ "$c_start" != "$_sd_start" ] || [ -z "$(find "$cache" -mmin -1 2>/dev/null)" ]; then
         ( flock -n 9 || exit 0
-          python3 -c "$_tok7d_py" "$_sd_start" > "$cache.tmp" && mv "$cache.tmp" "$cache"
-        ) 9>"$cdir/tok7d.lock" >/dev/null 2>&1 &
+          python3 -c "$_tok7d_py" "$_sd_start" "$acct_dir" > "$cache.tmp" && mv "$cache.tmp" "$cache"
+        ) 9>"$cache.lock" >/dev/null 2>&1 &
     fi
     _hum() { awk -v n="$1" 'BEGIN{ split("k M G T", u); s=""; for (i=0; n>=1000 && i<4; i++) { n/=1000; s=u[i+1] }
                                    printf (n<10 && s!="") ? "%.1f%s" : "%.0f%s", n, s }'; }
