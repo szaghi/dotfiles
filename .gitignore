@@ -13,6 +13,10 @@ bash/.bash/private
 # explicit rather than accidental.
 claude/.claude/skills/*/.venv/
 
+# Python bytecode: generated on every run of a skill script, never authored.
+__pycache__/
+*.py[cod]
+
 # Sunshine keeps its web-UI credentials, its TLS keypair and its pairing state
 # next to the config that IS tracked. Only sunshine.conf and apps.json belong in
 # git; the rest is per-machine secret state and must never be committed.
