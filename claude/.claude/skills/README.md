@@ -223,3 +223,19 @@ are the skills exported to the public `claude-skills-hpc` repository by
 
 Drift cannot be auto-fixed silently — the script makes you see it, you
 decide.
+
+### Known exception: `synced/`
+
+`~/.claude/skills/synced/` is a real directory written by Claude Code itself,
+not by any of the three classes: the skills provisioned to the claude.ai
+account (`anthropic-skills:docs`, `docx`, `pdf`, …). It holds one bucket per
+account (`<uuid>_<uuid>/` plus a `.bucket-*` marker), so `claude-iac` and
+`claude-cnr`, whose `skills/` is the same symlinked directory, each add their
+own. The client rewrites it on every sync (`manifest.json`,
+`.last-complete-round`).
+
+It is gitignored and must stay that way: tracking it would commit
+upstream churn and per-account state. Do not delete it either; the client
+recreates it, and until then the `anthropic-skills:*` skills are missing.
+`skills-apply status` lists it as `! synced (not a symlink …)`; that line is
+expected and needs no action.
