@@ -48,32 +48,18 @@ Tune the `FADE` factors at the top of the script to taste; higher = fainter.
 
 ---
 
-## foot bright0 (vim background)
+## foot bright0 — removed, do not re-add
 
-**Problem.** Noctalia emits `bright0` (ANSI 8) as a lifted slate `#335e69` instead of
-Solarized's canonical `#002b36`. Solarized's vim colorscheme maps `base03` -> ANSI 8
-and uses it as the `Normal` background (`solarized.vim:372`, `let s:back = s:base03`),
-so vim's entire editor area renders washed-out slate rather than near-black.
-Confirmed by sampling a screenshot: editor background was `srgb(51,94,105)` = `#335e69`.
+Every Noctalia palette lifts bright black (ANSI 8) above the background so dim text
+stays legible (Solarized `#335e69` vs `#002b36`; Oxocarbon `#393939` vs `#161616`).
+vim's old `altercation/vim-colors-solarized` ran in 16-colour mode and painted `Normal`
+with ANSI 8, so the lift turned the editor background slate: body text 2.25:1,
+comments 1.32:1. A `noctalia-foot-fix-bright0` patch reset `bright0` to the background,
+but any template render outside `noctalia-retheme` silently reverted it.
 
-Only affects terminals whose colorscheme reads the ANSI palette — vim in 16-colour
-mode (`g:solarized_termcolors` defaults to 16), which is the case here.
-
-**Fix.** `~/.local/bin/noctalia-foot-fix-bright0` sets `bright0` equal to the theme's
-own `background` value.
-
-    noctalia-foot-fix-bright0
-
-Idempotent. Re-run after any palette change or `noctalia msg templates-apply`,
-same triggers as the qt6ct patch above.
-
-**Trade-off.** "Bright black" text (ANSI 8, or SGR 90) becomes invisible against the
-background — contrast 1.00:1. That is canonical Solarized behaviour, and the reason
-Noctalia lifted the value in the first place. Checked at the time of writing: nothing
-in `LS_COLORS` used it. If some tool's dim text disappears, that is this trade-off,
-and `bright0` can be lifted slightly (e.g. `#0a3540`) as a compromise.
-
-**Restart required.** foot reads its config only at startup; open a new window.
+Fixed at the source instead (2026-10-06): vim uses `lifepillar/vim-solarized8` with
+`termguicolors`, and nvim uses `solarized.nvim` in 24-bit, so neither reads the ANSI
+palette. Noctalia's `bright0` is left as generated, and SGR 90 text stays visible.
 
 ---
 
@@ -118,7 +104,7 @@ Revert: `rm ~/.config/chrome-flags.conf` and restart Chrome.
 Builtins: Catppuccin, Dracula, Gruvbox, Kanagawa, Nord, Oxocarbon.
 Community (cached): Oxocarbon, Solarized.
 
-It switches the scheme, re-applies templates, then re-runs both patches above.
+It switches the scheme, re-applies templates, then re-runs the qt6ct patch above.
 Takes ~7s. Afterwards: new terminal window, restart GTK/Qt apps, `swaymsg reload`.
 
 ### Two daemon behaviours the wrapper works around
@@ -136,14 +122,3 @@ after the rest. Patching immediately reads stale content and no-ops. The wrapper
 waits for the generated files' checksums to stop changing (content hashing, not
 mtime — Noctalia skips rewriting a file whose content would be unchanged, so its
 mtime never moves).
-
-### The foot bright0 patch is conditional
-
-Every Noctalia palette lifts bright-black above the background (Solarized
-`#335e69` vs `#002b36`; Oxocarbon `#393939` vs `#161616`) — a deliberate convention
-so dim text stays legible, not a Solarized-specific bug. It only causes trouble
-because *Solarized's vim colorscheme* maps `base03` -> ANSI 8 and paints `Normal`
-with it. The wrapper therefore applies that patch only when `~/.vimrc` sets a
-`solarized*` colorscheme, and skips it otherwise. If you switch vim colorschemes,
-that condition is what to revisit.
-

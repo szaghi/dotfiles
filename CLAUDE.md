@@ -329,17 +329,17 @@ It wraps two daemon quirks that otherwise leave a half-themed desktop:
    generated files' checksums to settle — content hashing, not mtime, because
    Noctalia skips rewriting a file whose content would be unchanged.
 
-It then re-applies two local patches that Noctalia would otherwise clobber:
+It then re-applies a local patch that Noctalia would otherwise clobber:
+**`noctalia-qt-dim-disabled`** — Noctalia emits qt6ct's `disabled_colors`
+byte-identical to `active_colors`, so disabled widgets look enabled. It blends the
+foreground roles toward the background, leaving background roles untouched.
 
-- **`noctalia-qt-dim-disabled`** — Noctalia emits qt6ct's `disabled_colors`
-  byte-identical to `active_colors`, so disabled widgets look enabled. Blends the
-  foreground roles toward the background, leaving background roles untouched.
-- **`noctalia-foot-fix-bright0`** — every Noctalia palette lifts ANSI 8
-  (bright black) above the background so dim text stays legible. Solarized's *vim*
-  colorscheme maps `base03` → ANSI 8 and paints `Normal` with it, so the lift
-  repaints vim's whole editor area in washed-out slate. Applied **only** when
-  `~/.vimrc` uses a `solarized*` colorscheme; revisit that condition if the vim
-  colorscheme changes.
+**Editors must not depend on the terminal's ANSI palette.** Noctalia lifts ANSI 8
+(bright black) above the background in every palette; a 16-colour colorscheme that
+paints `Normal` from it (the old altercation solarized) becomes unreadable. vim uses
+`vim-solarized8` + `termguicolors`, nvim `solarized.nvim` in 24-bit. Do not
+reintroduce a `bright0` patch — it was removed because any template render outside
+`noctalia-retheme` silently reverted it.
 
 Full rationale, contrast measurements and revert paths:
 `desktop/.config/noctalia/patches/README.md`.

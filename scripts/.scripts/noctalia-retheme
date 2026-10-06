@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 # Switch Noctalia palette (or re-apply the current one) and re-run the local
-# patches that Noctalia's templates would otherwise clobber.
+# patch that Noctalia's templates would otherwise clobber.
 #
-#   noctalia-retheme                          re-apply current palette + patches
+#   noctalia-retheme                          re-apply current palette + patch
 #   noctalia-retheme builtin Nord             switch to a builtin scheme
 #   noctalia-retheme community Oxocarbon      switch to a cached community palette
 #   noctalia-retheme --list                   show available schemes
 #
-# Patches applied (see ~/.config/noctalia/patches/README.md):
-#   * qt6ct disabled_colors  — always; Noctalia emits them identical to active
-#   * foot bright0           — only when vim uses a colorscheme that maps
-#                              base03/ANSI-8 to the Normal background (solarized)
+# Patch applied (see ~/.config/noctalia/patches/README.md):
+#   * qt6ct disabled_colors  — Noctalia emits them identical to active
 set -euo pipefail
 
 BUILTINS="Catppuccin Dracula Gruvbox Kanagawa Nord Oxocarbon"
@@ -45,7 +43,7 @@ noctalia msg templates-apply
 
 # templates-apply returns immediately; Noctalia writes the files asynchronously.
 # Wait until the generated files stop changing before patching them, otherwise the
-# patches read stale content and no-op.
+# patch reads stale content and no-ops.
 settle() {
     # templates-apply returns immediately and Noctalia writes the files
     # asynchronously (sway is consistently last). Wait until the set of file
@@ -77,19 +75,6 @@ settle
 
 printf 'patching qt6ct disabled colors...\n'
 noctalia-qt-dim-disabled || printf '  (skipped)\n'
-
-# foot bright0: only matters when vim's colorscheme paints Normal from ANSI 8.
-# Solarized does; most others set an explicit background instead.
-scheme=$(grep -oP '^\s*colorscheme\s+\K\S+' "$HOME/.vimrc" 2>/dev/null || true)
-case "$scheme" in
-    solarized*)
-        printf 'patching foot bright0 (vim colorscheme is %s)...\n' "$scheme"
-        noctalia-foot-fix-bright0 || printf '  (skipped)\n'
-        ;;
-    *)
-        printf 'skipping foot bright0 patch (vim colorscheme is %s, not solarized)\n' "${scheme:-unset}"
-        ;;
-esac
 
 printf '\ndone. Restart to see changes:\n'
 printf '  foot / alacritty : open a new window\n'

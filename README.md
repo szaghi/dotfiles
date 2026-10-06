@@ -261,7 +261,7 @@ an IDE-grade experience that stays 100% Vim (no Neovim required).
 
 | Category | Plugins |
 |---|---|
-| Appearance | [vim-colors-solarized](https://github.com/altercation/vim-colors-solarized), [lightline](https://github.com/itchyny/lightline.vim) + [lightline-bufferline](https://github.com/mengelbrecht/lightline-bufferline), [rainbow_parentheses](https://github.com/junegunn/rainbow_parentheses.vim) |
+| Appearance | [vim-solarized8](https://github.com/lifepillar/vim-solarized8), [lightline](https://github.com/itchyny/lightline.vim) + [lightline-bufferline](https://github.com/mengelbrecht/lightline-bufferline), [rainbow_parentheses](https://github.com/junegunn/rainbow_parentheses.vim) |
 | LSP & linting | [yegappan/lsp](https://github.com/yegappan/lsp), [ALE](https://github.com/dense-analysis/ale) |
 | Git | [vim-fugitive](https://github.com/tpope/vim-fugitive), [vim-gitgutter](https://github.com/airblade/vim-gitgutter) |
 | Fuzzy finders | [fzf](https://github.com/junegunn/fzf) + [fzf.vim](https://github.com/junegunn/fzf.vim) |
@@ -756,7 +756,7 @@ nvim/.config/nvim/
 | yegappan/lsp | native `vim.lsp.config` / `vim.lsp.enable` + nvim-lspconfig (data only) | same servers, no mason |
 | ALE | `ruff server`, bash-language-server, conform.nvim | ruff fix + format on save for Python |
 | manual `<Tab>` omni-completion | same `<Tab>` via `vim.lsp.completion` | no auto-popup, as before |
-| solarized (16-colour) | maxmx03/solarized.nvim (24-bit) | no dependence on the terminal palette |
+| vim-solarized8 (24-bit) | maxmx03/solarized.nvim (24-bit) | neither depends on the terminal palette |
 | lightline + bufferline | lualine | buffer tabline degrades full path → short path → filename |
 | fzf.vim | fzf-lua | also serves `vim.ui.select` (code actions) |
 | dirvish | oil.nvim | editable directory buffer; deletes go to trash |
@@ -1453,7 +1453,7 @@ table used to list disappeared in the migration to stow.
 | `scripts/.scripts/{pdf2grey,pdfA4scale,pdfcompress,image2pdf}` | PDF utilities |
 | `scripts/.scripts/tecplot/` | Tecplot format converters |
 | `scripts/.scripts/{git-health,git-health-boot}` | Git integrity scanning — rationale and recovery playbook in `scripts/.scripts/git-health.md` |
-| `scripts/.scripts/{noctalia-retheme,noctalia-qt-dim-disabled,noctalia-foot-fix-bright0}` | Noctalia palette switching and patches — quark |
+| `scripts/.scripts/{noctalia-retheme,noctalia-qt-dim-disabled}` | Noctalia palette switching and Qt patch — quark |
 | `scripts/.scripts/quark-desktop-install` | Root-owned desktop bits — quark |
 | `scripts/.config/systemd/user/` | systemd **user** units |
 | `scripts/.bin/{act,hpc-login}` | Standalone binaries and HPC login helper |
@@ -1581,10 +1581,9 @@ terminal, restart GTK/Qt apps, `swaymsg reload`.
 
 The wrapper exists because `color-scheme-set` alone leaves the daemon rendering the *old*
 palette (it needs an explicit `config-reload`), and `templates-apply` returns before the
-files are written. It also re-applies two patches Noctalia would otherwise clobber:
-`noctalia-qt-dim-disabled` (Qt disabled widgets are emitted identical to enabled ones) and
-`noctalia-foot-fix-bright0` (the lifted ANSI 8 repaints vim's editor background). Rationale
-and measurements: `desktop/.config/noctalia/patches/README.md`.
+files are written. It also re-applies a patch Noctalia would otherwise clobber:
+`noctalia-qt-dim-disabled` (Qt disabled widgets are emitted identical to enabled ones).
+Rationale and measurements: `desktop/.config/noctalia/patches/README.md`.
 
 #### First-time setup
 

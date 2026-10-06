@@ -1,6 +1,5 @@
--- Solarized dark in 24-bit colour. vim's altercation/vim-colors-solarized maps
--- onto the 16-colour terminal palette (hence quark's noctalia-foot-fix-bright0
--- patch); this one sets exact hex values and does not depend on the palette.
+-- Solarized dark in 24-bit colour: exact hex values, no dependence on the
+-- terminal palette (vim uses lifepillar/vim-solarized8 for the same reason).
 
 return {
    "maxmx03/solarized.nvim",

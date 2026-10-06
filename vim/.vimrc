@@ -19,7 +19,7 @@ let maplocalleader = ","
 " Plugins handling with vim-plug and plugconf {{{
 call plug#begin('~/.vim/plugged')
 " apparence
-Plug 'altercation/vim-colors-solarized'
+Plug 'lifepillar/vim-solarized8'
 Plug 'junegunn/rainbow_parentheses.vim'
 Plug 'itchyny/lightline.vim'
 Plug 'mengelbrecht/lightline-bufferline'
@@ -75,8 +75,14 @@ let g:mkdp_theme = 'dark'
 if &t_Co > 2 || has("gui_running")
   syntax on " switch syntax highlighting on, when the terminal has colors
 endif
+" Solarized in 24-bit colour, independent of the terminal's ANSI palette (Noctalia
+" lifts ANSI 8, which the old 16-colour altercation scheme used as the background).
+" Without a truecolor terminal solarized8 falls back to 256-colour approximations.
+if has('termguicolors') && $COLORTERM =~# '^\(truecolor\|24bit\)$'
+  set termguicolors
+endif
 set background=dark
-colorscheme solarized
+colorscheme solarized8
 hi clear SpellBad
 hi SpellBad cterm=underline
 " cursor style
