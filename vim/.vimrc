@@ -64,6 +64,14 @@ Plug 'niboan/plugconf'
 call plug#end()
 call plugconf#load()
 
+" Install plugins declared above but missing from ~/.vim/plugged (a Plug line
+" pulled from another host), then re-source so they take effect this session.
+augroup plug_autoinstall
+  autocmd!
+  autocmd VimEnter * if len(filter(values(g:plugs), '!isdirectory(v:val.dir)'))
+        \| PlugInstall --sync | source $MYVIMRC | endif
+augroup END
+
 " plugconf only sees plugins on the runtimepath at plug#end(), so on-demand
 " ('for'/'on') plugins are configured here instead.
 " markdown-preview: only the values that differ from the plugin defaults.
@@ -82,7 +90,12 @@ if has('termguicolors') && $COLORTERM =~# '^\(truecolor\|24bit\)$'
   set termguicolors
 endif
 set background=dark
-colorscheme solarized8
+" solarized8 is absent until the VimEnter auto-install above has run once.
+try
+  colorscheme solarized8
+catch /^Vim\%((\a\+)\)\=:E185/
+  colorscheme default
+endtry
 hi clear SpellBad
 hi SpellBad cterm=underline
 " cursor style
