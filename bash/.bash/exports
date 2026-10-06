@@ -27,6 +27,10 @@ export PAGER="less"
 # Colors
 export TERM='xterm-256color'
 eval "$(dircolors ~/.dircolors.256dark)"
+# Windows Terminal renders 24-bit colour but never sets COLORTERM (only WT_SESSION).
+# vim enables termguicolors only on COLORTERM; without it solarized8 falls back to
+# 256-colour indices and Solarized's base03 background rounds to a neutral grey.
+[ -n "$WT_SESSION" ] && [ -z "$COLORTERM" ] && export COLORTERM=truecolor
 
 # python interpreter supercharged
 export PYTHONSTARTUP="$HOME/.pythonrc"
