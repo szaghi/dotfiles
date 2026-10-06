@@ -117,38 +117,35 @@ real function kinetic_energy(v)
 end function
 ```
 
-### `pure` Annotation Must Match Reality — Module-Scope Reads Break It Under Debug
+### `pure` Permits Module-Scope *Reads* — Debug-Only Segfaults Are Usually the Compiler
 
-Declaring a function `pure function` is a hard contract: the body may not access any
-entity outside its argument list, except `parameter` constants and intrinsic functions
-known-pure. Reading a module-scope variable (a singleton, a configuration flag, a
-logger handle, a `use`-imported `target` derived type's components) violates the
-contract — even when the read is "obviously harmless" like fetching an MPI rank-prefix
-string for log formatting.
+**The standard:** a `pure` subprogram may *reference* (read) variables it accesses
+through use or host association. It may not *define* them (assign, allocate, pass to
+an `intent(out|inout)` dummy). See F2023 §15.7. Reading an MPI rank-prefix string
+from a module singleton inside `pure function description()` is conforming.
 
-Release builds (`gfortran -O2`, `ifort` default) typically compile the function anyway
-and produce correct output — the violation is silent. **Debug builds**
-(`-fcheck=all -fbounds-check`, `-check all -traceback`) trip on the same code with an
-obscure SIGSEGV inside the impure expression, usually at a string concatenation, an
-allocatable-component access, or a derived-type-component dereference. The backtrace
-points at the offending expression line, not at the `pure` keyword on the function
-declaration — so the diagnosis is hard. Symptom that flags this class: *"release-mode
-run is fine, debug-mode build segfaults during initialization, and the segfaulting
-line is inside a method like `description()` / `to_string()` / `summary()` that
-formats and returns a string."* Suspect a `pure function` on that method that reaches
-into a module-scope singleton.
+The stronger contract is F2023 `SIMPLE` (§15.8): it forbids referencing use- or
+host-associated variables at all, so the result depends only on the arguments. Pass
+module state as dummies only when you want `SIMPLE` (referential transparency for
+GPU or parallel kernels). That is a design choice, not a bug fix.
 
-*Why:* `-fcheck=all` enables descriptor / pointer / allocation-status sanity checks;
-the compiler's purity assumption lets it skip those checks inside `pure` bodies on
-the basis that purity excludes the conditions they catch. The mismatch between
-assumed purity and actual module-scope access then aliases into use-after-something
-at runtime.
+**Do not "fix" a debug-only crash by deleting `pure`.** The symptom pattern is:
+release run fine, debug build (`-fcheck=all`) segfaults during initialization, at a
+string concatenation or allocatable-component access inside a `description()` /
+`to_string()` method. That pattern is NOT evidence of a purity violation. Before
+touching the code, suspect the compiler's instrumentation:
 
-*How to apply:* if a "pure" function reads any module-scope state, **drop the `pure`
-annotation** — the function is not pure. Alternatively, refactor to pass the needed
-module state as an explicit dummy argument; then `pure` is honest and the compiler's
-optimizations stay valid. Same rule applies to `elemental pure` — `elemental` does
-not relax purity.
+1. Check the *actual* compiler behind the MPI wrapper: `mpif90 --version`. On the
+   ADAM WSL box, wrappers under `/opt/openmpi/bin/*/gnu/<ver>/` run **gfortran 16
+   experimental**, whatever `<ver>` says.
+2. gfortran 16 experimental emits **false `-fcheck=bounds` failures (SIGSEGV or
+   abort)** on allocatable components reached through a `class()` passed-object
+   dummy. Reproducer: `adam/src/tests/prism/regression/reproducers/gfortran16_class_alloc_component.f90`.
+3. To discriminate, rebuild with `-fcheck=all,no-bounds`, and with a stable gfortran
+   plus a matching MPI. If either one runs cleanly, the cause is the toolchain.
+
+History: ADAM #11's "secondary finding" blamed `pure` for exactly this crash. It was
+misdiagnosed and is corrected in ADAM #62.
 
 ### Error Handling
 - Never ignore error codes from `allocate`, MPI, or I/O operations

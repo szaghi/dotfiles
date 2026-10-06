@@ -76,7 +76,7 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
 ## Fortran Conventions
 
 Detailed Fortran rules — source-file conventions, kind discipline, modern syntax, OOP
-patterns, the `pure`/module-scope trap, module-wiring envelope, method-extraction
+patterns, `pure` vs module-scope reads (reads are legal; debug-only crashes are usually the compiler), module-wiring envelope, method-extraction
 discipline, error handling, I/O, OpenMP — live in `~/.claude/CLAUDE-fortran.md`. Load
 that file when working on `.F90` / `.f90` code or any HPC Fortran repo. For questions
 about **what the Fortran standard requires** (conformance, `Rxxx`/`Cxxx`, modern-feature
