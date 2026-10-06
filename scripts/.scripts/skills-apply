@@ -21,6 +21,7 @@ SETTINGS="${HOME}/.claude/settings.json"
 MANIFEST="${HOME}/.claude/skills/manifest.toml"
 SKILLS_DIR="${HOME}/.claude/skills"
 DOTFILES="${HOME}/dotfiles"
+SKILLS_REPO="$(readlink -f "${DOTFILES}/claude/.claude/skills")"
 HOSTNAME_S="$(hostname -s)"
 PROFILE="${DOTFILES}/machines/${HOSTNAME_S}.skills"
 
@@ -108,7 +109,8 @@ PY
 # -- class A: custom skills (informational only) -------------------------------
 
 # Echo each custom skill name (a directory under ~/.claude/skills/ that is NOT
-# in manifest.toml and NOT installed by a plugin).
+# in manifest.toml and NOT installed by a plugin). synced/ is skipped: Claude
+# Code writes the account-provisioned skills there itself (see the README).
 list_custom_skills() {
   [[ -d "$SKILLS_DIR" ]] || return 0
   local manifest_names plugin_skills
@@ -118,6 +120,7 @@ list_custom_skills() {
     [[ -d "$d" ]] || continue
     local n
     n=$(basename "$d")
+    [[ $n == synced ]] && continue
     grep -qxF "$n" <<<"$manifest_names" && continue
     grep -qxF "$n" <<<"$plugin_skills"  && continue
     echo "$n"
@@ -259,12 +262,17 @@ do_status() {
   while IFS= read -r n; do
     [[ -z "$n" ]] && continue
     found=1
+    # Resolve, don't test -L: stow may fold ~/.claude/skills into a single
+    # directory symlink, and then no individual skill is a symlink itself.
     local target
     target=$(readlink -f "$SKILLS_DIR/$n" 2>/dev/null || echo "$SKILLS_DIR/$n")
-    if [[ -L "$SKILLS_DIR/$n" ]]; then
-      ok "$n  $(dim "→ $target")"
+    if [[ $target != "$SKILLS_REPO/$n" ]]; then
+      warn "$n  (outside dotfiles — not yet migrated?)"
+    elif ! git -C "$DOTFILES" ls-files --error-unmatch \
+        "claude/.claude/skills/$n/SKILL.md" >/dev/null 2>&1; then
+      warn "$n  (in dotfiles but SKILL.md not tracked by git)"
     else
-      warn "$n  (not a symlink — not yet migrated into dotfiles?)"
+      ok "$n  $(dim "→ $target")"
     fi
   done < <(list_custom_skills)
   [[ $found -eq 0 ]] && dim "  (none)"

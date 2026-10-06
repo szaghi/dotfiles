@@ -211,10 +211,15 @@ are the skills exported to the public `claude-skills-hpc` repository by
 
 `skills-apply status` flags drift visibly with `!`:
 
-- **`!  <name>  (not a symlink — not yet migrated into dotfiles?)`** —
-  a real directory exists at `~/.claude/skills/<name>/` that is not in
-  this repo. Either migrate it (`cp -a` into `claude/.claude/skills/`,
-  `rm -rf` the original, re-stow) or delete it if unwanted.
+- **`!  <name>  (outside dotfiles — not yet migrated?)`** —
+  `~/.claude/skills/<name>/` does not resolve into this repo. Either
+  migrate it (`cp -a` into `claude/.claude/skills/`, `rm -rf` the
+  original, re-stow) or delete it if unwanted. The check resolves the
+  path rather than testing for a symlink, so it holds whether stow
+  linked each skill or folded the whole `skills/` directory into one link.
+- **`!  <name>  (in dotfiles but SKILL.md not tracked by git)`** —
+  the directory is in the repo but not committed: a new skill you forgot
+  to `git add`, or an empty directory left behind by some tool.
 - **`!  <plugin>  (declared but not installed — run skills-apply install)`** —
   the plugin is in `enabledPlugins` but Claude Code has not installed it
   on this host yet. Run `skills-apply install`.
@@ -237,5 +242,4 @@ own. The client rewrites it on every sync (`manifest.json`,
 It is gitignored and must stay that way: tracking it would commit
 upstream churn and per-account state. Do not delete it either; the client
 recreates it, and until then the `anthropic-skills:*` skills are missing.
-`skills-apply status` lists it as `! synced (not a symlink …)`; that line is
-expected and needs no action.
+`skills-apply status` skips it.
