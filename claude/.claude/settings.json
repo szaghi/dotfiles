@@ -7,7 +7,7 @@
       "Edit(/home/stefano/python/**)"
     ]
   },
-  "model": "opus",
+  "model": "opus[1m]",
   "disableClaudeAiConnectors": true,
   "hooks": {
     "SessionStart": [

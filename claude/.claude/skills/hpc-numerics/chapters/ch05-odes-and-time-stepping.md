@@ -60,6 +60,7 @@ Order: global error ∝ Δt  (first order)
 5. Higher-order methods (Runge-Kutta, multistep) improve accuracy per step but explicit ones still have a stability cap.
 
 ## Connects To
+- **Ch 13 (Non-normality)**: for non-normal systems, "eigenvalues in the stability region" is necessary but not sufficient — require hW(A) ⊆ region.
 - **Ch 06 (PDEs)**: time-dependent PDEs add spatial discretization; explicit schemes inherit a CFL step-size limit.
 - **Ch 04 (Stability)**: this is the time-dependent face of numerical stability.
 - **Ch 08 (Iterative solvers)**: implicit methods require solving a system each step.

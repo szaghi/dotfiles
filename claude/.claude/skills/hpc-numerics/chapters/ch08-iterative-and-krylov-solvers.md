@@ -20,6 +20,7 @@ For large sparse systems where direct LU fill-in is catastrophic, **iterative me
 ## Key Concepts
 - **Convergence ∝ conditioning**: the iteration count for CG scales with `√κ(A)`; an ill-conditioned system converges slowly or not at all. **The preconditioner choice dominates performance** — far more than the Krylov method itself.
 - **Matrix-free operation**: iterative methods only need `A·v` (a sparse matvec), never `A` explicitly — so they preserve sparsity and can even work without storing the matrix (apply the stencil directly).
+- **GMRES is not governed by eigenvalues when A is non-normal** (convection-dominated, inflow BCs, overset interpolation): clustered eigenvalues can coexist with long stagnation. The usable bound is via the numerical range, ‖r_k‖/‖r₀‖ ≤ 2 min_{p(0)=1} max_{W(A)} |p| (Crouzeix), vacuous if 0 ∈ W(A) → see Ch 13.
 - **Residual vs error**: you can measure the **residual** `r = b − Ax` (computable) but not the true error (needs the answer); convergence is judged by `‖r‖` falling below a tolerance. Beware: a small residual on an ill-conditioned system can still mean a large error.
 - **Multigrid as the gold standard for elliptic PDEs**: by solving on a hierarchy of grids (smooth high-frequency error on fine grids, low-frequency on coarse), multigrid achieves O(n) work — optimal — where unpreconditioned CG would scale far worse.
 
@@ -57,4 +58,5 @@ For large sparse systems where direct LU fill-in is catastrophic, **iterative me
 - **Ch 07 (Direct methods)**: iterative methods avoid the fill-in that plagues sparse LU.
 - **Ch 04 (Conditioning)**: κ(A) drives convergence; preconditioning reshapes it.
 - **Ch 06 (PDEs)**: the sparse stencil systems these solve; multigrid for elliptic PDEs.
+- **Ch 13 (Non-normality)**: GMRES bounds from the numerical range; what preconditioning must do to W(A).
 - **Ch 02 (Architecture)**: the sparse matvec is memory-bound — its locality limits iterative-solver speed.

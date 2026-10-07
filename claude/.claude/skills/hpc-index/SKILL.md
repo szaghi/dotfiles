@@ -41,7 +41,7 @@ The single most useful distinction is **reference vs applied vs theory vs workfl
 | CUDA | from Python (Numba-CUDA, CuPy) | `python-hpc` |
 | **C / C++ / Fortran** | what the *standard* requires, conformance, UB | `iso-c-9899-2024` / `iso-cpp-2023` / `fortran-2023-standard` |
 | C++ | idioms/RAII/STL for HPC (not standard wording) | `cpp-hpc` |
-| **A solver / algorithm** | the *math* (CG, GMRES, multigrid, conditioning) | `hpc-numerics` |
+| **A solver / algorithm** | the *math* (CG, GMRES, multigrid, conditioning, non-normality / numerical range) | `hpc-numerics` |
 | a solver | the *library API* (PETSc KSP/PC, BLAS, FFTW) | `cpp-hpc` (ch13) |
 | **"why is it slow / how fast can it be"** | roofline, arithmetic intensity, memory-bound | `hpc-numerics` (model) + `gpu-multithreading` (fix) |
 | **"it's wrong / unstable / not reproducible"** | floating point, cancellation, conditioning | `hpc-numerics` |

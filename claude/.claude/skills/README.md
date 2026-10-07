@@ -162,6 +162,7 @@ Inventory of skills currently shipped via this directory and `manifest.toml`:
 | `research-lookup/` | A | Parallel Chat API research backend |
 | `scientific-writing/` | A | IMRAD manuscript / reporting-guideline workflow |
 | `darktable-raw/` | A | darktable 4.6 manual as a knowledge base (modules, scene-referred pipeline, darktable-cli) |
+| `ai-research-verification/` | A | Trust discipline for agent-produced numerics/CFD results (frozen spec, tiers, Comparator analogue) + dated triage of 2026 AI-math results relevant to CFD/HPC |
 | `darktable-operator/` | A | RAW post-processing workflow — Claude drives darktable-cli; prompt-controlled edit values via XMP patching (see its `USER-GUIDE.md`) |
 | `frontend-design@claude-plugins-official` | B | Distinctive frontend interfaces |
 | `skill-creator@claude-plugins-official` | B | Create / evaluate / optimize skills |

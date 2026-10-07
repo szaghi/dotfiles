@@ -37,6 +37,14 @@
 - **Preconditioner choice dominates** Krylov performance (Jacobi → ILU → multigrid).
 - Convergence ∝ √κ(A) for CG; small residual on ill-conditioned A ≠ small error.
 
+## Non-normal operators (Ch 13)
+- Symptom: eigenvalues fine, yet GMRES stagnates or explicit run blows up transiently → non-normality.
+- First check: ω(A)=λ_max((A+A*)/2). ω>0 ⇒ real energy growth; fix the discretization/BC, not Δt.
+- Stability: hW(A) ⊆ {|R|≤1} ⇒ ‖R(hA)ⁿ‖ ≤ 2 ∀n (Crouzeix). Eigenvalue test alone is insufficient.
+- GMRES: ‖r_k‖/‖r₀‖ ≤ 2 min_{p(0)=1} max_W |p|; W ⊂ disk D(c,ρ), ρ<|c| ⇒ ≤ 2(ρ/|c|)^k. 0 ∈ W ⇒ bound vacuous → precondition to move W.
+- e^{tA}: use ‖e^{tA}‖ ≤ e^{tω} (Lumer–Phillips), not Crouzeix.
+- Compute W: rotate θ, λ_max of Hermitian part (Lanczos, matvec-only); outer polygon certifies.
+
 ## BLAS levels (dense LA performance)
 | Level | Op | Intensity | Bound |
 |---|---|---|---|

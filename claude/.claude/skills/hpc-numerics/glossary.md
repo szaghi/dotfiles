@@ -42,3 +42,8 @@
 **temporal/spatial locality** — reuse data / use whole cache line (Ch 2, 9).
 **truncation error** — discretization approximation error → 0 as h→0 (Ch 5, 6).
 **von Neumann architecture** — control-flow processor over one memory bus (Ch 2).
+**Crouzeix bound** — ‖f(A)‖ ≤ 2 max over W(A) of |f|, sharp constant; dimension-free (Ch 13).
+**non-normal matrix** — A*A ≠ AA*; eigenvalues fail to predict transient growth / GMRES behaviour (Ch 13).
+**numerical abscissa ω(A)** — max Re W(A) = λ_max of the Hermitian part; ‖e^{tA}‖ ≤ e^{tω} (Ch 13).
+**numerical range / field of values W(A)** — {x*Ax : ‖x‖=1}; convex, contains the spectrum (Ch 13).
+**pseudospectrum Λ_ε(A)** — {z : ‖(zI−A)⁻¹‖ > 1/ε}; finer non-normality diagnostic (Ch 13).

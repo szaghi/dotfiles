@@ -1,6 +1,6 @@
 ---
 name: hpc-numerics
-description: "Practitioner knowledge base for the numerical and algorithmic theory of high-performance scientific computing — the science beneath the parallel-programming mechanics. Use when reasoning about numerical correctness, algorithm design, or performance modeling: floating-point arithmetic and round-off error (machine epsilon, catastrophic cancellation, non-associativity, Kahan summation); conditioning vs stability (condition number, backward stability); ODE/PDE discretization (finite differences, stencils, explicit vs implicit Euler, stiffness, CFL condition, method of lines); numerical linear algebra (LU factorization, pivoting, sparse matrices, fill-in, reordering); iterative and Krylov solvers (Jacobi/Gauss-Seidel, CG, GMRES, preconditioning, multigrid); performance programming (the memory wall, cache blocking/tiling, the roofline model, arithmetic intensity); high-performance linear algebra (BLAS levels, gemm, block algorithms); combinatorial algorithms (parallel sorting networks, graph algorithms as sparse linear algebra, graph coloring); and N-body (cutoffs, cell lists, Barnes-Hut, FMM) and Monte Carlo methods (1/sqrt(N) error, variance reduction). Covers the algorithmic theory and error/stability/performance analysis — not the MPI/OpenMP/CUDA implementation mechanics."
+description: "Practitioner knowledge base for the numerical and algorithmic theory of high-performance scientific computing — the science beneath the parallel-programming mechanics. Use when reasoning about numerical correctness, algorithm design, or performance modeling: floating-point arithmetic and round-off error (machine epsilon, catastrophic cancellation, non-associativity, Kahan summation); conditioning vs stability (condition number, backward stability); ODE/PDE discretization (finite differences, stencils, explicit vs implicit Euler, stiffness, CFL condition, method of lines); numerical linear algebra (LU factorization, pivoting, sparse matrices, fill-in, reordering); iterative and Krylov solvers (Jacobi/Gauss-Seidel, CG, GMRES, preconditioning, multigrid); non-normal matrices (numerical range / field of values, numerical abscissa, Crouzeix's ‖f(A)‖ ≤ 2 max_W |f| bound, pseudospectra, Kreiss, transient growth, GMRES convergence bounds beyond eigenvalues, why the eigenvalue CFL test fails for upwind/inflow discretizations); performance programming (the memory wall, cache blocking/tiling, the roofline model, arithmetic intensity); high-performance linear algebra (BLAS levels, gemm, block algorithms); combinatorial algorithms (parallel sorting networks, graph algorithms as sparse linear algebra, graph coloring); and N-body (cutoffs, cell lists, Barnes-Hut, FMM) and Monte Carlo methods (1/sqrt(N) error, variance reduction). Covers the algorithmic theory and error/stability/performance analysis — not the MPI/OpenMP/CUDA implementation mechanics."
 allowed-tools:
   - Read
   - Grep
@@ -8,7 +8,7 @@ argument-hint: [topic, method (CG/multigrid/FMM), or chapter (e.g. ch04)]
 ---
 
 # HPC Numerics — The Science of Scientific Computing
-**Scope**: floating-point & error analysis · conditioning & stability · ODE/PDE discretization · numerical linear algebra · iterative/Krylov solvers · performance modeling · BLAS/block algorithms · combinatorial & graph algorithms · N-body & Monte Carlo | **Chapters**: 12 | **Generated**: 2026-06-09
+**Scope**: floating-point & error analysis · conditioning & stability · ODE/PDE discretization · numerical linear algebra · iterative/Krylov solvers · performance modeling · BLAS/block algorithms · combinatorial & graph algorithms · N-body & Monte Carlo | **Chapters**: 13 | **Generated**: 2026-06-09
 
 ## How to Use This Skill
 
@@ -30,10 +30,10 @@ Modeling × numerical mathematics × computer architecture. A wrong/slow result 
 - **Floating point**: never test equality; `(a+b)+c ≠ a+(b+c)` (reassociation/parallel reductions break reproducibility); hunt **catastrophic cancellation** in subtractions of near-equal values and rewrite; use Kahan summation for long disparate sums.
 
 ### Time-stepping (Ch 5, 6)
-Explicit (cheap, conditionally stable, Δt < 2/λ or CFL-limited) vs implicit (solve per step, unconditionally stable). **Stiffness decides** — separated timescales force implicit. PDEs discretize via stencils → sparse linear systems (method of lines).
+Explicit (cheap, conditionally stable, Δt < 2/λ or CFL-limited) vs implicit (solve per step, unconditionally stable). **Stiffness decides** — separated timescales force implicit. For non-normal semi-discretizations test **hW(A) ⊆ stability region** (‖Rⁿ‖ ≤ 2), not eigenvalues — upwind+inflow at ν=1.5 has spectral radius 0.5 yet ‖G²⁰⁰‖≈1e46 (Ch 13). PDEs discretize via stencils → sparse linear systems (method of lines).
 
 ### Linear solvers (Ch 7, 8)
-Small/moderate dense or many-RHS → **direct LU** (always pivot). Large sparse → **iterative Krylov** (CG for SPD, GMRES for general; matvec-only, no fill-in). Convergence ∝ √κ — so the **preconditioner dominates** (Jacobi → ILU → multigrid, optimal for elliptic PDEs). Sparse direct → watch fill-in, reorder to cut it.
+Small/moderate dense or many-RHS → **direct LU** (always pivot). Large sparse → **iterative Krylov** (CG for SPD, GMRES for general; matvec-only, no fill-in). CG iterations ∝ √κ (SPD only); for non-normal A (convection, inflow BCs, overset) eigenvalues/κ do **not** predict GMRES convergence or time-stepping stability — use the **numerical range** W(A) (Ch 13). Either way the **preconditioner dominates** (Jacobi → ILU → multigrid, optimal for elliptic PDEs). Sparse direct → watch fill-in, reorder to cut it.
 
 ### Performance (Ch 2, 9, 10)
 The **memory wall** limits most code (memory-bound). Engineer locality (spatial: unit stride/SoA; temporal: blocking/tiling). The **roofline** (arithmetic intensity = FLOPs/byte) triages memory- vs compute-bound. Dense LA → cast as **BLAS-3** (`gemm`, near-peak); matrix-vector and sparse matvec are memory-bound by nature. Never hand-code `gemm`/LU — call LAPACK.
@@ -59,6 +59,7 @@ Best parallel algorithm ≠ best sequential parallelized (sorting networks). Gra
 | [ch10](chapters/ch10-high-performance-linear-algebra.md) | HP Linear Algebra | BLAS levels, gemm, block algorithms |
 | [ch11](chapters/ch11-combinatorial-and-graph-algorithms.md) | Combinatorial & Graph | sorting networks, graphs as sparse LA, coloring |
 | [ch12](chapters/ch12-n-body-and-monte-carlo.md) | N-Body & Monte Carlo | cutoffs, Barnes-Hut, FMM, 1/√N sampling |
+| [ch13](chapters/ch13-non-normality-and-numerical-range.md) | Non-Normality & Numerical Range | W(A), Crouzeix bound, GMRES bounds, hW(A)⊆stability region, Johnson's algorithm |
 
 ## Topic Index
 
@@ -79,6 +80,8 @@ Best parallel algorithm ≠ best sequential parallelized (sorting networks). Gra
 - **memory wall / von Neumann** → ch02
 - **method of lines** → ch05, ch06
 - **Monte Carlo / variance reduction** → ch12
+- **non-normal / numerical range / field of values / Crouzeix / pseudospectra / transient growth** → ch13
+- **GMRES convergence bounds / stagnation** → ch08, ch13
 - **multigrid** → ch08
 - **non-associativity / reproducibility** → ch03, ch09
 - **preconditioning** → ch08
