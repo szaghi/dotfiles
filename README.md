@@ -1549,7 +1549,7 @@ Sessions take a name and a directory (`claude-remote start harp ~/python/harp`);
 arguments after `--` go to `claude`, and `CLAUDE_REMOTE_CMD=claude-cnr` launches one of
 the [wrappers](#claude-cli-wrappers--overview) instead. `-H host` runs any subcommand on
 the host through `ssh -t`, forwarding those variables. Without the script on the client:
-`ssh -t stefano@wsl-adam tmux attach -t claude`.
+`ssh -t stefano@wsl-adam tmux -u attach -d -t claude` (`-u` forces UTF-8, `-d` detaches leftover clients — see below).
 
 **Leaving without killing the session** — detach, never exit:
 
@@ -1563,12 +1563,17 @@ the host through `ssh -t`, forwarding those variables. Without the script on the
 Leaving Claude itself (`/exit`) keeps the session: you land at its shell prompt, where
 `claude --continue` resumes the conversation.
 
-Two things to know:
+Things to know:
 
 - **A remote command gets only the system PATH.** `~/.bashrc` returns at its PS1 guard
   before `~/.bash/paths` runs, so `ssh wsl-adam claude-remote …` fails with *command not
   found*. Use `-H`, which calls the remote copy by absolute path; the script also adds
   `~/.scripts` and `~/.local/bin` to its own PATH.
+- **…and no locale.** Without `LANG`/`LC_*` tmux treats the client as non-UTF-8 and draws
+  every non-ASCII character as `_`, which wrecks the alignment of Claude's TUI. The script
+  forces UTF-8 (`LANG=C.UTF-8`, `tmux -u`).
+- **`attach` takes the session over** (`tmux attach -d`): a terminal left open on the other
+  machine would otherwise stay attached as a second client.
 - **The host must stay up.** tmux outlives the SSH connection, not a sleeping or
   rebooting machine. On adam: Windows sleep set to *never* on AC, Windows Update paused,
   and the WSL VM kept alive (an open WSL terminal, or a keeper task at logon), or WSL

@@ -12,7 +12,7 @@ usage() {
 Usage: claude-remote [-H host] <command> [args]
 
   start  [name] [dir] [-- claude-args]  start session (or reattach); dir defaults to $PWD
-  attach [name]                         reattach to a running session
+  attach [name]                         reattach (takes over: other clients are detached)
   detach [name]                         detach every client, the session keeps running
   list                                  list running sessions
   stop   [name]                         kill a session
@@ -38,6 +38,15 @@ for d in "$HOME/.bin" "$HOME/.scripts" "$HOME/.local/bin"; do
 	[[ -d $d && ":$PATH:" != *":$d:"* ]] && PATH="$d:$PATH"
 done
 export PATH
+
+# tmux decides per client whether the terminal speaks UTF-8 from LC_ALL /
+# LC_CTYPE / LANG. A remote command gets none of them (quark itself runs with
+# LANG unset), and tmux then draws every non-ASCII cell as '_', which also
+# breaks the alignment of Claude's TUI.
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+	*[Uu][Tt][Ff]-8* | *[Uu][Tt][Ff]8*) ;;
+	*) export LANG=C.UTF-8 && unset LC_ALL LC_CTYPE ;;
+esac
 
 host=""
 if [[ ${1:-} == -H ]]; then
@@ -100,10 +109,13 @@ attach() {
 		if [[ -n ${TMUX:-} ]]; then
 			tmux switch-client -t "=$name"
 		else
-			tmux attach-session -t "=$name"
+			# -u: force UTF-8 for this client; -d: take the session over,
+			# detaching clients left behind (a forgotten terminal on the
+			# other machine) that would otherwise also fix the window size
+			tmux -u attach-session -d -t "=$name"
 		fi
 	else
-		screen -r "$name"
+		screen -d -r "$name"
 	fi
 }
 

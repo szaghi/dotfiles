@@ -216,7 +216,7 @@ list · `[` scroll mode (`q` to leave). With screen as fallback the prefix is
 **Ctrl-a**.
 
 Plain-ssh equivalent, for a client without the script:
-`ssh -t stefano@wsl-adam tmux attach -t claude`.
+`ssh -t stefano@wsl-adam tmux -u attach -d -t claude` (`-u` forces UTF-8, `-d` detaches leftover clients — see below).
 
 ---
 
@@ -259,6 +259,19 @@ the result interactively afterwards with `cd <dir> && claude --continue`.
   calls itself by absolute path and prepends `~/.bin`, `~/.scripts` and
   `~/.local/bin` (where `claude` lives) to its own PATH. The `.bashrc` guard is
   deliberately left alone: it protects scp, rsync and git-over-ssh on every host.
+- **UTF-8 is forced.** tmux decides per client whether the terminal speaks
+  UTF-8 from `LC_ALL` / `LC_CTYPE` / `LANG`. A command run over Tailscale SSH
+  gets none of them (and quark runs with `LANG` unset anyway), so tmux marks
+  that client non-UTF-8 and draws every non-ASCII cell as `_`: `❯` → `_`,
+  `€` → `_`, `Sautéed` → `Saut_ed`, the logo becomes underscores and Claude's
+  TUI loses its alignment. Measured 2026-10-07: plain `tmux attach` from such a
+  client → `client_utf8=0`. The script sets `LANG=C.UTF-8` when the locale is
+  not UTF-8 and attaches with `tmux -u` → `client_utf8=1`.
+- **attach takes the session over** (`tmux attach -d`). A terminal left open on
+  the other machine stays attached as a second client; with
+  `window-size latest` the window keeps switching to whichever client typed
+  last, and the forgotten one is easy to mistake for a "zombie". Taking over
+  detaches it.
 - **Targets are exact** (`tmux -t =name`): `stop cl` cannot kill `claude`.
 
 ---
@@ -274,11 +287,13 @@ the result interactively afterwards with `cd <dir> && claude --continue`.
 | `ssh: Could not resolve hostname wsl-adam` | Tailscale down on quark, or MagicDNS off | `sudo systemctl start tailscaled`; `tailscale status`; fall back to the `100.x.y.z` address |
 | ssh prints a login URL and waits | Tailscale SSH check mode | open the URL, confirm, the connection continues |
 | attach works but feels laggy | traffic goes through a DERP relay (office firewall blocks UDP) | expected; `tailscale status` shows `relay "…"`. Usable for a terminal |
-| window is cropped / small | another client is attached with a smaller terminal | `tmux attach -d -t claude` (detaches the others) |
+| window is cropped / small | another client is attached with a smaller terminal | `claude-remote attach` takes the session over (detaches the others); by hand `tmux attach -d -t claude` |
 | `sessions should be nested with care` | running `tmux attach` inside tmux | `claude-remote attach` handles it (switch-client); or **Ctrl-b s** |
 | Claude did nothing overnight | it stopped at a permission prompt | answer it; next time pre-approve tools, or use a permission mode |
 | **Ctrl-b d** does nothing | Ctrl held down while pressing `d` (that is `Ctrl-b Ctrl-d`, unbound) | press Ctrl-b, release, then `d`; or `! tmux detach` in Claude; or `claude-remote -H wsl-adam detach` from another terminal (§2) |
 | session vanished after trying to leave | Ctrl-d / `exit` reached the shell prompt in the session | detach instead of exiting (§2, *Leaving a session*) |
+| text full of `_`, boxes and prompt misaligned | the client was attached without a UTF-8 locale (`tmux lsc -F '#{client_utf8}'` shows 0) | attach with `claude-remote` (forces UTF-8), or by hand `tmux -u attach` |
+| `tmux lsc` lists a client you thought you had closed | that terminal is still open on the other machine (its ssh is alive); a dropped connection is reaped by `ServerAliveInterval` within ~3 min | `claude-remote attach` detaches it; or `claude-remote detach` |
 
 ---
 
