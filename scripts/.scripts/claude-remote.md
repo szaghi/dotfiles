@@ -136,6 +136,26 @@ conversation) or remove the session altogether:
 claude-remote stop
 ```
 
+### Leaving a session without killing it
+
+**Detach** closes your view and leaves Claude running. Any of these works:
+
+| How | Where | Notes |
+|---|---|---|
+| **Ctrl-b**, release everything, then **d** | inside the session | Two separate keystrokes. Holding Ctrl while pressing `d` sends `Ctrl-b Ctrl-d`, which is unbound: nothing happens |
+| `! tmux detach` | at Claude's prompt | `!` runs a shell command from Claude; it inherits `$TMUX`, so it detaches your client |
+| `claude-remote -H wsl-adam detach [name]` | any other terminal | detaches every client of the session, e.g. a stuck one |
+| **Enter**, then **~** **.** | the ssh client on quark | ssh escape: drops the connection; tmux detaches automatically |
+| close the terminal or the laptop lid | — | a dropped connection is a detach |
+
+What **ends** the session instead:
+
+- **Ctrl-d** or `exit` at the shell prompt in the session: the shell is the
+  session, when it exits the session is gone.
+- `claude-remote stop`.
+- Leaving Claude (`/exit`, or Ctrl-c twice) does *not* end the session — you land
+  at the shell prompt inside it; run `claude --continue` there, or detach.
+
 ### Several sessions at once
 
 Name them; the name is the handle everywhere.
@@ -173,6 +193,7 @@ adam as a literal tilde and the directory check fails.
 ```
 claude-remote [-H host] start  [name] [dir] [-- claude-args]   start, or reattach if it exists
 claude-remote [-H host] attach [name]                          reattach
+claude-remote [-H host] detach [name]                          detach all clients, keep the session
 claude-remote [-H host] list                                   running sessions
 claude-remote [-H host] stop   [name]                          kill a session
 claude-remote [-H host] headless "prompt" [dir]                one-shot run, logged to dir/claude_run_*.log
@@ -256,6 +277,8 @@ the result interactively afterwards with `cd <dir> && claude --continue`.
 | window is cropped / small | another client is attached with a smaller terminal | `tmux attach -d -t claude` (detaches the others) |
 | `sessions should be nested with care` | running `tmux attach` inside tmux | `claude-remote attach` handles it (switch-client); or **Ctrl-b s** |
 | Claude did nothing overnight | it stopped at a permission prompt | answer it; next time pre-approve tools, or use a permission mode |
+| **Ctrl-b d** does nothing | Ctrl held down while pressing `d` (that is `Ctrl-b Ctrl-d`, unbound) | press Ctrl-b, release, then `d`; or `! tmux detach` in Claude; or `claude-remote -H wsl-adam detach` from another terminal (§2) |
+| session vanished after trying to leave | Ctrl-d / `exit` reached the shell prompt in the session | detach instead of exiting (§2, *Leaving a session*) |
 
 ---
 

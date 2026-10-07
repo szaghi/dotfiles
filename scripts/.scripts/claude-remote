@@ -13,6 +13,7 @@ Usage: claude-remote [-H host] <command> [args]
 
   start  [name] [dir] [-- claude-args]  start session (or reattach); dir defaults to $PWD
   attach [name]                         reattach to a running session
+  detach [name]                         detach every client, the session keeps running
   list                                  list running sessions
   stop   [name]                         kill a session
   headless "prompt" [dir]               one-shot non-interactive run, logged to file
@@ -150,6 +151,18 @@ case "$CMD" in
 			exit 1
 		fi
 		attach "$NAME"
+		;;
+	detach)
+		need_mux
+		NAME="${1:-claude}"
+		check_name "$NAME"
+		session_exists "$NAME" || die "no session named '$NAME'"
+		if [[ $MUX == tmux ]]; then
+			tmux detach-client -s "=$NAME"
+		else
+			screen -d "$NAME" >/dev/null
+		fi
+		echo "Session '$NAME' detached; it keeps running."
 		;;
 	list)
 		need_mux

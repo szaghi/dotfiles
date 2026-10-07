@@ -1551,6 +1551,18 @@ the [wrappers](#claude-cli-wrappers--overview) instead. `-H host` runs any subco
 the host through `ssh -t`, forwarding those variables. Without the script on the client:
 `ssh -t stefano@wsl-adam tmux attach -t claude`.
 
+**Leaving without killing the session** — detach, never exit:
+
+| Detach (Claude keeps running) | Ends the session |
+|---|---|
+| **Ctrl-b**, release, then **d** (two keystrokes; Ctrl held on `d` does nothing) | **Ctrl-d** or `exit` at the shell prompt in the session |
+| `! tmux detach` at Claude's prompt | `claude-remote stop` |
+| `claude-remote -H wsl-adam detach` from another terminal | |
+| ssh escape **Enter ~ .**, or just close the terminal/laptop | |
+
+Leaving Claude itself (`/exit`) keeps the session: you land at its shell prompt, where
+`claude --continue` resumes the conversation.
+
 Two things to know:
 
 - **A remote command gets only the system PATH.** `~/.bashrc` returns at its PS1 guard
