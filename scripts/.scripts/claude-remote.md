@@ -182,7 +182,13 @@ Everything works through `-H`, including `start`; the directory is a path **on a
 claude-remote -H wsl-adam start review ~/python/harp -- --model opus
 ```
 
-Arguments after `--` are passed to `claude`. Leave `~` unquoted: quark's shell
+Arguments from the first one beginning with `-` are passed to `claude`, so
+`claude-remote start -- --dangerously-skip-permissions` and
+`claude-remote start --dangerously-skip-permissions` are equivalent; `--` is
+only needed for a claude argument that does not begin with `-`. Session names
+therefore cannot begin with `-`. The arguments are used only when the session
+is created: on a running session `start` reattaches and warns that they were
+ignored — `stop` it first to relaunch with different flags. Leave `~` unquoted: quark's shell
 expands it to `/home/stefano`, the same path on adam. A quoted `'~/…'` reaches
 adam as a literal tilde and the directory check fails.
 
@@ -191,7 +197,7 @@ adam as a literal tilde and the directory check fails.
 ## 3. Command reference
 
 ```
-claude-remote [-H host] start  [name] [dir] [-- claude-args]   start, or reattach if it exists
+claude-remote [-H host] start  [name] [dir] [claude-args]      start, or reattach if it exists
 claude-remote [-H host] attach [name]                          reattach
 claude-remote [-H host] detach [name]                          detach all clients, keep the session
 claude-remote [-H host] list                                   running sessions

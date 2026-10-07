@@ -11,7 +11,8 @@ usage() {
 	cat <<'EOF'
 Usage: claude-remote [-H host] <command> [args]
 
-  start  [name] [dir] [-- claude-args]  start session (or reattach); dir defaults to $PWD
+  start  [name] [dir] [claude-args]     start session (or reattach); dir defaults to $PWD;
+                                        claude-args begin at the first '-' arg (or after --)
   attach [name]                         reattach (takes over: other clients are detached)
   detach [name]                         detach every client, the session keeps running
   list                                  list running sessions
@@ -87,8 +88,10 @@ need_mux() {
 }
 
 check_name() {
-	# tmux treats '.' and ':' as target separators
-	[[ $1 =~ ^[A-Za-z0-9_-]+$ ]] || die "invalid session name '$1' (use letters, digits, - and _)"
+	# tmux treats '.' and ':' as target separators; a leading '-' would read as
+	# an option, and `start` takes it for the first claude argument
+	[[ $1 =~ ^[A-Za-z0-9_][A-Za-z0-9_-]*$ ]] ||
+		die "invalid session name '$1' (letters, digits, - and _; not starting with -)"
 }
 
 session_exists() {
@@ -123,8 +126,11 @@ case "$CMD" in
 	start)
 		need_mux
 		NAME="claude" DIR="$PWD"
-		if [[ ${1:-} != -- && $# -gt 0 ]]; then NAME="$1"; shift; fi
-		if [[ ${1:-} != -- && $# -gt 0 ]]; then DIR="$1"; shift; fi
+		# The first argument starting with '-' ends name/dir and begins the
+		# claude arguments, so `start --dangerously-skip-permissions` does not
+		# take the flag for a session name; '--' is still accepted.
+		if [[ $# -gt 0 && $1 != -* ]]; then NAME="$1"; shift; fi
+		if [[ $# -gt 0 && $1 != -* ]]; then DIR="$1"; shift; fi
 		[[ ${1:-} == -- ]] && shift
 		check_name "$NAME"
 		[[ -d $DIR ]] || die "no such directory: $DIR"
@@ -132,6 +138,7 @@ case "$CMD" in
 
 		if session_exists "$NAME"; then
 			echo "Session '$NAME' already running - reattaching."
+			(($# > 0)) && echo "claude-remote: claude arguments ignored, the session is already running:$(printf ' %q' "$@")" >&2
 		else
 			# Claude is typed into an interactive shell instead of being the
 			# pane's command: the shell loads ~/.bash/claude_code (so wrappers
