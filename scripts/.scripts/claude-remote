@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+# claude-remote -- run Claude Code sessions that survive SSH disconnects.
+# Notes, rationale and the WSL keep-alive caveat: ~/.scripts/claude-remote.md
+
+# SC2310: session_exists is a predicate; calling it in if/!/|| is the point.
+# shellcheck disable=SC2310
+
+set -euo pipefail
+
+usage() {
+	cat <<'EOF'
+Usage: claude-remote [-H host] <command> [args]
+
+  start  [name] [dir] [-- claude-args]  start session (or reattach); dir defaults to $PWD
+  attach [name]                         reattach to a running session
+  list                                  list running sessions
+  stop   [name]                         kill a session
+  headless "prompt" [dir]               one-shot non-interactive run, logged to file
+
+  -H host   run the command on HOST over ssh, e.g. from quark:
+            claude-remote -H wsl-adam attach
+
+Defaults: name=claude. Detach with Ctrl-b d (tmux) or Ctrl-a d (screen).
+Environment:
+  CLAUDE_REMOTE_CMD     command typed into the session (default: claude); may be a
+                        wrapper from ~/.bash/claude_code, e.g. CLAUDE_REMOTE_CMD=claude-cnr
+  CLAUDE_ALLOWED_TOOLS  tools pre-approved in headless mode
+                        (default: Bash,Read,Edit,Write,Glob,Grep)
+EOF
+}
+
+die() { echo "claude-remote: $*" >&2; exit 1; }
+
+# A non-interactive shell (ssh host cmd, bash -lc) stops at the PS1 guard in
+# ~/.bashrc before ~/.bash/paths runs, so the user bin dirs are missing here.
+for d in "$HOME/.bin" "$HOME/.scripts" "$HOME/.local/bin"; do
+	[[ -d $d && ":$PATH:" != *":$d:"* ]] && PATH="$d:$PATH"
+done
+export PATH
+
+host=""
+if [[ ${1:-} == -H ]]; then
+	host="${2:?-H needs a host}"
+	shift 2
+fi
+
+# Remote mode: re-run this script on the host. Only ssh is needed locally, so
+# a client without tmux/screen (quark) works. Arguments are re-quoted for the
+# remote shell; $HOME expands there, not here. ssh does not forward the
+# environment, so the script's own variables are passed explicitly.
+if [[ -n $host ]]; then
+	remote_args="" remote_env=""
+	(($# > 0)) && remote_args=$(printf ' %q' "$@")
+	for v in CLAUDE_REMOTE_CMD CLAUDE_ALLOWED_TOOLS; do
+		[[ -n ${!v:-} ]] && remote_env+=" $v=$(printf '%q' "${!v}")"
+	done
+	exec ssh -t "$host" "${remote_env:+env$remote_env }\$HOME/.scripts/claude-remote$remote_args"
+fi
+
+CMD="${1:-start}"
+shift || true
+
+if command -v tmux >/dev/null 2>&1; then
+	MUX=tmux
+elif command -v screen >/dev/null 2>&1; then
+	MUX=screen
+else
+	MUX=none
+fi
+
+need_mux() {
+	[[ $MUX != none ]] && return 0
+	echo "claude-remote: neither tmux nor screen is installed." >&2
+	echo "Install one (sudo apt install tmux / sudo pacman -S tmux)," >&2
+	echo "or use:  claude-remote headless \"your prompt\"" >&2
+	exit 1
+}
+
+check_name() {
+	# tmux treats '.' and ':' as target separators
+	[[ $1 =~ ^[A-Za-z0-9_-]+$ ]] || die "invalid session name '$1' (use letters, digits, - and _)"
+}
+
+session_exists() {
+	if [[ $MUX == tmux ]]; then
+		tmux has-session -t "=$1" 2>/dev/null
+	else
+		screen -ls 2>/dev/null | grep -qE "[0-9]+\.$1[[:space:]]"
+	fi
+}
+
+attach() {
+	local name="$1"
+	[[ -t 0 && -t 1 ]] || {
+		echo "Session '$name' is running; no terminal to attach to (use ssh -t)."
+		return 0
+	}
+	if [[ $MUX == tmux ]]; then
+		if [[ -n ${TMUX:-} ]]; then
+			tmux switch-client -t "=$name"
+		else
+			tmux attach-session -t "=$name"
+		fi
+	else
+		screen -r "$name"
+	fi
+}
+
+case "$CMD" in
+	start)
+		need_mux
+		NAME="claude" DIR="$PWD"
+		if [[ ${1:-} != -- && $# -gt 0 ]]; then NAME="$1"; shift; fi
+		if [[ ${1:-} != -- && $# -gt 0 ]]; then DIR="$1"; shift; fi
+		[[ ${1:-} == -- ]] && shift
+		check_name "$NAME"
+		[[ -d $DIR ]] || die "no such directory: $DIR"
+		DIR=$(cd "$DIR" && pwd)
+
+		if session_exists "$NAME"; then
+			echo "Session '$NAME' already running - reattaching."
+		else
+			# Claude is typed into an interactive shell instead of being the
+			# pane's command: the shell loads ~/.bash/claude_code (so wrappers
+			# such as claude-cnr work) and the session survives /exit.
+			launch="${CLAUDE_REMOTE_CMD:-claude}"
+			[[ $launch == claude ]] && ! command -v claude >/dev/null 2>&1 &&
+				die "'claude' not found in PATH"
+			(($# > 0)) && launch+=$(printf ' %q' "$@")
+			echo "Starting session '$NAME' in $DIR ($MUX): $launch"
+			if [[ $MUX == tmux ]]; then
+				tmux new-session -d -s "$NAME" -c "$DIR"
+				tmux send-keys -t "=$NAME:" -l -- "$launch"
+				tmux send-keys -t "=$NAME:" Enter
+			else
+				(cd "$DIR" && screen -dmS "$NAME")
+				screen -S "$NAME" -X stuff "$launch"$'\n'
+			fi
+			echo "Detach with: $([[ $MUX == tmux ]] && echo 'Ctrl-b d' || echo 'Ctrl-a d')"
+		fi
+		attach "$NAME"
+		;;
+	attach)
+		need_mux
+		NAME="${1:-claude}"
+		check_name "$NAME"
+		if ! session_exists "$NAME"; then
+			echo "No session named '$NAME'. Running sessions:" >&2
+			"$0" list >&2
+			exit 1
+		fi
+		attach "$NAME"
+		;;
+	list)
+		need_mux
+		if [[ $MUX == tmux ]]; then
+			tmux ls 2>/dev/null || echo "No tmux sessions."
+		else
+			screen -ls || true
+		fi
+		;;
+	stop)
+		need_mux
+		NAME="${1:-claude}"
+		check_name "$NAME"
+		session_exists "$NAME" || die "no session named '$NAME'"
+		if [[ $MUX == tmux ]]; then
+			tmux kill-session -t "=$NAME"
+		else
+			screen -S "$NAME" -X quit
+		fi
+		echo "Session '$NAME' stopped."
+		;;
+	headless)
+		PROMPT="${1:?Usage: claude-remote headless \"prompt\" [dir]}"
+		DIR="${2:-$PWD}"
+		[[ -d $DIR ]] || die "no such directory: $DIR"
+		command -v claude >/dev/null 2>&1 || die "'claude' not found in PATH"
+		HEADLESS_TOOLS="${CLAUDE_ALLOWED_TOOLS:-Bash,Read,Edit,Write,Glob,Grep}"
+		cd "$DIR"
+		LOG="$PWD/claude_run_$(date +%Y%m%d_%H%M%S).log"
+		# stdin from /dev/null so a closing ssh connection neither waits on nor kills the run
+		nohup claude -p "$PROMPT" \
+			--permission-mode acceptEdits \
+			--allowedTools "$HEADLESS_TOOLS" \
+			</dev/null >"$LOG" 2>&1 &
+		echo "Headless run started (PID $!). Log: $LOG"
+		echo "Follow with:  tail -f $LOG"
+		echo "Afterwards, continue interactively with:  cd $PWD && claude --continue"
+		;;
+	-h | --help | help)
+		usage
+		;;
+	*)
+		usage >&2
+		exit 1
+		;;
+esac

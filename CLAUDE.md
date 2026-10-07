@@ -221,6 +221,24 @@ journalctl --user -u git-health-boot -b     # read the results
 - Both scripts `trap '' PIPE` — a downstream `| head` would otherwise turn the
   0/1 healthy/suspect status into a SIGPIPE 141 that systemd misreports.
 
+## Remote Claude Sessions (`~/.scripts/claude-remote`)
+
+Runs Claude Code inside tmux (screen as fallback) so a session survives SSH
+disconnects; reattach from another host with `claude-remote -H wsl-adam attach`
+(quark → adam over Tailscale). Usage and rationale: `scripts/.scripts/claude-remote.md`.
+
+### Things to know when editing
+
+- **Remote commands get the system PATH only.** `~/.bashrc` returns at its PS1
+  guard before `~/.bash/paths` runs, so `ssh host cmd` and `bash -lc cmd` see
+  neither `~/.scripts` nor `~/.local/bin` (where `claude` lives). The script
+  prepends those dirs itself and `-H` calls the remote copy by absolute path.
+  Do not "fix" this by loosening the `.bashrc` guard.
+- `claude` is typed into the session's interactive shell (`send-keys`), not run
+  as the pane command: that is what makes the `claude-*` wrappers available
+  and keeps the session alive after `/exit`.
+- `-H` must not need tmux locally — quark has neither tmux nor screen.
+
 ## HPC Lmod Environments
 
 Environment toolchains are managed via Lmod (install: `yay -S lmod` on Arch —

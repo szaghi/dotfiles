@@ -72,6 +72,7 @@
   - [scripts](#scripts)
     - [skills-apply — Claude Code skills sync](#skills-apply--claude-code-skills-sync)
     - [mbox-index — searchable Gmail archive](#mbox-index--searchable-gmail-archive)
+    - [claude-remote — Claude sessions across machines](#claude-remote--claude-sessions-across-machines)
   - [desktop — quark's sway + Noctalia session](#desktop--quarks-sway--noctalia-session)
   - [desktop-astrobit — astrobit's niri session](#desktop-astrobit--astrobits-niri-session)
 - [Extending the dotfiles](#extending-the-dotfiles)
@@ -1459,6 +1460,7 @@ table used to list disappeared in the migration to stow.
 | `scripts/.bin/{act,hpc-login}` | Standalone binaries and HPC login helper |
 | `scripts/.scripts/mbox-index.py` | Index Gmail Takeout MBOX into searchable SQLite ([details](#mbox-index--searchable-gmail-archive)) |
 | `scripts/.scripts/skills-apply` | Declarative install/update/status for Claude Code skills across three classes ([details](#skills-apply--claude-code-skills-sync)) |
+| `scripts/.scripts/claude-remote` | Claude Code sessions in tmux that survive SSH disconnects, reattachable from another host ([details](#claude-remote--claude-sessions-across-machines)) |
 
 #### skills-apply — Claude Code skills sync
 
@@ -1515,6 +1517,54 @@ python3 ~/.scripts/mbox-index.py search "larger:25M"   # find quota hogs before 
 
 Full workflow — including the Takeout export, archive verification, and the cloud-deletion
 steps — is in **[`scripts/.scripts/mbox-index.md`](scripts/.scripts/mbox-index.md)**.
+
+#### claude-remote — Claude sessions across machines
+
+Start a Claude Code session on one host, walk away, and reattach later from another.
+Claude runs inside tmux on the host, so closing the laptop or losing the connection only
+detaches the view; the work goes on. The reference setup is **adam** as host (WSL2, at
+home, behind Vodafone's carrier-grade NAT) and **quark** as client (at the office),
+connected by **[Tailscale](https://tailscale.com)**: both nodes dial *out*, so no public
+IP and no open port are needed.
+
+| Role | Machine | Tailscale name | Needs |
+|---|---|---|---|
+| host | adam (WSL2) | `wsl-adam` | tmux, `claude`, Tailscale (`tailscale up --ssh --hostname=wsl-adam`) |
+| client | quark | `quark` | ssh, Tailscale — no tmux |
+
+```bash
+# evening, on adam: start a session in the project, give Claude the task, detach (Ctrl-b d)
+cd ~/fortran/foresight
+claude-remote start
+
+# next morning, on quark at the office: reattach to the same screen
+claude-remote -H wsl-adam attach
+
+# back on adam: reattach locally, or end it
+claude-remote attach
+claude-remote stop
+```
+
+Sessions take a name and a directory (`claude-remote start harp ~/python/harp`);
+arguments after `--` go to `claude`, and `CLAUDE_REMOTE_CMD=claude-cnr` launches one of
+the [wrappers](#claude-cli-wrappers--overview) instead. `-H host` runs any subcommand on
+the host through `ssh -t`, forwarding those variables. Without the script on the client:
+`ssh -t stefano@wsl-adam tmux attach -t claude`.
+
+Two things to know:
+
+- **A remote command gets only the system PATH.** `~/.bashrc` returns at its PS1 guard
+  before `~/.bash/paths` runs, so `ssh wsl-adam claude-remote …` fails with *command not
+  found*. Use `-H`, which calls the remote copy by absolute path; the script also adds
+  `~/.scripts` and `~/.local/bin` to its own PATH.
+- **The host must stay up.** tmux outlives the SSH connection, not a sleeping or
+  rebooting machine. On adam: Windows sleep set to *never* on AC, Windows Update paused,
+  and the WSL VM kept alive (an open WSL terminal, or a keeper task at logon), or WSL
+  shuts the distro down and takes the tmux server with it.
+
+One-time setup (Tailscale on both nodes, keeper task), a full day's walkthrough, headless
+runs and a troubleshooting table are in
+**[`scripts/.scripts/claude-remote.md`](scripts/.scripts/claude-remote.md)**.
 
 ---
 
