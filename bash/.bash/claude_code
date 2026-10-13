@@ -140,7 +140,7 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 " || { printf 'Error: could not reach integrate.api.nvidia.com\n' >&2; return 1; }
 }
 
-# ── ADDITIONAL SUBSCRIPTION ACCOUNTS (CNR IAC, CNR research) ──────────────────
+# ── ADDITIONAL SUBSCRIPTION ACCOUNTS (CNR IAC, CNR research, SOMA) ────────────
 # Extra Claude Code accounts, each kept isolated from the personal account via
 # its own CLAUDE_CONFIG_DIR. Credentials, login state (<dir>/.claude.json) and
 # per-project trust live under that dir and never collide with ~/.claude.
@@ -156,6 +156,7 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 #   claude-iac   CNR IAC Pro plan          → ~/.claude-iac
 #   claude-cnr   CNR "Claude for Science"  → ~/.claude-cnr
 #                (NOT ~/.claude-science: that dir belongs to a different tool)
+#   claude-soma  SOMA srl                  → ~/.claude-soma
 #
 # First use:  claude-<acct> login   → authenticate the isolated config (see below).
 # Thereafter: claude-<acct>         → session on that account
@@ -169,13 +170,17 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 # INCOGNITO window or a browser profile not signed into your personal claude.ai.
 # Set the emails in claude_code.local:
 #   CLAUDE_IAC_EMAIL="you@iac.cnr.it"   CLAUDE_CNR_EMAIL="you@cnr.it"
+#   CLAUDE_SOMA_EMAIL="you@somatwin.com"
 CLAUDE_IAC_DIR="${CLAUDE_IAC_DIR:-${HOME}/.claude-iac}"
 CLAUDE_IAC_EMAIL="${CLAUDE_IAC_EMAIL:-}"
 CLAUDE_CNR_DIR="${CLAUDE_CNR_DIR:-${HOME}/.claude-cnr}"
 CLAUDE_CNR_EMAIL="${CLAUDE_CNR_EMAIL:-}"
+CLAUDE_SOMA_DIR="${CLAUDE_SOMA_DIR:-${HOME}/.claude-soma}"
+CLAUDE_SOMA_EMAIL="${CLAUDE_SOMA_EMAIL:-}"
 
 claude-iac() { _claude_account "CNR IAC" "$CLAUDE_IAC_DIR" "$CLAUDE_IAC_EMAIL" CLAUDE_IAC_EMAIL "$@"; }
 claude-cnr() { _claude_account "CNR research" "$CLAUDE_CNR_DIR" "$CLAUDE_CNR_EMAIL" CLAUDE_CNR_EMAIL "$@"; }
+claude-soma() { _claude_account "SOMA" "$CLAUDE_SOMA_DIR" "$CLAUDE_SOMA_EMAIL" CLAUDE_SOMA_EMAIL "$@"; }
 
 # _claude_account LABEL DIR EMAIL EMAIL_VAR [login [--no-sso]|status|logout|CLAUDE_ARGS...]
 _claude_account() {
@@ -1869,6 +1874,13 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-cnr login --no-sso'       'authenticate without SSO (plain subscription)'
     printf '  %-36s%s\n' 'claude-cnr status'               'show which account the isolated config is on'
     printf '  %-36s%s\n' 'claude-cnr'                      'research-account session (shares skills, memory, sessions)'
+    printf '\n'
+    printf "  ${b}SOMA${r}  SOMA srl account · isolated CLAUDE_CONFIG_DIR=~/.claude-soma\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-soma login'               'authenticate (--email + --sso; open URL in incognito)'
+    printf '  %-36s%s\n' 'claude-soma login --no-sso'      'authenticate without SSO (plain subscription)'
+    printf '  %-36s%s\n' 'claude-soma status'              'show which account the isolated config is on'
+    printf '  %-36s%s\n' 'claude-soma'                     'SOMA-account session (shares skills, memory, sessions)'
     printf '\n'
     printf "  ${b}Z.AI${r}  cloud API · key: ~/.z-ai-key\n"
     printf '%s\n' "$sep"

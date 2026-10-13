@@ -51,3 +51,4 @@ IKLLAMA_MODELS_DIR="${HOME}/models"
 IKLLAMA_DEFAULT_MODEL="${HOME}/models/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf"
 IKLLAMA_CTX=32768
 CLAUDE_CNR_EMAIL="stefano.zaghi@cnr.it"
+CLAUDE_SOMA_EMAIL="stefano.zaghi@somatwin.com"

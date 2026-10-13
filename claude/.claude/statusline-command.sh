@@ -49,6 +49,20 @@ sd_reset = time_until(rl.get('seven_day', {}).get('resets_at'))
 sd_at    = rl.get('seven_day', {}).get('resets_at')
 sd_start = str(int(sd_at) - 7 * 86400) if sd_at else ''
 
+# Context-usage sidecar for hooks/context-memory-guard.sh (one number per
+# session; hook inputs carry no usage field, the status line does).
+try:
+    import os
+    _sid = d.get('session_id') or ''
+    _used = (d.get('context_window') or {}).get('used_percentage')
+    if _sid and _used is not None:
+        _dir = os.path.join(os.environ.get('XDG_RUNTIME_DIR') or '/tmp', 'claude-ctx')
+        os.makedirs(_dir, exist_ok=True)
+        with open(os.path.join(_dir, _sid + '.pct'), 'w') as _f:
+            _f.write(str(_used))
+except Exception:
+    pass
+
 print(f'_cwd={chr(39)}{cwd}{chr(39)}')
 print(f'_model={chr(39)}{model}{chr(39)}')
 print(f'_pct={chr(39)}{pct}{chr(39)}')
@@ -67,7 +81,7 @@ print(f'_sd_start={chr(39)}{sd_start}{chr(39)}')
 # visible here. The scan takes ~0.3 s, so it runs in the background at most
 # once a minute and the status line prints the cached result.
 #
-# Per account: claude-iac / claude-cnr share projects/ with the personal
+# Per account: claude-iac / claude-cnr / claude-soma share projects/ with the personal
 # ~/.claude (see bash/.bash/claude_code), so a transcript alone does not say
 # which subscription paid for it. Each account's CLAUDE_CONFIG_DIR keeps its
 # own history.jsonl, one line per prompt with sessionId + timestamp: a reply

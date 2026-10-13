@@ -19,6 +19,36 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/stefano/.claude/hooks/context-memory-guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/stefano/.claude/hooks/context-memory-guard.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/stefano/.claude/hooks/context-memory-guard.sh"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
