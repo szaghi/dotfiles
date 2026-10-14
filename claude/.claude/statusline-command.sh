@@ -63,7 +63,25 @@ try:
 except Exception:
     pass
 
+# Logged-in account: each claude-<acct> wrapper sets CLAUDE_CONFIG_DIR, whose
+# .claude.json holds the OAuth identity; the default account keeps it in
+# ~/.claude.json. Proxied/local backends (ANTHROPIC_BASE_URL) do not use it.
+acct, email = '', ''
+try:
+    import os
+    _base = os.environ.get('ANTHROPIC_BASE_URL', '')
+    if not _base or 'api.anthropic.com' in _base:
+        _cdir = os.environ.get('CLAUDE_CONFIG_DIR', '')
+        acct = os.path.basename(os.path.normpath(_cdir)).removeprefix('.claude-') if _cdir else 'default'
+        _cfg = os.path.join(_cdir, '.claude.json') if _cdir else os.path.expanduser('~/.claude.json')
+        with open(_cfg) as _f:
+            email = (json.load(_f).get('oauthAccount') or {}).get('emailAddress') or ''
+except Exception:
+    pass
+
 print(f'_cwd={chr(39)}{cwd}{chr(39)}')
+print(f'_acct={chr(39)}{acct}{chr(39)}')
+print(f'_email={chr(39)}{email}{chr(39)}')
 print(f'_model={chr(39)}{model}{chr(39)}')
 print(f'_pct={chr(39)}{pct}{chr(39)}')
 print(f'_fh={chr(39)}{fh}{chr(39)}')
@@ -174,6 +192,13 @@ if [ -n "$_model" ]; then
     fi
 fi
 
+# ── Account ──────────────────────────────────────────────────────────────────
+acct_part=""
+if [ -n "$_acct" ]; then
+    acct_part="${green}${_acct}${reset}"
+    [ -n "$_email" ] && acct_part+="${dim}:${reset}${white}${_email}${reset}"
+fi
+
 # ── Working directory ────────────────────────────────────────────────────────
 dir_part=""
 [ -n "$_cwd" ] && dir_part="${blue}$(basename "$_cwd")${reset}"
@@ -226,7 +251,7 @@ fi
 
 # ── Assemble with separators ──────────────────────────────────────────────────
 parts=""
-for p in "$model_part" "$dir_part" "$git_part" "$usage_part" "$rate_part"; do
+for p in "$acct_part" "$model_part" "$dir_part" "$git_part" "$usage_part" "$rate_part"; do
     [ -z "$p" ] && continue
     [ -n "$parts" ] && parts+="$sep"
     parts+="$p"
