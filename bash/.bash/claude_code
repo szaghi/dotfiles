@@ -140,7 +140,7 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 " || { printf 'Error: could not reach integrate.api.nvidia.com\n' >&2; return 1; }
 }
 
-# ── ADDITIONAL SUBSCRIPTION ACCOUNTS (CNR IAC, CNR research, SOMA) ────────────
+# ── ADDITIONAL SUBSCRIPTION ACCOUNTS (IAC, IAC CFD HPC, SOMA) ─────────────────
 # Extra Claude Code accounts, each kept isolated from the personal account via
 # its own CLAUDE_CONFIG_DIR. Credentials, login state (<dir>/.claude.json) and
 # per-project trust live under that dir and never collide with ~/.claude.
@@ -150,14 +150,22 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 #   tooling        commands, skills, agents, hooks, statusline, plugins
 #   settings       settings.json, settings.local.json
 #   knowledge      projects/ — auto-memory AND session transcripts, so
-#                  `claude-cnr --resume` picks up a session started as `claude`
+#                  `claude-cfd-cnr --resume` picks up a session started as `claude`
 # NOT shared: .credentials.json, .claude.json (OAuth account), .env (API keys).
 #
-#   claude-iac      CNR IAC team, shared seat    → ~/.claude-iac
-#   claude-cnr-iac  CNR IAC team, personal seat  → ~/.claude-cnr-iac
-#   claude-cnr      CNR "Claude for Science"     → ~/.claude-cnr
+#   claude-iac      IAC institute team, shared seat     → ~/.claude-iac
+#   claude-cfd-cnr  IAC CNR CFD HPC team (scientists),  → ~/.claude-cfd-cnr
+#                   seat stefano.zaghi@cnr.it
+#   claude-cfd-iac  IAC CNR CFD HPC team (scientists),  → ~/.claude-cfd-iac
+#                   seat s.zaghi@iac.cnr.it
 #                   (NOT ~/.claude-science: that dir belongs to a different tool)
-#   claude-soma     SOMA srl                     → ~/.claude-soma
+#   claude-soma     SOMA srl                            → ~/.claude-soma
+#
+# Renamed 2026-10-14: claude-cnr → claude-cfd-cnr, claude-cnr-iac → claude-cfd-iac.
+# The first run of a new name moves the old config dir and leaves a symlink at
+# the old path, so sessions started before the rename keep writing to the same
+# files. Remove ~/.claude-cnr{,-iac} once no session runs from them. The old
+# command names only print the new ones: never reuse them for another account.
 #
 # First use:  claude-<acct> login   → authenticate the isolated config (see below).
 # Thereafter: claude-<acct>         → session on that account
@@ -170,21 +178,48 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 # which is how institutional plans bind accounts. Still open the printed URL in an
 # INCOGNITO window or a browser profile not signed into your personal claude.ai.
 # Set the emails in claude_code.local:
-#   CLAUDE_IAC_EMAIL="shared@iac.cnr.it"   CLAUDE_CNR_IAC_EMAIL="you@iac.cnr.it"
-#   CLAUDE_CNR_EMAIL="you@cnr.it"          CLAUDE_SOMA_EMAIL="you@somatwin.com"
+#   CLAUDE_IAC_EMAIL="shared@iac.cnr.it"   CLAUDE_CFD_IAC_EMAIL="you@iac.cnr.it"
+#   CLAUDE_CFD_CNR_EMAIL="you@cnr.it"      CLAUDE_SOMA_EMAIL="you@somatwin.com"
 CLAUDE_IAC_DIR="${CLAUDE_IAC_DIR:-${HOME}/.claude-iac}"
 CLAUDE_IAC_EMAIL="${CLAUDE_IAC_EMAIL:-}"
-CLAUDE_CNR_IAC_DIR="${CLAUDE_CNR_IAC_DIR:-${HOME}/.claude-cnr-iac}"
-CLAUDE_CNR_IAC_EMAIL="${CLAUDE_CNR_IAC_EMAIL:-}"
-CLAUDE_CNR_DIR="${CLAUDE_CNR_DIR:-${HOME}/.claude-cnr}"
-CLAUDE_CNR_EMAIL="${CLAUDE_CNR_EMAIL:-}"
+CLAUDE_CFD_CNR_DIR="${CLAUDE_CFD_CNR_DIR:-${HOME}/.claude-cfd-cnr}"
+CLAUDE_CFD_CNR_EMAIL="${CLAUDE_CFD_CNR_EMAIL:-}"
+CLAUDE_CFD_IAC_DIR="${CLAUDE_CFD_IAC_DIR:-${HOME}/.claude-cfd-iac}"
+CLAUDE_CFD_IAC_EMAIL="${CLAUDE_CFD_IAC_EMAIL:-}"
 CLAUDE_SOMA_DIR="${CLAUDE_SOMA_DIR:-${HOME}/.claude-soma}"
 CLAUDE_SOMA_EMAIL="${CLAUDE_SOMA_EMAIL:-}"
 
-claude-iac() { _claude_account "CNR IAC" "$CLAUDE_IAC_DIR" "$CLAUDE_IAC_EMAIL" CLAUDE_IAC_EMAIL "$@"; }
-claude-cnr-iac() { _claude_account "CNR IAC (personal)" "$CLAUDE_CNR_IAC_DIR" "$CLAUDE_CNR_IAC_EMAIL" CLAUDE_CNR_IAC_EMAIL "$@"; }
-claude-cnr() { _claude_account "CNR research" "$CLAUDE_CNR_DIR" "$CLAUDE_CNR_EMAIL" CLAUDE_CNR_EMAIL "$@"; }
+claude-iac() { _claude_account "IAC" "$CLAUDE_IAC_DIR" "$CLAUDE_IAC_EMAIL" CLAUDE_IAC_EMAIL "$@"; }
+claude-cfd-cnr() {
+    _claude_account_migrate "${HOME}/.claude-cnr" "$CLAUDE_CFD_CNR_DIR" || return 1
+    _claude_account "IAC CFD HPC (cnr.it)" "$CLAUDE_CFD_CNR_DIR" "$CLAUDE_CFD_CNR_EMAIL" CLAUDE_CFD_CNR_EMAIL "$@"
+}
+claude-cfd-iac() {
+    _claude_account_migrate "${HOME}/.claude-cnr-iac" "$CLAUDE_CFD_IAC_DIR" || return 1
+    _claude_account "IAC CFD HPC (iac.cnr.it)" "$CLAUDE_CFD_IAC_DIR" "$CLAUDE_CFD_IAC_EMAIL" CLAUDE_CFD_IAC_EMAIL "$@"
+}
 claude-soma() { _claude_account "SOMA" "$CLAUDE_SOMA_DIR" "$CLAUDE_SOMA_EMAIL" CLAUDE_SOMA_EMAIL "$@"; }
+
+# Retired names: refuse rather than alias, so muscle memory is retrained and the
+# names can never silently start a session on a different account.
+claude-cnr()     { printf 'claude-cnr was renamed: use claude-cfd-cnr\n' >&2; return 1; }
+claude-cnr-iac() { printf 'claude-cnr-iac was renamed: use claude-cfd-iac\n' >&2; return 1; }
+
+# _claude_account_migrate OLD NEW — one-time move of a renamed account's config
+# dir. A symlink is left at OLD: sessions started before the rename hold OLD in
+# their CLAUDE_CONFIG_DIR and keep reaching the same files through it. Refuses
+# when both exist as real dirs (credentials would have to be merged by hand).
+_claude_account_migrate() {
+    local old="$1" new="$2"
+    [[ -d "$old" && ! -L "$old" ]] || return 0
+    if [[ -e "$new" ]]; then
+        printf 'claude: both %s and %s exist; keep the logged-in one, remove the other, re-run\n' \
+            "$old" "$new" >&2
+        return 1
+    fi
+    mv "$old" "$new" && ln -s "$(basename "$new")" "$old" || return 1
+    printf 'claude: moved %s → %s (symlink left at the old path)\n' "$old" "$new" >&2
+}
 
 # _claude_account LABEL DIR EMAIL EMAIL_VAR [login [--no-sso]|status|logout|CLAUDE_ARGS...]
 _claude_account() {
@@ -1865,26 +1900,21 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-opus'                     'force Opus'
     printf '  %-36s%s\n' 'claude-plan'                     'read-only plan (Opus) → auto-switch to Sonnet'
     printf '\n'
-    printf "  ${b}CNR IAC${r}  institute Pro account · isolated CLAUDE_CONFIG_DIR=~/.claude-iac\n"
+    printf "  ${b}IAC${r}  institute team, shared seat · isolated CLAUDE_CONFIG_DIR=~/.claude-iac\n"
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'claude-iac login'                'authenticate (--email + --sso; open URL in incognito)'
     printf '  %-36s%s\n' 'claude-iac login --no-sso'       'authenticate without SSO (plain subscription)'
     printf '  %-36s%s\n' 'claude-iac status'               'show which account the isolated config is on'
     printf '  %-36s%s\n' 'claude-iac'                      'institute-account session'
     printf '\n'
-    printf "  ${b}CNR IAC PERSONAL${r}  institute team, personal seat · isolated CLAUDE_CONFIG_DIR=~/.claude-cnr-iac\n"
+    printf "  ${b}IAC CFD HPC${r}  scientists' team, two seats · isolated CLAUDE_CONFIG_DIR=~/.claude-cfd-{cnr,iac}\n"
     printf '%s\n' "$sep"
-    printf '  %-36s%s\n' 'claude-cnr-iac login'            'authenticate (--email + --sso; open URL in incognito)'
-    printf '  %-36s%s\n' 'claude-cnr-iac login --no-sso'   'authenticate without SSO (plain subscription)'
-    printf '  %-36s%s\n' 'claude-cnr-iac status'           'show which account the isolated config is on'
-    printf '  %-36s%s\n' 'claude-cnr-iac'                  'personal-seat session (shares skills, memory, sessions)'
-    printf '\n'
-    printf "  ${b}CNR RESEARCH${r}  Claude for Science · isolated CLAUDE_CONFIG_DIR=~/.claude-cnr\n"
-    printf '%s\n' "$sep"
-    printf '  %-36s%s\n' 'claude-cnr login'                'authenticate (--email + --sso; open URL in incognito)'
-    printf '  %-36s%s\n' 'claude-cnr login --no-sso'       'authenticate without SSO (plain subscription)'
-    printf '  %-36s%s\n' 'claude-cnr status'               'show which account the isolated config is on'
-    printf '  %-36s%s\n' 'claude-cnr'                      'research-account session (shares skills, memory, sessions)'
+    printf '  %-36s%s\n' 'claude-cfd-cnr login'            'authenticate the cnr.it seat (--email + --sso; incognito)'
+    printf '  %-36s%s\n' 'claude-cfd-iac login'            'authenticate the iac.cnr.it seat (--email + --sso; incognito)'
+    printf '  %-36s%s\n' 'claude-cfd-{cnr,iac} login --no-sso' 'authenticate without SSO (plain subscription)'
+    printf '  %-36s%s\n' 'claude-cfd-{cnr,iac} status'     'show which account the isolated config is on'
+    printf '  %-36s%s\n' 'claude-cfd-cnr'                  'cnr.it-seat session (shares skills, memory, sessions)'
+    printf '  %-36s%s\n' 'claude-cfd-iac'                  'iac.cnr.it-seat session (shares skills, memory, sessions)'
     printf '\n'
     printf "  ${b}SOMA${r}  SOMA srl account · isolated CLAUDE_CONFIG_DIR=~/.claude-soma\n"
     printf '%s\n' "$sep"

@@ -25,7 +25,7 @@ Usage: claude-remote [-H host] <command> [args]
 Defaults: name=claude. Detach with Ctrl-b d (tmux) or Ctrl-a d (screen).
 Environment:
   CLAUDE_REMOTE_CMD     command typed into the session (default: claude); may be a
-                        wrapper from ~/.bash/claude_code, e.g. CLAUDE_REMOTE_CMD=claude-cnr
+                        wrapper from ~/.bash/claude_code, e.g. CLAUDE_REMOTE_CMD=claude-cfd-cnr
   CLAUDE_ALLOWED_TOOLS  tools pre-approved in headless mode
                         (default: Bash,Read,Edit,Write,Glob,Grep)
 EOF
@@ -142,7 +142,7 @@ case "$CMD" in
 		else
 			# Claude is typed into an interactive shell instead of being the
 			# pane's command: the shell loads ~/.bash/claude_code (so wrappers
-			# such as claude-cnr work) and the session survives /exit.
+			# such as claude-cfd-cnr work) and the session survives /exit.
 			launch="${CLAUDE_REMOTE_CMD:-claude}"
 			[[ $launch == claude ]] && ! command -v claude >/dev/null 2>&1 &&
 				die "'claude' not found in PATH"

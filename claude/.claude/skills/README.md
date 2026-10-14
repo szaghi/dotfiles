@@ -236,7 +236,7 @@ decide.
 not by any of the three classes: the skills provisioned to the claude.ai
 account (`anthropic-skills:docs`, `docx`, `pdf`, …). It holds one bucket per
 account (`<uuid>_<uuid>/` plus a `.bucket-*` marker), so `claude-iac`,
-`claude-cnr-iac`, `claude-cnr` and `claude-soma`, whose `skills/` is the same symlinked directory, each add their
+`claude-cfd-cnr`, `claude-cfd-iac` and `claude-soma`, whose `skills/` is the same symlinked directory, each add their
 own. The client rewrites it on every sync (`manifest.json`,
 `.last-complete-round`).
 

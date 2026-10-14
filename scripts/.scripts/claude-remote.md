@@ -164,7 +164,7 @@ Name them; the name is the handle everywhere.
 # on adam
 claude-remote start foresight ~/fortran/foresight
 claude-remote start harp      ~/python/harp
-CLAUDE_REMOTE_CMD=claude-cnr claude-remote start cnr ~/papers/draft   # another account
+CLAUDE_REMOTE_CMD=claude-cfd-cnr claude-remote start cfd ~/papers/draft   # another account
 
 # from quark
 claude-remote -H wsl-adam list
@@ -210,12 +210,12 @@ claude-remote [-H host] headless "prompt" [dir]                one-shot run, log
 | `name` | `claude`; letters, digits, `-`, `_` only (tmux reads `.` and `:` as separators) |
 | `dir` | current directory (on the host when `-H` is used — the remote `$HOME`) |
 | `-H host` | run the command on `host` via `ssh -t`; the client needs no tmux |
-| `CLAUDE_REMOTE_CMD` | what is typed into the session, default `claude`; any wrapper from `~/.bash/claude_code` works (`claude-cnr`, `claude-local`, …) |
+| `CLAUDE_REMOTE_CMD` | what is typed into the session, default `claude`; any wrapper from `~/.bash/claude_code` works (`claude-cfd-cnr`, `claude-local`, …) |
 | `CLAUDE_ALLOWED_TOOLS` | tools pre-approved in `headless`, default `Bash,Read,Edit,Write,Glob,Grep` |
 
 ssh does not forward the environment, so `-H` passes both variables to the host
-explicitly: `CLAUDE_REMOTE_CMD=claude-cnr claude-remote -H wsl-adam start cnr`
-launches `claude-cnr` on adam.
+explicitly: `CLAUDE_REMOTE_CMD=claude-cfd-cnr claude-remote -H wsl-adam start cfd`
+launches `claude-cfd-cnr` on adam.
 
 tmux keys used here (prefix **Ctrl-b**, then the key): `d` detach · `s` session
 list · `[` scroll mode (`q` to leave). With screen as fallback the prefix is

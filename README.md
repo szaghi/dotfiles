@@ -1546,7 +1546,7 @@ claude-remote stop
 ```
 
 Sessions take a name and a directory (`claude-remote start harp ~/python/harp`);
-arguments after `--` go to `claude`, and `CLAUDE_REMOTE_CMD=claude-cnr` launches one of
+arguments after `--` go to `claude`, and `CLAUDE_REMOTE_CMD=claude-cfd-cnr` launches one of
 the [wrappers](#claude-cli-wrappers--overview) instead. `-H host` runs any subcommand on
 the host through `ssh -t`, forwarding those variables. Without the script on the client:
 `ssh -t stefano@wsl-adam tmux -u attach -d -t claude` (`-u` forces UTF-8, `-d` detaches leftover clients — see below).

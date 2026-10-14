@@ -72,7 +72,9 @@ try:
     _base = os.environ.get('ANTHROPIC_BASE_URL', '')
     if not _base or 'api.anthropic.com' in _base:
         _cdir = os.environ.get('CLAUDE_CONFIG_DIR', '')
-        acct = os.path.basename(os.path.normpath(_cdir)).removeprefix('.claude-') if _cdir else 'default'
+        # realpath: a renamed account leaves a symlink at its old dir, and
+        # sessions started before the rename still carry that old path
+        acct = os.path.basename(os.path.realpath(_cdir)).removeprefix('.claude-') if _cdir else 'default'
         _cfg = os.path.join(_cdir, '.claude.json') if _cdir else os.path.expanduser('~/.claude.json')
         with open(_cfg) as _f:
             email = (json.load(_f).get('oauthAccount') or {}).get('emailAddress') or ''
@@ -99,7 +101,7 @@ print(f'_sd_start={chr(39)}{sd_start}{chr(39)}')
 # visible here. The scan takes ~0.3 s, so it runs in the background at most
 # once a minute and the status line prints the cached result.
 #
-# Per account: claude-iac / claude-cnr-iac / claude-cnr / claude-soma share projects/ with the personal
+# Per account: claude-iac / claude-cfd-cnr / claude-cfd-iac / claude-soma share projects/ with the personal
 # ~/.claude (see bash/.bash/claude_code), so a transcript alone does not say
 # which subscription paid for it. Each account's CLAUDE_CONFIG_DIR keeps its
 # own history.jsonl, one line per prompt with sessionId + timestamp: a reply
@@ -158,7 +160,7 @@ print(start, sum(v[0] for v in seen.values()), sum(v[1] for v in seen.values()))
 _tok7d=""
 if [ -n "$_sd_start" ]; then
     acct_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-    acct="$(basename "$acct_dir")"
+    acct="$(basename "$(realpath "$acct_dir" 2>/dev/null || echo "$acct_dir")")"
     cdir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
     cache="$cdir/tok7d-${acct#.}"
     mkdir -p "$cdir"
