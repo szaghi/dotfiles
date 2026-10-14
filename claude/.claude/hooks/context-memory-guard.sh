@@ -19,7 +19,7 @@
 # If CLAUDE_CODE_AUTO_COMPACT_WINDOW is set, the percentage no longer matches
 # the point where auto-compact runs.
 #
-# Shared by every profile: ~/.claude-{cnr,iac,soma} symlink hooks/ and
+# Shared by every profile: ~/.claude-{cnr,iac,cnr-iac,soma} symlink hooks/ and
 # settings.json to ~/.claude, which is stowed from ~/dotfiles/claude/.claude.
 
 input=$(cat)

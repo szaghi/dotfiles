@@ -81,7 +81,7 @@ print(f'_sd_start={chr(39)}{sd_start}{chr(39)}')
 # visible here. The scan takes ~0.3 s, so it runs in the background at most
 # once a minute and the status line prints the cached result.
 #
-# Per account: claude-iac / claude-cnr / claude-soma share projects/ with the personal
+# Per account: claude-iac / claude-cnr-iac / claude-cnr / claude-soma share projects/ with the personal
 # ~/.claude (see bash/.bash/claude_code), so a transcript alone does not say
 # which subscription paid for it. Each account's CLAUDE_CONFIG_DIR keeps its
 # own history.jsonl, one line per prompt with sessionId + timestamp: a reply

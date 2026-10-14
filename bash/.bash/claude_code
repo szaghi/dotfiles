@@ -153,10 +153,11 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 #                  `claude-cnr --resume` picks up a session started as `claude`
 # NOT shared: .credentials.json, .claude.json (OAuth account), .env (API keys).
 #
-#   claude-iac   CNR IAC Pro plan          → ~/.claude-iac
-#   claude-cnr   CNR "Claude for Science"  → ~/.claude-cnr
-#                (NOT ~/.claude-science: that dir belongs to a different tool)
-#   claude-soma  SOMA srl                  → ~/.claude-soma
+#   claude-iac      CNR IAC team, shared seat    → ~/.claude-iac
+#   claude-cnr-iac  CNR IAC team, personal seat  → ~/.claude-cnr-iac
+#   claude-cnr      CNR "Claude for Science"     → ~/.claude-cnr
+#                   (NOT ~/.claude-science: that dir belongs to a different tool)
+#   claude-soma     SOMA srl                     → ~/.claude-soma
 #
 # First use:  claude-<acct> login   → authenticate the isolated config (see below).
 # Thereafter: claude-<acct>         → session on that account
@@ -169,16 +170,19 @@ print('\\n'.join(ids)); print(f'({len(ids)} models)')
 # which is how institutional plans bind accounts. Still open the printed URL in an
 # INCOGNITO window or a browser profile not signed into your personal claude.ai.
 # Set the emails in claude_code.local:
-#   CLAUDE_IAC_EMAIL="you@iac.cnr.it"   CLAUDE_CNR_EMAIL="you@cnr.it"
-#   CLAUDE_SOMA_EMAIL="you@somatwin.com"
+#   CLAUDE_IAC_EMAIL="shared@iac.cnr.it"   CLAUDE_CNR_IAC_EMAIL="you@iac.cnr.it"
+#   CLAUDE_CNR_EMAIL="you@cnr.it"          CLAUDE_SOMA_EMAIL="you@somatwin.com"
 CLAUDE_IAC_DIR="${CLAUDE_IAC_DIR:-${HOME}/.claude-iac}"
 CLAUDE_IAC_EMAIL="${CLAUDE_IAC_EMAIL:-}"
+CLAUDE_CNR_IAC_DIR="${CLAUDE_CNR_IAC_DIR:-${HOME}/.claude-cnr-iac}"
+CLAUDE_CNR_IAC_EMAIL="${CLAUDE_CNR_IAC_EMAIL:-}"
 CLAUDE_CNR_DIR="${CLAUDE_CNR_DIR:-${HOME}/.claude-cnr}"
 CLAUDE_CNR_EMAIL="${CLAUDE_CNR_EMAIL:-}"
 CLAUDE_SOMA_DIR="${CLAUDE_SOMA_DIR:-${HOME}/.claude-soma}"
 CLAUDE_SOMA_EMAIL="${CLAUDE_SOMA_EMAIL:-}"
 
 claude-iac() { _claude_account "CNR IAC" "$CLAUDE_IAC_DIR" "$CLAUDE_IAC_EMAIL" CLAUDE_IAC_EMAIL "$@"; }
+claude-cnr-iac() { _claude_account "CNR IAC (personal)" "$CLAUDE_CNR_IAC_DIR" "$CLAUDE_CNR_IAC_EMAIL" CLAUDE_CNR_IAC_EMAIL "$@"; }
 claude-cnr() { _claude_account "CNR research" "$CLAUDE_CNR_DIR" "$CLAUDE_CNR_EMAIL" CLAUDE_CNR_EMAIL "$@"; }
 claude-soma() { _claude_account "SOMA" "$CLAUDE_SOMA_DIR" "$CLAUDE_SOMA_EMAIL" CLAUDE_SOMA_EMAIL "$@"; }
 
@@ -1867,6 +1871,13 @@ claude-help() {
     printf '  %-36s%s\n' 'claude-iac login --no-sso'       'authenticate without SSO (plain subscription)'
     printf '  %-36s%s\n' 'claude-iac status'               'show which account the isolated config is on'
     printf '  %-36s%s\n' 'claude-iac'                      'institute-account session'
+    printf '\n'
+    printf "  ${b}CNR IAC PERSONAL${r}  institute team, personal seat · isolated CLAUDE_CONFIG_DIR=~/.claude-cnr-iac\n"
+    printf '%s\n' "$sep"
+    printf '  %-36s%s\n' 'claude-cnr-iac login'            'authenticate (--email + --sso; open URL in incognito)'
+    printf '  %-36s%s\n' 'claude-cnr-iac login --no-sso'   'authenticate without SSO (plain subscription)'
+    printf '  %-36s%s\n' 'claude-cnr-iac status'           'show which account the isolated config is on'
+    printf '  %-36s%s\n' 'claude-cnr-iac'                  'personal-seat session (shares skills, memory, sessions)'
     printf '\n'
     printf "  ${b}CNR RESEARCH${r}  Claude for Science · isolated CLAUDE_CONFIG_DIR=~/.claude-cnr\n"
     printf '%s\n' "$sep"

@@ -2,6 +2,7 @@
 # Sourced at the end of ~/.bash/claude_code by the base file.
 
 CLAUDE_IAC_EMAIL="claude01@iac.cnr.it"
+CLAUDE_CNR_IAC_EMAIL="s.zaghi@iac.cnr.it"
 
 # ── GPU CONFIGURATION ─────────────────────────────────────────────────────────
 # Identify GPUs with: nvidia-smi -L
