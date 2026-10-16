@@ -147,6 +147,11 @@ case "$CMD" in
 			[[ $launch == claude ]] && ! command -v claude >/dev/null 2>&1 &&
 				die "'claude' not found in PATH"
 			(($# > 0)) && launch+=$(printf ' %q' "$@")
+			# Claude freezes its tab-title status on the idle mark whenever
+			# $TMUX is set (feature flag tengu_static_title_under_mux), so a
+			# working session looked idle. Blank it for Claude only; tmux
+			# still finds the server on its default socket, $TMUX_PANE stays.
+			[[ $MUX == tmux ]] && launch="TMUX= $launch"
 			echo "Starting session '$NAME' in $DIR ($MUX): $launch"
 			if [[ $MUX == tmux ]]; then
 				tmux new-session -d -s "$NAME" -c "$DIR"
@@ -173,7 +178,12 @@ case "$CMD" in
 		;;
 	detach)
 		need_mux
-		NAME="${1:-claude}"
+		# From Claude's prompt (! claude-remote detach) $TMUX is blank but
+		# $TMUX_PANE still names the pane: default to its session.
+		NAME="${1:-}"
+		[[ -z $NAME && $MUX == tmux && -n ${TMUX_PANE:-} ]] &&
+			NAME=$(tmux display-message -p -t "$TMUX_PANE" '#S' 2>/dev/null)
+		NAME="${NAME:-claude}"
 		check_name "$NAME"
 		session_exists "$NAME" || die "no session named '$NAME'"
 		if [[ $MUX == tmux ]]; then

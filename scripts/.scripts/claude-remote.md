@@ -143,7 +143,7 @@ claude-remote stop
 | How | Where | Notes |
 |---|---|---|
 | **Ctrl-b**, release everything, then **d** | inside the session | Two separate keystrokes. Holding Ctrl while pressing `d` sends `Ctrl-b Ctrl-d`, which is unbound: nothing happens |
-| `! tmux detach` | at Claude's prompt | `!` runs a shell command from Claude; it inherits `$TMUX`, so it detaches your client |
+| `! claude-remote detach` | at Claude's prompt | `!` runs a shell command from Claude; with no name it detaches the session of `$TMUX_PANE`. Plain `! tmux detach` no longer works: Claude runs with `$TMUX` blanked (see Notes) |
 | `claude-remote -H wsl-adam detach [name]` | any other terminal | detaches every client of the session, e.g. a stuck one |
 | **Enter**, then **~** **.** | the ssh client on quark | ssh escape: drops the connection; tmux detaches automatically |
 | close the terminal or the laptop lid | — | a dropped connection is a detach |
@@ -279,6 +279,19 @@ the result interactively afterwards with `cd <dir> && claude --continue`.
   last, and the forgotten one is easy to mistake for a "zombie". Taking over
   detaches it.
 - **Targets are exact** (`tmux -t =name`): `stop cl` cannot kill `claude`.
+- **Claude is launched as `TMUX= claude`.** When Claude sees `$TMUX` (or
+  `$STY`/`$ZELLIJ`) it freezes the status mark in the terminal title on the
+  idle `✳` (feature flag `tengu_static_title_under_mux`, checked in 2.1.301).
+  `◐`/`◑` while working never appear, and Windows Terminal draws `✳` as a green
+  emoji, so every tab looked idle. Without `$TMUX` the title animates, and tmux
+  (`set-titles on`) forwards it to the tab. The cost: `! tmux detach` from
+  Claude's prompt finds no client. Use `! claude-remote detach`. To relaunch
+  by hand inside a session, type `TMUX= claude --continue`.
+- **Mouse copy** (`~/.tmux.conf`). A drag is tmux copy-mode, not Windows
+  Terminal's selection (hold Shift for that). Releasing copies through OSC 52
+  and keeps the highlight. **Ctrl-C** copies again and leaves copy mode, and
+  **q** leaves it without copying. Before, the highlight vanished on release,
+  so the copy looked lost, and the Ctrl-C that followed reached Claude.
 
 ---
 
