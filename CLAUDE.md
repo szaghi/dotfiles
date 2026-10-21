@@ -138,10 +138,12 @@ Restart Claude Code after `install` or `update` so plugin changes load.
 - `~/.claude/skills/` should only ever contain symlinks once the machinery
   is in place. A real directory there is a drift signal — either it is a
   not-yet-migrated class-A skill or a stale copy that should be removed.
-- `~/.claude/settings.json` is a stow symlink; Claude Code writes back to
-  it when plugins are enabled/disabled, so commit settings.json drift
-  before re-stowing or you will lose the live state. The dotfile is the
-  source of truth — pull changes into the dotfile, never the other way.
+- `~/.claude/settings.json` is meant to be a stow symlink, but Claude Code
+  (and installers such as herdr's) rewrite it by *replacing* the file, which
+  leaves a plain file that silently diverges. `dotify.sh claude` detects
+  this and stops with a diff; pull the live changes into the dotfile, then
+  `rm` the plain file and re-stow. The dotfile is the source of truth —
+  pull changes into the dotfile, never the other way.
 - `skills-apply remove` does NOT rewrite `settings.json` or `manifest.toml`
   — it just runs the uninstall command and prints a warning that you must
   edit the declaration file by hand to make the removal persistent.

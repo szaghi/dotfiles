@@ -30,6 +30,7 @@ The dominant failure mode is a **correct proof of the wrong statement**. For cod
 ## Rules
 
 1. **Freeze the spec before the attempt.** Write the acceptance criteria first: equations, BCs, the norm (L2/L∞, cell-average vs point), refinement ladder, expected observed order with a band (e.g. p_obs ≥ p − 0.1 over the last 2 of 3 levels), and golden-output tolerances (bitwise / ulp / relative). Keep them **outside the agent's write scope**: a separate commit, a read-only path, or a hook that rejects a diff touching `tests/` and `src/` together.
+   The escape hatches include **how the verdict is computed**: test-runner config (`conftest.py` at any level, `pytest.ini`/`addopts`, plugins, env such as `PYTEST_ADDOPTS`), build flags and the harness script itself. Seal them with the spec, and make the verdict **count what ran** (expected N passed, 0 skipped): a skipped suite exits 0. Measured 2026-10-21 on the course kata k01: a one-file `tests/conftest.py` that marked every test `skip` turned an unimplemented stub into a passing gate while the hook and the checksum manifest stayed green.
 2. **Machine-checkable acceptance over narrative.** Prefer, in order:
    - MMS with an observed-order assertion
    - exact solutions or reductions: 1-D Sod/Riemann, Couette/Poiseuille, Taylor–Green decay rate, free-stream preservation on curvilinear/overset grids
@@ -39,7 +40,7 @@ The dominant failure mode is a **correct proof of the wrong statement**. For cod
 3. **Tier every claim and never let tiers blur.**
    - **T0** agent narrative ("converges at 2nd order")
    - **T1** reproduced by a script you can rerun
-   - **T2** passes the frozen harness
+   - **T2** passes the frozen harness, run independently (CI, a Stop hook, or you) with the expected test count
    - **T3** T2 plus a human-reviewed spec
 
    Report the tier next to the claim. Agent summaries are T0 until rerun. The release states the same about itself: "some of the unformalized results could have issues."
@@ -54,7 +55,8 @@ The dominant failure mode is a **correct proof of the wrong statement**. For cod
 8. **Many attempts, hard filter, review only survivors.** About 4,000 posed became 372 families, with a fixed budget per problem. For parallel agent attempts, give each the same frozen spec and budget. Discard by tier, then spend human review on the T2 survivors. Verification, not generation, is the cost centre.
 9. **Organize by family.** Keep a feature, its verification cases, its alternative implementation (the "alternative proof", e.g. a CPU reference) and its benchmark notes in one tracked unit.
 10. **Do not copy the no-computation stance.** The math prompts discouraged brute force for presentation reasons. In numerics, small-case checks are cheap and decisive: a 2×2 matrix, N=8, one time step against hand arithmetic.
-11. **Pin the toolchain for verification runs.** The release pins Lean v4.34.1 and patches every dependency. Pin compiler, MPI and NVHPC versions plus flags. Verify per family, not the monolith.
+11. **Pin the toolchain for verification runs.** The release pins Lean v4.34.1 and patches every dependency. Pin compiler, MPI and NVHPC versions plus flags. Verify per family, not the monolith. Pin the **agent toolchain** too: record the model ID, effort level and the commit of CLAUDE.md/skills/hooks in force, because a configuration change alone can change results (Anthropic's Apr-2026 Claude Code regressions came from effort and system-prompt changes).
+12. **Two loops, not one.** Freeze a few behavioural acceptance criteria before the attempt (this skill). Write unit tests in vertical slices during it (the `tdd` skill). The `tdd` warning against bulk tests applies to the inner loop only; the frozen outer spec is what the agent must not be able to move.
 
 ## Assessing a claimed AI breakthrough for CFD/HPC relevance
 

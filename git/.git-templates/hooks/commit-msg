@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# commit-msg: reject AI co-author trailers (personal preference and legal authorship concern).
+# Backstop for human and agent commits alike. Install per repository (see the proposal README).
+if grep -qiE '^co-authored-by:.*(claude|anthropic|copilot|openai|chatgpt|gemini|cursor)' "$1"; then
+  echo "commit-msg: AI co-author trailers are not allowed:" >&2
+  grep -iE '^co-authored-by:' "$1" >&2
+  exit 1
+fi
+exit 0
