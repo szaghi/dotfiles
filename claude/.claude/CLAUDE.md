@@ -47,6 +47,17 @@ You are an analytic peer, not a service assistant. I am not a user to be satisfi
 - Do NOT substitute make/cmake unless the user explicitly asks
 - Dependency management uses `fobis fetch`, not git submodules
 
+## Toolchains (since 2026-10-16)
+- **Versions:** the Fortran toolchain is **nvfortran 26.9** (NVIDIA HPC SDK, HPC-X Open MPI bundled) and **gfortran 16.2.0 + Open MPI 5.0.11**, on both machines. Fortran `.mod` files (HDF5's above all) work only with the compiler that wrote them: load exactly these versions and build clean after any switch.
+- **WSL box (Lmod):** modules `nvhpc/26.9` (the default), `gcc/16.2.0` and `openmpi/5.0.11-gnu16.2.0`. In non-interactive shells `module load` does not populate PATH, so export the paths directly:
+  - `/opt/gcc/bin/16.2.0/{bin,lib64,lib}`
+  - `/opt/openmpi/bin/5.0.11/gnu/16.2.0/{bin,lib}`
+  - `/opt/nvidia/hpc_sdk/Linux_x86_64/26.9`
+  
+  Older modules (nvhpc 25/26.1/26.5, gcc 15.x, openmpi 5.0.7/5.0.10) are still installed but stale.
+- **medooza cluster:** `source /ifs/hpc/home/szaghi/nvidia/nvhpc.sh` (nvfortran 26.9, CUDA 12.9: the node driver cannot run CUDA 13) or `source /ifs/hpc/home/szaghi/gnu/gnu.sh` (gfortran 16.2.0 + Open MPI 5.0.11). Never use the cluster's own modules (nvhpc 25.5, gcc 12). Slurm: `-A iacroma -p prod-gn` (`dev-gn` 1 h), always `--mem`, `srun --mpi=pmix`. Job templates sit next to the scripts (`nvhpc-job.slurm`, `gnu-job.slurm`).
+- **Per repo:** ADAM's varset mapping (`local_*`, `iac_*`, `ci_gnu` → HDF5 prefixes) is in the repo's `CLAUDE.md`. The install and HDF5-rebuild recipes are in the ADAM project memory (`reference_toolchains_2026-10.md`).
+
 ## CI/CD
 - GitHub Actions workflows: make minimal changes — remove jobs
   rather than rewriting them when asked to simplify
