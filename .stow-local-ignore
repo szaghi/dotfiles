@@ -19,3 +19,6 @@
 ^\.gitattributes$
 ^\.claude$
 ^\.git$
+
+# Documentation site (VitePress), not a stow package
+^docs$
