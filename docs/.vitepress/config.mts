@@ -88,7 +88,7 @@ export default withMermaid({
       pattern: 'https://github.com/szaghi/dotfiles/edit/master/docs/:path',
       text: 'Edit this page on GitHub',
     },
-    footer: { message: 'Deployed with GNU Stow', copyright: 'Stefano Zaghi' },
+    footer: { message: 'Deployed with GNU Stow', copyright: 'WTFPL · Stefano Zaghi' },
   },
   mermaid: {},
   vite: {

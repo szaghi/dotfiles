@@ -80,6 +80,23 @@ The hooks are not active by default: `.gitconfig` sets no `init.templateDir`. In
 cp ~/.git-templates/hooks/commit-msg .git/hooks/
 ```
 
+## Signing on a new machine
+
+Each machine has its own key: a key belongs to the machine that holds its secret half. All of them are uploaded to
+the same GitHub account, which verifies a commit against whichever key signed it. On a fresh host, import the
+existing key or make one:
+
+```bash
+gpg --quick-generate-key "Your Name <you@example.org>" ed25519 sign never
+gpg --list-secret-keys --keyid-format=long     # the 16-hex id goes in bash-<host>/.gitconfig.local
+gpg --armor --export <id>                      # paste into GitHub, Settings, SSH and GPG keys
+```
+
+`GPG_TTY` (exported by `bash/.bash/exports`) tells the agent which terminal draws the pinentry prompt; without it
+signing fails with `Inappropriate ioctl for device`. `~/.gnupg/` is not tracked: the agent's pinentry choice is
+per machine. The revocation certificate (`~/.gnupg/openpgp-revocs.d/<fingerprint>.rev`) never goes in this
+repository: keep it private and offline.
+
 ## Things to know
 
 - **`color.ui = always` leaks escape codes into pipes.** `git log | grep` or a script parsing `git` output sees ANSI

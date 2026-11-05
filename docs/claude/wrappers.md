@@ -131,7 +131,7 @@ a venv at `~/.local/share/claude-nvidia-proxy`. Claude Code talks to the proxy w
 `ANTHROPIC_AUTH_TOKEN` and a blank `ANTHROPIC_API_KEY`; only the proxy holds the NVIDIA key.
 
 **Why parked.** The harness works end to end; the blocker is latency on NVIDIA's shared NVCF capacity.
-Measured on 2026-09-15 (README, "Latency"): the catalog endpoint answered in 0.19 s every time, while the same
+Measured on 2026-09-15: the catalog endpoint answered in 0.19 s every time, while the same
 short completion took a few seconds, then gave no response in 55 s; a request with tools gave no response in
 190 s. An interactive agent sends many sequential requests, and one multi-minute stall makes a session
 unworkable. Tool calling through the proxy is therefore untested. Keep it for one-off, non-interactive

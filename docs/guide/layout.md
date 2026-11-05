@@ -36,8 +36,8 @@ repository-only directories that Stow never sees.
 | `docs/` | this documentation (VitePress) |
 | `export-public-skills.sh` | copies an allowlist of HPC reference skills to the public `claude-skills-hpc` repository; never commits ([Skills](/claude/skills)) |
 | `background/` | desktop wallpapers |
-| `screenshots/` | images used by the README |
-| `README.md`, `CLAUDE.md` | the GitHub landing page; the instructions Claude Code reads in this repository |
+| `screenshots/` | old screenshots of the bash prompt and desktop |
+| `README.md`, `CLAUDE.md` | the GitHub landing page, pointing here; the instructions Claude Code reads in this repository |
 | `.gitignore`, `.gitattributes`, `.shellcheckrc`, `.stow-local-ignore` | repository settings |
 
 ## What is never tracked

@@ -388,7 +388,7 @@ will not be Solarized.
 
 Neovim is installed and configured **alongside** vim. The vim setup stays
 exactly as it is; the two editors share no mutable state. Full description,
-migration table and key map: README.md → nvim.
+migration table and key map: `docs/packages/nvim.md`.
 
 ```bash
 ~/.scripts/install-nvim         # pinned nvim (sha256-checked) + rg, fd, tree-sitter CLI
