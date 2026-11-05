@@ -53,9 +53,12 @@ The owner is unavailable. Keep working through the plan; the owner keeps commit 
 
 1. `$NIGHT status` and `$NIGHT verify`; summarise the *Morning brief*.
 2. Tell the owner to run in **their own terminal** (it refuses without a TTY; Claude never runs it):
-   `~/.claude/skills/night-protocol/scripts/night commit` (preview: `--dry-run`).
+   `night commit` (on the owner's PATH via `~/.scripts/night`; preview: `--dry-run`).
    It commits each step tree in order, hooks and signing included, without touching the working tree,
    and resumes after a partial run.
 3. Then post the drafted comments if the owner asks, and drop night-only memories.
+4. Tell the owner to run `night clean` (owner only, TTY). It deletes the night directory once
+   `night status` reports `committed: yes` and no `*.comment.md` draft is left; `--all` covers older
+   nights, `--force` skips both checks. Claude can preview it with `$NIGHT clean --dry-run`.
 
 Design, file layout and past failure modes: [REFERENCE.md](REFERENCE.md).

@@ -8,6 +8,8 @@
 #   night verify                  replay the patch chain on a scratch index
 #   night status                  base, steps, un-snapshot changes
 #   night commit [--dry-run]      owner only (needs a TTY): commit every step
+#   night clean [--all] [--force] [--dry-run]
+#                                 owner only: delete the night once it is committed
 #
 # NIGHT_DIR overrides the active night directory (default .night/current).
 set -euo pipefail
@@ -26,6 +28,17 @@ night_dir() {
 
 base_commit() { cat "$1/base"; }
 base_tree() { git rev-parse "$(base_commit "$1")^{tree}"; }
+
+# True when the night has no step, or its last step tree is the tree of a commit in base..HEAD
+# (an exact tree match, so a squash of the whole chain counts and an amended last step does not).
+night_committed() {
+   local dir=$1 last base
+   [[ -s $dir/chain ]] || return 0
+   last=$(tail -n 1 "$dir/chain" | cut -d' ' -f3)
+   base=$(base_commit "$dir")
+   git merge-base --is-ancestor "$base" HEAD 2>/dev/null || return 1
+   git log --format=%T "$base..HEAD" | grep -qxF "$last"
+}
 
 last_tree() {
    local dir=$1
@@ -156,6 +169,11 @@ cmd_status() {
       n=$(wc -l < "$dir/$step.files")
       printf '  %-28s %3d file(s)  %s\n' "$step" "$n" "$subj"
    done < "$dir/chain"
+   if night_committed "$dir"; then
+      echo "committed: yes ('night clean' removes this night)"
+   else
+      echo "committed: no"
+   fi
 }
 
 cmd_commit() {
@@ -190,6 +208,68 @@ cmd_commit() {
       fi
    done < "$dir/chain"
    ((dry)) || say "done; the working tree was never touched — 'git status' shows anything outside the steps"
+   ((dry)) || say "when the drafted comments are posted, 'night clean' removes the night directory"
+}
+
+# Delete night directories. Never touches the working tree, the index or any ref: the steps live
+# on in the commits, only the snapshots, patches, LOG.md and drafts go.
+cmd_clean() {
+   local all=0 force=0 dry=0 rc=0 d cur exclude
+   local -a dirs=() why=() drafts=()
+   while (($#)); do
+      case $1 in
+         --all) all=1 ;;
+         --force) force=1 ;;
+         --dry-run) dry=1 ;;
+         *) die "usage: night clean [--all] [--force] [--dry-run]" ;;
+      esac
+      shift
+   done
+   if ((!dry)) && ! [[ -t 0 && -t 1 ]]; then
+      die "clean runs only from the owner's terminal (agents never delete a night; use --dry-run)"
+   fi
+   [[ -d .night ]] || { say "no .night directory here"; return 0; }
+   shopt -s nullglob
+   cur=$(readlink .night/current 2>/dev/null || true)
+   if ((all)); then
+      for d in .night/*/; do
+         d=${d%/}
+         [[ -L $d ]] || dirs+=("$d")
+      done
+   else
+      [[ -n $cur && -d .night/$cur ]] || die "no active night (.night/current); use --all"
+      dirs=(".night/$cur")
+   fi
+   for d in "${dirs[@]}"; do
+      why=()
+      if [[ ! -f $d/base ]]; then
+         why+=("no base file, not a night directory")
+      elif ! night_committed "$d"; then
+         why+=("last step is not committed on HEAD")
+      fi
+      drafts=("$d"/*.comment.md)
+      ((${#drafts[@]})) && why+=("${#drafts[@]} drafted comment(s): ${drafts[*]##*/}")
+      if ((${#why[@]})) && ((!force)); then
+         say "keep   $d: $(printf '%s; ' "${why[@]}" | sed 's/; $//') (--force removes it)"
+         rc=1
+         continue
+      fi
+      ((${#why[@]})) && say "FORCED $d: $(printf '%s; ' "${why[@]}" | sed 's/; $//')"
+      if ((dry)); then
+         say "would remove $d"
+         continue
+      fi
+      rm -rf -- "$d"
+      say "removed $d"
+      [[ $d == ".night/$cur" ]] && rm -f .night/current
+   done
+   ((dry)) && return "$rc"
+   if rmdir .night 2>/dev/null; then
+      exclude=$(git rev-parse --git-path info/exclude)
+      [[ -f $exclude ]] && sed -i '\#^/\.night/$#d' "$exclude"
+      say "removed .night/ and its line in $exclude"
+   fi
+   return "$rc"
 }
 
 case ${1:-} in
@@ -198,5 +278,6 @@ case ${1:-} in
    verify) cmd_verify ;;
    status) cmd_status ;;
    commit) shift; cmd_commit "$@" ;;
-   *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+   clean) shift; cmd_clean "$@" ;;
+   *) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"; exit 2 ;;
 esac

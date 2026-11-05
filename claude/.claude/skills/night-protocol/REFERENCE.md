@@ -29,6 +29,26 @@ replays them on a scratch index from the base and checks that each one reproduce
 `commit` refuses when HEAD is neither the base nor one of the step trees: the step trees would then
 revert whatever was committed since. In that case rebase by hand, `git apply --3way` the patches in order.
 
+## Cleaning up: `night clean`
+
+The night directory outlives the commits on purpose, because it holds the drafted comments and the
+decisions left to the owner. `clean` deletes it only when both of these hold:
+
+- **committed:** the last step's tree is the tree of some commit in `base..HEAD`. An exact tree
+  match means a squash of the whole chain counts. A last step amended in the morning does not, and
+  neither does a rebase onto a moved upstream: use `--force` then.
+- **no drafts:** no `*.comment.md` is left. Post them or delete them first.
+
+It also removes `.night/current` when that link points at the deleted night. When `.night/` ends up
+empty it removes the directory and the `/.night/` line in `.git/info/exclude`. It never touches the
+working tree, the index or any ref. Like `commit`, it needs a TTY unless run with `--dry-run`.
+
+## PATH
+
+`scripts/.scripts/night` in the dotfiles is a relative symlink to this script, so stow puts `night`
+on the owner's PATH. SKILL.md keeps using the absolute `$NIGHT` path for Claude, because the agent's
+shell does not necessarily have `~/.scripts` on its PATH (see `claude-remote` in the repo CLAUDE.md).
+
 ## Failure modes this design closes (from the 2026-10 nights)
 
 | Date, repo | What happened | Rule / mechanism now |
