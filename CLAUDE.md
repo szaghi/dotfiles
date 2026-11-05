@@ -55,7 +55,7 @@ Each directory is a stow package — internal paths mirror `$HOME`:
 - **`nvim/`** — Neovim config in `.config/nvim/` (lazy.nvim, Lua), a port of the vim setup that runs **alongside** vim; see "Neovim" below.
 - **`git/`** — `.gitconfig`, `.git-templates/` (commit message template + hooks).
 - **`modules/`** — Lmod modulefiles in `.modules/` for HPC toolchains (NVIDIA HPC SDK, Intel, AMD, GCC, OpenMPI variants). Load with `module load gcc/15.1.0`.
-- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, `git-health`, etc.) and `.bin/act`. The `bd` script is vendored here. Also ships systemd **user** units in `.config/systemd/user/`.
+- **`scripts/`** — Scripts in `.scripts/` (image utils, iso mount, borg backup, `git-health`, etc.) and `.bin/act`. The `bd` script is vendored here. `.scripts/night` is a relative symlink to the night-protocol skill's script (`claude/.claude/skills/night-protocol/scripts/night`), which puts `night commit` / `night clean` on the PATH: edit the script in the skill, never replace the link with a copy. Also ships systemd **user** units in `.config/systemd/user/`.
 - **`python/`** — `.pythonrc`, `.pylintrc`
 - **`miscellanea/`** — `.latexmkrc`
 - **`tmux/`** — `.tmux.conf` (mouse on, 50k-line scrollback)
