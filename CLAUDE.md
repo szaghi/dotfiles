@@ -159,7 +159,7 @@ no installer, no machinery, just git + stow.
 
 | Command | Purpose |
 |---|---|
-| `/semantic-commit` | Generate Conventional Commits-formatted message from staged diff (no auto-commit, no `Co-authored-by`) |
+| `/semantic-commit` | Generate Conventional Commits-formatted message from staged diff; if nothing is staged, first stage the session's own files by explicit path (`all` in the args allows `git add -A`). Never commits, no `Co-authored-by`; staged diff capped at 1500 lines; warns when a night-protocol night is open |
 | `/capture-findings` | Capture session findings into repo docs / repo `.claude/` / global `~/.claude/CLAUDE.md` |
 
 Each file is YAML front-matter (`description`, `allowed-tools`) plus a
