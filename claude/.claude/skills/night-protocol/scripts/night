@@ -5,8 +5,10 @@
 #   night init [topic]            start a night in <repo>/.night/<date>[-topic]
 #   night snap NN-slug [path...]  snapshot a green step (NN-slug.msg must exist)
 #   night snap --redo NN-slug ... replace the LAST step's snapshot
+#   night gate [NN-slug] -- cmd   run cmd on a clean checkout of step NN-slug, or of what
+#                                 'snap' would record now; output in gate-<label>.log
 #   night verify                  replay the patch chain on a scratch index
-#   night status                  base, steps, un-snapshot changes
+#   night status                  base, steps, drafts, committed or not
 #   night commit [--dry-run]      owner only (needs a TTY): commit every step
 #   night clean [--all] [--force] [--dry-run]
 #                                 owner only: delete the night once it is committed
@@ -27,6 +29,17 @@ night_dir() {
 }
 
 base_commit() { cat "$1/base"; }
+
+# git diff for patches and file lists, immune to the owner's diff config (noprefix, external
+# diff, textconv): the patch must replay byte for byte.
+gdiff() {
+   git -c diff.noprefix=false -c diff.mnemonicPrefix=false diff --no-color --no-ext-diff --no-textconv "$@"
+}
+
+# Blob id of a working-tree path, '-' when it does not exist.
+path_hash() {
+   if [[ -e $1 || -L $1 ]]; then git hash-object -- "$1" 2>/dev/null || echo '?'; else echo -; fi
+}
 base_tree() { git rev-parse "$(base_commit "$1")^{tree}"; }
 
 # True when the night has no step, or its last step tree is the tree of a commit in base..HEAD
@@ -49,6 +62,33 @@ last_tree() {
    fi
 }
 
+# Tree = tree $2 plus the working-tree changes (all of them, or only the paths given), built through
+# a scratch index. Without paths, the changes that predate the night ($1/preexisting) and are still
+# byte-identical to what 'init' saw are left out; one edited since is included, with a note.
+build_tree() {
+   local dir=$1 prev=$2 idx tree h p
+   shift 2
+   local -a spec=("$@")
+   if ((!${#spec[@]})); then
+      spec=(.)
+      if [[ -s $dir/preexisting ]]; then
+         while IFS=$'\t' read -r h p; do
+            if [[ $(path_hash "$p") == "$h" ]]; then
+               spec+=(":(exclude,literal)$p")
+            else
+               say "NOTE $p predates the night but was edited since: included" >&2
+            fi
+         done < "$dir/preexisting"
+      fi
+   fi
+   idx=$(mktemp)
+   GIT_INDEX_FILE=$idx git read-tree "$prev"
+   GIT_INDEX_FILE=$idx git add -A -- "${spec[@]}"
+   tree=$(GIT_INDEX_FILE=$idx git write-tree)
+   rm -f "$idx"
+   printf '%s\n' "$tree"
+}
+
 # Tree object of the working tree, built on top of tree $1 through a scratch index.
 worktree_tree() {
    local idx tree
@@ -61,7 +101,9 @@ worktree_tree() {
 }
 
 cmd_init() {
-   local name dir exclude
+   local name dir exclude p
+   git diff --cached --quiet ||
+      die "the index has staged changes: commit or unstage them first ('night commit' would refuse)"
    name=$(date +%F)${1:+-$1}
    dir=.night/$name
    [[ -e $dir ]] && die "$dir already exists"
@@ -87,10 +129,16 @@ Morning: \`night status\`, read this log, then \`night commit\` from your own te
 
 ## Chronology
 EOF
+   # Changes already in the working tree belong to the owner, not to the night: record them
+   # so that 'snap' without paths leaves them out.
+   { git diff --name-only -z HEAD --; git ls-files -z --others --exclude-standard; } |
+      while IFS= read -r -d '' p; do
+         printf '%s\t%s\n' "$(path_hash "$p")" "$p"
+      done > "$dir/preexisting"
    say "night started in $dir (base $(git rev-parse --short HEAD))"
-   if ! git diff --quiet HEAD -- || [[ -n $(git ls-files --others --exclude-standard) ]]; then
-      say "WARNING: the working tree already differs from HEAD; step 01 will include it unless you pass paths:"
-      git status --short | sed 's/^/   /'
+   if [[ -s $dir/preexisting ]]; then
+      say "NOTE these changes predate the night; 'snap' without paths leaves them out while unedited:"
+      cut -f2 "$dir/preexisting" | sed 's/^/   /'
    fi
 }
 
@@ -104,28 +152,67 @@ cmd_snap() {
    [[ -s $dir/$step.msg ]] || die "write the commit message to $dir/$step.msg first"
    if ((redo)); then
       [[ $(tail -n 1 "$dir/chain" | cut -d' ' -f1) == "$step" ]] || die "--redo works only on the last step"
-      sed -i '$d' "$dir/chain"
-   elif [[ -e $dir/$step.tree ]]; then
-      die "$step is already snapshot (use --redo if it is the last step)"
-   fi
-   prev=$(last_tree "$dir")
-   idx=$(mktemp)
-   GIT_INDEX_FILE=$idx git read-tree "$prev"
-   if (($#)); then
-      GIT_INDEX_FILE=$idx git add -A -- "$@"
+      prev=$(tail -n 1 "$dir/chain" | cut -d' ' -f2)
    else
-      GIT_INDEX_FILE=$idx git add -A
+      [[ -e $dir/$step.tree ]] && die "$step is already snapshot (use --redo if it is the last step)"
+      prev=$(last_tree "$dir")
    fi
-   tree=$(GIT_INDEX_FILE=$idx git write-tree)
-   rm -f "$idx"
+   tree=$(build_tree "$dir" "$prev" "$@")
    [[ $tree == "$prev" ]] && die "nothing changed since the previous step"
-   git diff --no-color --binary "$prev" "$tree" > "$dir/$step.patch"
-   git diff --no-color --name-status "$prev" "$tree" > "$dir/$step.files"
+   gdiff --binary "$prev" "$tree" > "$dir/$step.patch"
+   gdiff --name-status "$prev" "$tree" > "$dir/$step.files"
    echo "$tree" > "$dir/$step.tree"
+   # The chain line goes last, so a failure above leaves the chain as it was.
+   ((redo)) && sed -i '$d' "$dir/chain"
    echo "$step $prev $tree" >> "$dir/chain"
    n=$(wc -l < "$dir/$step.files")
    say "$step: tree ${tree:0:12}, $n file(s) — check the list for build junk:"
    sed 's/^/   /' "$dir/$step.files"
+   mixing_warnings "$dir"
+}
+
+# A night and day-time git work must not overlap: warn as soon as they do, not at 'night commit'.
+mixing_warnings() {
+   local dir=$1 head_tree
+   git diff --cached --quiet ||
+      say "WARNING the real index has staged changes: 'night commit' will refuse until they are unstaged"
+   head_tree=$(git rev-parse 'HEAD^{tree}')
+   if [[ $head_tree != "$(base_tree "$dir")" ]] && ! cut -d' ' -f3 "$dir/chain" | grep -qxF "$head_tree"; then
+      say "WARNING HEAD moved off this night: 'night commit' will refuse; the owner commits or drops this night before new day-time commits"
+   fi
+}
+
+cmd_gate() {
+   local dir label tree wt log rc
+   dir=$(night_dir)
+   if [[ ${1:-} != -- ]]; then
+      label=${1:-}
+      [[ -n $label ]] || die "usage: night gate [NN-slug] -- command [args...]"
+      shift
+      [[ -f $dir/$label.tree ]] || die "no snapshot $label in $dir"
+      tree=$(<"$dir/$label.tree")
+   else
+      label=candidate
+      tree=$(build_tree "$dir" "$(last_tree "$dir")")
+   fi
+   [[ ${1:-} == -- ]] || die "usage: night gate [NN-slug] -- command [args...]"
+   shift
+   (($#)) || die "usage: night gate [NN-slug] -- command [args...]"
+   wt=$(readlink -f "$dir")/wt-$label
+   log=$dir/gate-$label.log
+   git worktree remove --force "$wt" 2>/dev/null || rm -rf "$wt"
+   git worktree prune
+   git worktree add -q --detach "$wt" "$(base_commit "$dir")"
+   # shellcheck disable=SC2064 # expand now: $wt and $top are fixed for this run
+   trap "git -C '$top' worktree remove --force '$wt' 2>/dev/null; git -C '$top' worktree prune" EXIT
+   git -C "$wt" read-tree -u --reset "$tree"
+   say "gate $label: tree ${tree:0:12} checked out in $wt"
+   set +e
+   (cd "$wt" && NIGHT_REPO=$top NIGHT_TREE=$tree "$@") 2>&1 | tee "$log"
+   rc=${PIPESTATUS[0]}
+   set -e
+   say "gate $label: exit $rc (log $log)"
+   return "$rc"
 }
 
 cmd_verify() {
@@ -137,7 +224,8 @@ cmd_verify() {
    GIT_INDEX_FILE=$idx git read-tree "$expect"
    while read -r step prev tree; do
       [[ $prev == "$expect" ]] || { say "FAIL $step: chain broken (prev $prev != $expect)"; rc=1; break; }
-      if ! GIT_INDEX_FILE=$idx git apply --cached "$dir/$step.patch"; then
+      # --whitespace=nowarn: an owner's apply.whitespace=fix would otherwise rewrite the patch.
+      if ! GIT_INDEX_FILE=$idx git apply --cached --whitespace=nowarn "$dir/$step.patch"; then
          say "FAIL $step: patch does not apply"; rc=1; break
       fi
       got=$(GIT_INDEX_FILE=$idx git write-tree)
@@ -152,7 +240,7 @@ cmd_verify() {
       say "ok   working tree == last step"
    else
       say "NOTE working tree has changes outside every step:"
-      git diff --no-color --stat "$expect" "$wt" | sed 's/^/   /'
+      gdiff --stat "$expect" "$wt" | sed 's/^/   /'
    fi
    [[ $(git rev-parse 'HEAD^{tree}') == "$(base_tree "$dir")" ]] ||
       say "NOTE HEAD moved since the base; 'night commit' needs HEAD back on the base tree"
@@ -169,8 +257,12 @@ cmd_status() {
       n=$(wc -l < "$dir/$step.files")
       printf '  %-28s %3d file(s)  %s\n' "$step" "$n" "$subj"
    done < "$dir/chain"
+   shopt -s nullglob
+   local -a drafts=("$dir"/*.comment.md) posted=("$dir"/*.comment.posted.md)
+   printf 'drafts: %d to post%s, %d posted\n' "${#drafts[@]}" \
+      "$( ((${#drafts[@]})) && printf ' (%s)' "${drafts[*]##*/}")" "${#posted[@]}"
    if night_committed "$dir"; then
-      echo "committed: yes ('night clean' removes this night)"
+      echo "committed: yes ('night clean' removes this night once no draft is left to post)"
    else
       echo "committed: no"
    fi
@@ -208,7 +300,7 @@ cmd_commit() {
       fi
    done < "$dir/chain"
    ((dry)) || say "done; the working tree was never touched — 'git status' shows anything outside the steps"
-   ((dry)) || say "when the drafted comments are posted, 'night clean' removes the night directory"
+   ((dry)) || say "post the drafts (each renamed *.comment.posted.md), then 'night clean' removes the night"
 }
 
 # Delete night directories. Never touches the working tree, the index or any ref: the steps live
@@ -248,7 +340,7 @@ cmd_clean() {
          why+=("last step is not committed on HEAD")
       fi
       drafts=("$d"/*.comment.md)
-      ((${#drafts[@]})) && why+=("${#drafts[@]} drafted comment(s): ${drafts[*]##*/}")
+      ((${#drafts[@]})) && why+=("${#drafts[@]} draft(s) not posted: ${drafts[*]##*/}")
       if ((${#why[@]})) && ((!force)); then
          say "keep   $d: $(printf '%s; ' "${why[@]}" | sed 's/; $//') (--force removes it)"
          rc=1
@@ -275,6 +367,7 @@ cmd_clean() {
 case ${1:-} in
    init) shift; cmd_init "$@" ;;
    snap) shift; cmd_snap "$@" ;;
+   gate) shift; cmd_gate "$@" ;;
    verify) cmd_verify ;;
    status) cmd_status ;;
    commit) shift; cmd_commit "$@" ;;
