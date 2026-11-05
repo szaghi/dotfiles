@@ -236,7 +236,8 @@ _claude_account() {
             printf 'Authenticating %s account in %s\n' "$label" "$dir" >&2
             [[ -z "$email" ]] && printf 'Tip: set %s in ~/.bash/claude_code.local to pre-fill the email.\n' "$email_var" >&2
             printf 'Open the URL below in an INCOGNITO window (not signed into personal claude.ai).\n' >&2
-            CLAUDE_CONFIG_DIR="$dir" claude auth login "${a[@]}" "${@:2}"
+            CLAUDE_CONFIG_DIR="$dir" claude auth login "${a[@]}" "${@:2}" || return
+            _claude_account_check "$dir" "$email" "$label"
             ;;
         status)
             CLAUDE_CONFIG_DIR="$dir" claude auth status --text "${@:2}"
@@ -245,9 +246,33 @@ _claude_account() {
             CLAUDE_CONFIG_DIR="$dir" claude auth logout "${@:2}"
             ;;
         *)
+            _claude_account_check "$dir" "$email" "$label" || return 1
             CLAUDE_CONFIG_DIR="$dir" claude "$@"
             ;;
     esac
+}
+
+# _claude_account_check DIR EMAIL LABEL — refuse a config dir logged into a seat
+# other than EMAIL. The OAuth page authorises whichever claude.ai identity the
+# browser already holds (--email only pre-fills), so a login from a browser
+# signed into a sibling seat binds that seat silently, and every session then
+# bills it. Also refuses a dir with no login yet: claude's first-run login does
+# not get --email/--sso and is the easiest way to bind the wrong seat.
+# No-op when EMAIL is unset (hosts that do not configure account emails).
+_claude_account_check() {
+    local dir="$1" want="$2" label="$3" have
+    [[ -n "$want" ]] || return 0
+    have=$(jq -r '.oauthAccount.emailAddress // empty' "${dir}/.claude.json" 2>/dev/null)
+    if [[ -z "$have" ]]; then
+        printf 'claude: %s is not logged in; run the login subcommand first (expected %s)\n' \
+            "$label" "$want" >&2
+        return 1
+    fi
+    if [[ "${have,,}" != "${want,,}" ]]; then
+        printf 'claude: %s config %s is logged in as %s, expected %s.\n' "$label" "$dir" "$have" "$want" >&2
+        printf '        Run its logout, then login again from an incognito window signed into NO seat.\n' >&2
+        return 1
+    fi
 }
 
 # Idempotent: create the isolated config dir and symlink the shareable parts.
@@ -1911,8 +1936,8 @@ claude-help() {
     printf '%s\n' "$sep"
     printf '  %-36s%s\n' 'claude-cfd-cnr login'            'authenticate the cnr.it seat (--email + --sso; incognito)'
     printf '  %-36s%s\n' 'claude-cfd-iac login'            'authenticate the iac.cnr.it seat (--email + --sso; incognito)'
-    printf '  %-36s%s\n' 'claude-cfd-{cnr,iac} login --no-sso' 'authenticate without SSO (plain subscription)'
-    printf '  %-36s%s\n' 'claude-cfd-{cnr,iac} status'     'show which account the isolated config is on'
+    printf '  %-36s%s\n' 'claude-cfd-<seat> login --no-sso'  'authenticate without SSO (plain subscription)'
+    printf '  %-36s%s\n' 'claude-cfd-<seat> status'        'show which account the isolated config is on'
     printf '  %-36s%s\n' 'claude-cfd-cnr'                  'cnr.it-seat session (shares skills, memory, sessions)'
     printf '  %-36s%s\n' 'claude-cfd-iac'                  'iac.cnr.it-seat session (shares skills, memory, sessions)'
     printf '\n'

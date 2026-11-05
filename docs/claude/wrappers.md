@@ -68,6 +68,12 @@ re-run.
 The OAuth page reuses the Claude session your browser already holds, so a plain login binds the personal
 account. `login` pre-fills the email and forces SSO, and prints a reminder: open the URL in an incognito window
 or a browser profile not signed into the personal claude.ai.
+
+`--email` only pre-fills: a browser signed into a *sibling* seat (e.g. the `cnr.it` one while logging in
+`claude-cfd-iac`) authorises that seat anyway. So when the account's email variable is set,
+`_claude_account_check` compares it with `oauthAccount.emailAddress` in the dir's `.claude.json` after `login`
+and before every session. On a mismatch, or when the dir has no login yet, it refuses to start. Hosts that
+leave the email variable empty skip the check.
 :::
 
 Set the four email variables in `~/.bash/claude_code.local` (it is per host and lives in the host's
