@@ -1,0 +1,585 @@
+#!/usr/bin/env python3
+"""plan-issue: keep a GitHub plan issue the single source of truth for a multi-step plan.
+
+The issue body carries one status table between markers; this tool reads and patches only that
+block, so a 40 KB plan is never regenerated to flip one row. See ../SKILL.md.
+
+  plan-issue check FILE                    lint a plan body (skeleton, step fields, size)
+  plan-issue create REPO FILE --title T    check, resolve the base marker, open the issue
+  plan-issue body REF                      print the issue body (to amend it in a file)
+  plan-issue edit REF FILE [--force]       replace the body, refusing silent losses
+  plan-issue status REF                    the status table and its counts
+  plan-issue set REF ID STATUS [EVIDENCE]  change one row (STATUS: todo wip done blocked dropped)
+  plan-issue comment REF FILE              post FILE as a comment, print its URL
+  plan-issue stale REF                     commits since the plan's base that touch its paths
+  plan-issue sync [--night-dir D] [--dry-run]
+                                           after 'night commit': post the night's drafts, mark
+                                           its steps done with their commit SHAs
+
+REF is owner/repo#N, #N (repo of the current directory), an issue URL, or a local file path
+(the body is then read and written in that file: offline drafts and tests).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+
+VERSION_MARK = "<!-- plan-issue v1 -->"
+BEGIN = "<!-- plan-issue:status:begin -->"
+END = "<!-- plan-issue:status:end -->"
+BASE_RE = re.compile(r"<!--\s*plan-issue:base\s+(\S+)\s*-->")
+TARGET_RE = re.compile(r"^<!--\s*target:\s*(\S+)\s*-->\s*$")
+PLACEHOLDER_RE = re.compile(r"\{\{sha:([0-9]{2}-[a-z0-9._-]+)\}\}")
+CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
+
+STATUS = {"todo": "⬜", "wip": "🔄", "done": "✅", "blocked": "⏸", "dropped": "➖"}  # noqa: RUF001
+SYMBOLS = set(STATUS.values())
+STEP_FIELDS = ("Goal", "Gate", "Docs", "Commit")
+SIZE_WARN, SIZE_MAX = 40_000, 60_000  # GitHub rejects bodies over 65,536 characters
+
+
+class PlanIssueError(Exception):
+    """A refusal or failure reported to the user, exit status 1."""
+
+
+# --------------------------------------------------------------------------- targets
+
+
+@dataclass(frozen=True)
+class Target:
+    """An issue on GitHub or a local file standing in for one."""
+
+    repo: str = ""
+    number: int = 0
+    path: Path | None = None
+
+    def __str__(self) -> str:
+        return str(self.path) if self.path else f"{self.repo}#{self.number}"
+
+
+def run(cmd: list[str], *, input_text: str | None = None) -> str:
+    """Run a command and return its stdout.
+
+    Raises:
+        PlanIssueError: the command failed.
+    """
+    proc = subprocess.run(cmd, input=input_text, capture_output=True, text=True, check=False)
+    if proc.returncode:
+        raise PlanIssueError(f"{' '.join(cmd[:3])} ...: {proc.stderr.strip() or proc.stdout.strip()}")
+    return proc.stdout
+
+
+def resolve(ref: str) -> Target:
+    """Turn owner/repo#N, #N, an issue URL or a file path into a Target.
+
+    Raises:
+        PlanIssueError: the reference is not understood.
+    """
+    if Path(ref).is_file():
+        return Target(path=Path(ref))
+    if m := re.fullmatch(r"https://github\.com/([^/]+/[^/]+)/issues/(\d+)\S*", ref):
+        return Target(repo=m[1], number=int(m[2]))
+    if m := re.fullmatch(r"([\w.-]+/[\w.-]+)#(\d+)", ref):
+        return Target(repo=m[1], number=int(m[2]))
+    if m := re.fullmatch(r"#?(\d+)", ref):
+        repo = run(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"]).strip()
+        return Target(repo=repo, number=int(m[1]))
+    raise PlanIssueError(f"not an issue reference or file: {ref}")
+
+
+def read_body(t: Target) -> tuple[str, str]:
+    """Return the body and its updatedAt stamp ('' for a file)."""
+    if t.path:
+        return t.path.read_text(), ""
+    data = json.loads(run(["gh", "issue", "view", str(t.number), "-R", t.repo, "--json", "body,updatedAt"]))
+    return data["body"].replace("\r\n", "\n"), data["updatedAt"]
+
+
+def write_body(t: Target, body: str, stamp: str) -> None:
+    """Write the body back, refusing when the issue changed since it was read.
+
+    Raises:
+        PlanIssueError: the issue was edited in between, or the write failed.
+    """
+    if t.path:
+        t.path.write_text(body)
+        return
+    _, now = read_body(t)
+    if now != stamp:
+        raise PlanIssueError(f"{t} was edited at {now} after it was read ({stamp}); rerun")
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(body)
+    try:
+        run(["gh", "issue", "edit", str(t.number), "-R", t.repo, "--body-file", fh.name])
+    finally:
+        Path(fh.name).unlink()
+
+
+def post_comment(t: Target, text: str) -> str:
+    """Post a comment and return its URL (a placeholder for a file target)."""
+    if t.path:
+        return f"file:{t.path}#comment"
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(text)
+    try:
+        return run(["gh", "issue", "comment", str(t.number), "-R", t.repo, "--body-file", fh.name]).strip()
+    finally:
+        Path(fh.name).unlink()
+
+
+# --------------------------------------------------------------------------- status table
+
+
+@dataclass
+class Row:
+    """One row of the status table."""
+
+    ident: str
+    title: str
+    status: str
+    evidence: str
+
+    def render(self) -> str:
+        """Render the row as a markdown table line."""
+        return f"| {self.ident} | {self.title} | {self.status} | {self.evidence} |".replace("|  |", "| |")
+
+
+def split_block(body: str) -> tuple[str, list[str], str]:
+    """Split the body into text before the table block, the block lines, and the rest.
+
+    Raises:
+        PlanIssueError: the markers are missing or out of order.
+    """
+    i, j = body.find(BEGIN), body.find(END)
+    if i < 0 or j < i:
+        raise PlanIssueError(f"no status block ({BEGIN} ... {END})")
+    head, block, tail = body[: i + len(BEGIN)], body[i + len(BEGIN) : j], body[j:]
+    return head, block.split("\n"), tail
+
+
+def parse_rows(lines: list[str]) -> list[Row]:
+    """Parse the table rows in a status block (header and separator skipped).
+
+    Raises:
+        PlanIssueError: a row does not have four cells.
+    """
+    rows: list[Row] = []
+    table = [ln for ln in lines if ln.strip().startswith("|")]
+    for ln in table[2:]:
+        cells = [c.strip() for c in CELL_SPLIT_RE.split(ln.strip())[1:-1]]
+        if len(cells) != 4:
+            raise PlanIssueError(f"status row needs 4 cells (Step | Title | Status | Evidence): {ln}")
+        cells[2] = cells[2].replace("️", "")  # ⏸️ typed in the web UI carries VS16
+        rows.append(Row(*cells))
+    return rows
+
+
+def rows_of(body: str) -> list[Row]:
+    """Return the status rows of a body."""
+    return parse_rows(split_block(body)[1])
+
+
+def replace_rows(body: str, rows: list[Row]) -> str:
+    """Return the body with its table rows replaced by `rows`, everything else byte-identical."""
+    head, lines, tail = split_block(body)
+    table_idx = [k for k, ln in enumerate(lines) if ln.strip().startswith("|")]
+    if len(table_idx) < 2:
+        raise PlanIssueError("the status block has no table header")
+    sep = table_idx[1]
+    after = table_idx[-1] + 1 if len(table_idx) > 2 else sep + 1
+    new = lines[: sep + 1] + [r.render() for r in rows] + lines[after:]
+    return head + "\n".join(new) + tail
+
+
+def status_symbol(word: str) -> str:
+    """Map a status name or symbol to the symbol.
+
+    Raises:
+        PlanIssueError: unknown status.
+    """
+    if word in SYMBOLS:
+        return word
+    if word in STATUS:
+        return STATUS[word]
+    raise PlanIssueError(f"status must be one of {', '.join(STATUS)} (or {' '.join(STATUS.values())})")
+
+
+# --------------------------------------------------------------------------- lint
+
+
+def headings(body: str) -> list[tuple[int, str, int]]:
+    """Return (level, text, offset) of every markdown heading outside code fences."""
+    out, fence, pos = [], False, 0
+    for ln in body.split("\n"):
+        if ln.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence and (m := re.match(r"(#{1,6})\s+(.*)", ln)):
+            out.append((len(m[1]), m[2].strip(), pos))
+        pos += len(ln) + 1
+    return out
+
+
+def section_of(body: str, ident: str) -> str | None:
+    """Return the text of the heading section that starts with the step id, or None."""
+    hs = headings(body)
+    pat = re.compile(rf"^(?:Step\s+)?{re.escape(ident)}(?=[\s.:)—-]|$)")
+    for k, (lvl, text, off) in enumerate(hs):
+        if pat.match(text):
+            end = next((o for lv, _, o in hs[k + 1 :] if lv <= lvl), len(body))
+            return body[off:end]
+    return None
+
+
+def placeholders(body: str) -> list[str]:
+    """Return the template's unfilled `<...>` placeholders, outside code and HTML comments."""
+    text = re.sub(r"```.*?```", "", body, flags=re.S)
+    text = re.sub(r"`[^`\n]*`", "", text)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    return re.findall(r"<[^<>\n]*\s[^<>\n]*>", text)
+
+
+def check(body: str) -> tuple[list[str], list[str]]:
+    """Lint a plan body.
+
+    Returns:
+        The errors and the warnings.
+    """
+    err: list[str] = []
+    warn: list[str] = []
+    if VERSION_MARK not in body:
+        err.append(f"missing the version marker {VERSION_MARK}")
+    if not BASE_RE.search(body):
+        warn.append("no <!-- plan-issue:base SHA --> marker: 'stale' cannot tell what changed since")
+    n = len(body)
+    if n > SIZE_MAX:
+        err.append(f"{n} characters, over {SIZE_MAX} (GitHub's limit is 65,536): move rationale to the docs")
+    elif n > SIZE_WARN:
+        warn.append(f"{n} characters: past {SIZE_WARN}, keep long rationale in the repo docs")
+    try:
+        rows = rows_of(body)
+    except PlanIssueError as e:
+        return [*err, str(e)], warn
+    if not rows:
+        err.append("the status table has no rows")
+    if holes := placeholders(body):
+        err.append(f"{len(holes)} unfilled placeholder(s), first: {', '.join(holes[:3])}")
+    head, _, tail = split_block(body)
+    outside = head + tail  # the decision entries must live outside the status table
+    seen: set[str] = set()
+    for r in rows:
+        if r.ident in seen:
+            err.append(f"duplicate id {r.ident}")
+        seen.add(r.ident)
+        if r.status not in SYMBOLS:
+            err.append(f"{r.ident}: status '{r.status}' is not one of {' '.join(SYMBOLS)}")
+        if r.ident.startswith("D"):
+            if not re.search(rf"\*\*{re.escape(r.ident)}\b", outside):
+                err.append(f"{r.ident}: decision row without a **{r.ident}** entry in the Decisions section")
+            continue
+        sec = section_of(body, r.ident)
+        if sec is None:
+            err.append(f"{r.ident}: no heading starting with '{r.ident}'")
+            continue
+        if r.status == STATUS["dropped"]:
+            continue
+        for f in STEP_FIELDS:
+            if not re.search(rf"\*\*{f}:\*\*[ \t]*\S", sec):
+                err.append(f"{r.ident}: missing or empty **{f}:**")
+        if "**Changes:**" not in sec and not r.ident.startswith("G"):
+            warn.append(f"{r.ident}: no **Changes:** (files or modules touched)")
+        gate = re.search(r"\*\*Gate:\*\*(.*?)(?=\n\s*[-*]\s+\*\*\w[\w ]*:\*\*|\Z)", sec, re.S)
+        if gate and "`" not in gate[1]:
+            warn.append(f"{r.ident}: the gate names no command (no backticks): make it runnable")
+    return err, warn
+
+
+# --------------------------------------------------------------------------- commands
+
+
+def cmd_check(a: argparse.Namespace) -> int:
+    """Lint a plan body file."""
+    err, warn = check(Path(a.file).read_text())
+    for w in warn:
+        print(f"warning: {w}")
+    for e in err:
+        print(f"error:   {e}")
+    print("ok" if not err else f"{len(err)} error(s)")
+    return 1 if err else 0
+
+
+def cmd_create(a: argparse.Namespace) -> int:
+    """Check a plan body and open it as a new issue."""
+    body = Path(a.file).read_text()
+    if (m := BASE_RE.search(body)) and m[1] == "HEAD":
+        sha = run(["git", "rev-parse", "HEAD"]).strip()
+        body = body.replace(m[0], f"<!-- plan-issue:base {sha} -->")
+    err, warn = check(body)
+    for w in warn:
+        print(f"warning: {w}")
+    if err:
+        raise PlanIssueError("not created:\n  " + "\n  ".join(err))
+    with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as fh:
+        fh.write(body)
+    try:
+        url = run(["gh", "issue", "create", "-R", a.repo, "--title", a.title, "--body-file", fh.name]).strip()
+    finally:
+        Path(fh.name).unlink()
+    print(url)
+    return 0
+
+
+def cmd_body(a: argparse.Namespace) -> int:
+    """Print the body of an issue."""
+    sys.stdout.write(read_body(resolve(a.ref))[0])
+    return 0
+
+
+def cmd_edit(a: argparse.Namespace) -> int:
+    """Replace an issue body, refusing silent losses unless --force."""
+    t = resolve(a.ref)
+    old, stamp = read_body(t)
+    new = Path(a.file).read_text()
+    err, warn = check(new)
+    for w in warn:
+        print(f"warning: {w}")
+    problems = list(err)
+    old_rows = {r.ident: r for r in rows_of(old)}
+    new_rows = {r.ident: r for r in rows_of(new)} if not err else {}
+    lost_ids = [i for i in old_rows if new_rows and i not in new_rows]
+    if lost_ids:
+        problems.append(f"status rows removed: {', '.join(lost_ids)}")
+    regressed = [
+        i
+        for i, r in old_rows.items()
+        if r.status == STATUS["done"] and i in new_rows and new_rows[i].status != r.status
+    ]
+    if regressed:
+        problems.append(f"done rows no longer done: {', '.join(regressed)}")
+    new_heads = {h for _, h, _ in headings(new)}
+    lost_heads = [h for _, h, _ in headings(old) if h not in new_heads]
+    if lost_heads:
+        problems.append("headings removed or renamed: " + "; ".join(lost_heads))
+    if problems and not (a.force and not err):
+        raise PlanIssueError("not written:\n  " + "\n  ".join(problems) + ("" if err else "\n(--force if intended)"))
+    write_body(t, new, stamp)
+    print(f"{t}: body replaced ({len(old)} -> {len(new)} characters)")
+    return 0
+
+
+def cmd_status(a: argparse.Namespace) -> int:
+    """Print the status table of an issue and its counts."""
+    rows = rows_of(read_body(resolve(a.ref))[0])
+    w = max((len(r.ident) for r in rows), default=4)
+    for r in rows:
+        print(f"{r.status}  {r.ident:<{w}}  {r.title}" + (f"   [{r.evidence}]" if r.evidence else ""))
+    counts = {s: sum(r.status == s for r in rows) for s in STATUS.values()}
+    print("  ".join(f"{s} {n}" for s, n in counts.items()))
+    return 0
+
+
+def cmd_set(a: argparse.Namespace) -> int:
+    """Change the status (and optionally the evidence) of one row."""
+    t = resolve(a.ref)
+    body, stamp = read_body(t)
+    rows = rows_of(body)
+    row = next((r for r in rows if r.ident == a.ident), None)
+    if row is None:
+        raise PlanIssueError(f"{t}: no row {a.ident}")
+    row.status = status_symbol(a.status)
+    if a.evidence is not None:
+        row.evidence = a.evidence
+    write_body(t, replace_rows(body, rows), stamp)
+    print(row.render())
+    return 0
+
+
+def cmd_comment(a: argparse.Namespace) -> int:
+    """Post a file as a comment."""
+    print(post_comment(resolve(a.ref), Path(a.file).read_text()))
+    return 0
+
+
+def cmd_stale(a: argparse.Namespace) -> int:
+    """List the commits since the plan's base that touch paths named in the plan."""
+    body = read_body(resolve(a.ref))[0]
+    m = BASE_RE.search(body)
+    if not m:
+        raise PlanIssueError("the plan has no base marker: audit it against the code by hand")
+    base = m[1]
+    tracked = set(run(["git", "ls-files"]).split("\n"))
+    named = sorted({p.rstrip("/") for p in re.findall(r"`([^`\s]+)`", body) if p.rstrip("/") in tracked})
+    total = run(["git", "rev-list", "--count", f"{base}..HEAD"]).strip()
+    print(f"base {base[:12]}, {total} commit(s) since; {len(named)} tracked path(s) named in the plan")
+    if named:
+        log = run(["git", "log", "--oneline", "--name-only", f"{base}..HEAD", "--", *named]).strip()
+        print(log or "none of the named paths changed since the base")
+    return 0
+
+
+# --------------------------------------------------------------------------- sync
+
+
+def git_top() -> Path:
+    """Return the repository root."""
+    return Path(run(["git", "rev-parse", "--show-toplevel"]).strip())
+
+
+def committed_steps(night: Path) -> dict[str, str]:
+    """Map each step of the night whose tree is committed in base..HEAD to its commit SHA."""
+    base = (night / "base").read_text().strip()
+    sha_of_tree: dict[str, str] = {}
+    for ln in run(["git", "log", "--reverse", "--format=%H %T", f"{base}..HEAD"]).split("\n"):
+        if ln:
+            sha, tree = ln.split()
+            sha_of_tree[tree] = sha
+    out = {}
+    for ln in (night / "chain").read_text().split("\n"):
+        if ln.strip():
+            step, _, tree = ln.split()
+            if tree in sha_of_tree:
+                out[step] = sha_of_tree[tree]
+    return out
+
+
+def cmd_sync(a: argparse.Namespace) -> int:
+    """Post the night's targeted drafts and mark its planned steps with their commits."""
+    night = Path(a.night_dir) if a.night_dir else git_top() / ".night" / "current"
+    if not (night / "base").is_file():
+        raise PlanIssueError(f"no night in {night}")
+    night = night.resolve()
+    issue_ref = (night / "issue").read_text().strip() if (night / "issue").is_file() else ""
+    issue = resolve(issue_ref) if issue_ref else None
+    shas = committed_steps(night)
+    tag = "would " if a.dry_run else ""
+
+    log_url: dict[str, str] = {}
+    for draft in sorted(night.glob("*.comment.md")):
+        lines = draft.read_text().split("\n")
+        m = TARGET_RE.match(lines[0]) if lines else None
+        if not m:
+            print(f"skip   {draft.name}: no '<!-- target: REF -->' first line, post it by hand")
+            continue
+        if m[1] == "issue" and issue is None:
+            print(f"skip   {draft.name}: target 'issue' but the night has no issue file")
+            continue
+        target = issue if m[1] == "issue" else resolve(m[1])
+        text = "\n".join(lines[1:]).lstrip("\n")
+        missing = sorted({s for s in PLACEHOLDER_RE.findall(text) if s not in shas})
+        if missing:
+            print(f"skip   {draft.name}: steps not committed yet: {', '.join(missing)}")
+            continue
+        text = PLACEHOLDER_RE.sub(lambda mm: shas[mm[1]][:9], text)
+        if a.dry_run:
+            print(f"would post {draft.name} -> {target}: {text.split(chr(10), 1)[0][:70]}")
+            url = f"<{draft.stem}>"
+        else:
+            url = post_comment(target, text)
+            draft.rename(draft.with_name(draft.name.replace(".comment.md", ".comment.posted.md")))
+            print(f"posted {draft.name} -> {url}")
+        log_url[str(target)] = url
+
+    if issue is None:
+        return 0
+    body, stamp = read_body(issue)
+    all_rows = rows_of(body)
+    rows = {r.ident: r for r in all_rows}
+    changed = []
+    for plan in sorted(night.glob("*.plan")):
+        step = plan.name[: -len(".plan")]
+        if step not in shas:
+            print(f"skip   {plan.name}: step not committed")
+            continue
+        for ln in plan.read_text().split("\n"):
+            if not (ln := ln.split("#", 1)[0].strip()):
+                continue
+            ident, *rest = ln.split()
+            if ident not in rows:
+                print(f"warning: {plan.name}: {issue} has no row {ident}")
+                continue
+            r = rows[ident]
+            new_ev = shas[step][:9] + (f" · [log]({log_url[str(issue)]})" if str(issue) in log_url else "")
+            if shas[step][:9] in r.evidence:
+                continue
+            r.status = status_symbol(rest[0] if rest else "done")
+            r.evidence = f"{r.evidence}; {new_ev}" if r.evidence else new_ev
+            changed.append(r)
+    for r in changed:
+        print(f"{tag}set {r.render()}")
+    if changed and not a.dry_run:
+        write_body(issue, replace_rows(body, all_rows), stamp)
+    if not changed:
+        print(f"{issue}: no status row to change")
+    if not a.dry_run and (shas or log_url):
+        ahead = subprocess.run(
+            ["git", "rev-list", "--count", "@{u}..HEAD"], capture_output=True, text=True, check=False
+        )
+        if ahead.returncode == 0 and ahead.stdout.strip() != "0":
+            print(f"note: {ahead.stdout.strip()} commit(s) not pushed: the SHAs link once you push")
+    return 0
+
+
+# --------------------------------------------------------------------------- main
+
+
+def main() -> int:
+    """Parse the command line and dispatch."""
+    p = argparse.ArgumentParser(prog="plan-issue", description=__doc__.split("\n")[0])
+    sub = p.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("check")
+    s.add_argument("file")
+    s = sub.add_parser("create")
+    s.add_argument("repo")
+    s.add_argument("file")
+    s.add_argument("--title", required=True)
+    s = sub.add_parser("body")
+    s.add_argument("ref")
+    s = sub.add_parser("edit")
+    s.add_argument("ref")
+    s.add_argument("file")
+    s.add_argument("--force", action="store_true")
+    s = sub.add_parser("status")
+    s.add_argument("ref")
+    s = sub.add_parser("set")
+    s.add_argument("ref")
+    s.add_argument("ident")
+    s.add_argument("status")
+    s.add_argument("evidence", nargs="?")
+    s = sub.add_parser("comment")
+    s.add_argument("ref")
+    s.add_argument("file")
+    s = sub.add_parser("stale")
+    s.add_argument("ref")
+    s = sub.add_parser("sync")
+    s.add_argument("--night-dir")
+    s.add_argument("--dry-run", action="store_true")
+    if len(sys.argv) == 1:
+        print(__doc__)
+        return 2
+    a = p.parse_args()
+    handler = {
+        "check": cmd_check,
+        "create": cmd_create,
+        "body": cmd_body,
+        "edit": cmd_edit,
+        "status": cmd_status,
+        "set": cmd_set,
+        "comment": cmd_comment,
+        "stale": cmd_stale,
+        "sync": cmd_sync,
+    }[a.cmd]
+    try:
+        return handler(a)
+    except PlanIssueError as e:
+        print(f"plan-issue: {e}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

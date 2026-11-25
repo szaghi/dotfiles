@@ -252,6 +252,7 @@ cmd_status() {
    echo "night: $(readlink -f "$dir")"
    echo "base:  $(git log -1 --format='%h %s' "$(base_commit "$dir")")"
    echo "HEAD:  $(git log -1 --format='%h %s')"
+   [[ -f $dir/issue ]] && echo "issue: $(<"$dir/issue")"
    while read -r step prev tree; do
       subj=$(head -n 1 "$dir/$step.msg")
       n=$(wc -l < "$dir/$step.files")
@@ -300,7 +301,25 @@ cmd_commit() {
       fi
    done < "$dir/chain"
    ((dry)) || say "done; the working tree was never touched — 'git status' shows anything outside the steps"
-   ((dry)) || say "post the drafts (each renamed *.comment.posted.md), then 'night clean' removes the night"
+   plan_sync "$dir" "$dry"
+   ((dry)) || say "post any draft left (each renamed *.comment.posted.md), then 'night clean' removes the night"
+}
+
+# The plan issue follows the commits: post the drafts that name a target and mark the planned
+# steps with their SHAs (plan-issue skill). Its failure never undoes the commits.
+plan_sync() {
+   local dir=$1 dry=$2 pi
+   shopt -s nullglob
+   local -a plans=("$dir"/*.plan) drafts=("$dir"/*.comment.md)
+   [[ -f $dir/issue ]] || ((${#plans[@]})) || grep -qsm1 '^<!-- *target:' "${drafts[@]}" /dev/null || return 0
+   pi=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../plan-issue/scripts/plan-issue
+   [[ -x $pi ]] || { say "WARNING plan-issue not found ($pi): sync the plan issue by hand"; return 0; }
+   if ((dry)); then
+      say "after the commits, 'plan-issue sync' would run (its preview needs the commits to exist)"
+   else
+      say "syncing the plan issue"
+      "$pi" sync --night-dir "$dir" || say "WARNING plan-issue sync failed: rerun 'plan-issue sync' from the repo root"
+   fi
 }
 
 # Delete night directories. Never touches the working tree, the index or any ref: the steps live

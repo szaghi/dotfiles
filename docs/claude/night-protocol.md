@@ -33,7 +33,7 @@ flowchart TD
     G --> H{"More steps?"}
     H -- yes --> C
     H -- no --> I["night verify<br/>Morning brief in LOG.md"]
-    I --> J["Owner: night status, night commit,<br/>post drafts, night clean"]
+    I --> J["Owner: night status, night commit<br/>(plan-issue sync), post drafts, night clean"]
 ```
 
 1. **Init.** `night init [topic]` at the repo root creates `.night/<date>[-topic]/`, points `.night/current` at it,
@@ -58,7 +58,7 @@ step.
 | # | Rule |
 |---|---|
 | 1 | Never `git add`, `commit`, `stash`, `reset`, `checkout --`, `push`, nor touch the real index or branches |
-| 2 | Never open, comment on, close or label issues and PRs, or send anything outward. Draft the text as `.night/current/<topic>.comment.md` |
+| 2 | Never open, comment on, close or label issues and PRs, or send anything outward. Draft the text as `.night/current/<topic>.comment.md`. A night executing a plan issue also writes `issue` and `NN-slug.plan`, and gives its report a `<!-- target: -->` first line, so that `night commit` posts it ([Plan issues](/claude/plan-issue)) |
 | 3 | Never stop, never idle. Before ending a turn, arm an event source that fires on the first actionable result and a timed fallback at most 60 min ahead. Run long jobs where they survive the session; keep `LOG.md` current |
 | 4 | On a rate limit, schedule a wakeup a few minutes after the reset, in the same turn, then resume every stopped agent |
 | 5 | Never overwrite baselines or goldens in place: new results get new names |
@@ -81,8 +81,10 @@ night commit        # in your own terminal
 2. Run `night commit` in **your own terminal**. It refuses without a TTY, so Claude cannot run it. It commits each
    step tree in order with its message, commit hooks and GPG signing included, and never touches the working
    tree. After a partial run it resumes from the step HEAD already holds.
-3. Have the drafted comments posted (Claude can do it when you ask). Each posted draft is renamed
-   `<topic>.comment.posted.md`. Drop night-only memories.
+3. If the night executed a plan issue, `night commit` has already run `plan-issue sync`: the drafts with a
+   `<!-- target: -->` line are posted and the issue's status rows carry the new SHAs (see
+   [Plan issues](/claude/plan-issue)). Have the other drafts posted (Claude can do it when you ask). Each
+   posted draft is renamed `<topic>.comment.posted.md`. Drop night-only memories.
 4. Run `night clean` in your terminal. It deletes the night directory once `night status` reports
    `committed: yes` and no draft is left to post.
 
@@ -102,8 +104,8 @@ directory (default `.night/current`). `night` with no or an unknown subcommand p
 | `night snap --redo NN-slug [path...]` | Replaces the snapshot of the **last** step only |
 | `night gate [NN-slug] -- cmd [args]` | Checks out the tree of step `NN-slug`, or the tree `snap` would record now (label `candidate`), in a scratch worktree `wt-<label>`, runs `cmd` there with `NIGHT_REPO` (repo root) and `NIGHT_TREE` set, logs to `gate-<label>.log`, removes the worktree and returns the command's status |
 | `night verify` | Replays every patch from the base on a scratch index and checks it reproduces its tree; prints `ok` or `FAIL` per step. Notes changes outside every step and a HEAD that moved off the base |
-| `night status` | Night directory, base, HEAD, one line per step (files, subject), drafts to post and posted, `committed: yes/no` |
-| `night commit [--dry-run]` | Owner only, needs a TTY. Verifies, refuses a staged index or a HEAD that is neither the base nor a step, then `git read-tree <tree>` and `git commit -F <msg>` per step. `--dry-run` prints those commands and runs without a TTY |
+| `night status` | Night directory, base, HEAD, the plan issue if the night has one, one line per step (files, subject), drafts to post and posted, `committed: yes/no` |
+| `night commit [--dry-run]` | Owner only, needs a TTY. Verifies, refuses a staged index or a HEAD that is neither the base nor a step, then `git read-tree <tree>` and `git commit -F <msg>` per step. Then, if the night has an `issue` file, `.plan` files or targeted drafts, runs `plan-issue sync`; a failed sync leaves the commits and says to rerun it. `--dry-run` prints those commands and runs without a TTY |
 | `night clean [--all] [--force] [--dry-run]` | Owner only, needs a TTY unless `--dry-run`. Deletes the active night once committed and with no `*.comment.md` left. `--all` covers every night in `.night/`; `--force` skips both checks; `--dry-run` reports what it would remove. Exits 1 when it keeps a night. Removes `.night/` and its exclude line when nothing is left |
 
 `committed` means the last step's tree is the tree of a commit in `base..HEAD`. A squash of the whole chain
@@ -121,7 +123,9 @@ counts; an amended last step or a rebase onto a moved upstream does not, and nee
 | `NN-slug.patch` | `snap` | `git diff --binary prev step`, for review and `verify` |
 | `NN-slug.files` | `snap` | `--name-status` of that diff |
 | `LOG.md` | `init`, Claude | Morning brief, plan, decisions, chronology |
-| `*.comment.md` | Claude | Drafted issue or PR text, not yet posted |
+| `issue` | Claude | The plan issue the night executes (`owner/repo#N`), optional |
+| `NN-slug.plan` | Claude | Status ids of the plan issue that step completes |
+| `*.comment.md` | Claude | Drafted issue or PR text, not yet posted; a `<!-- target: REF -->` first line makes `night commit` post it |
 | `*.comment.posted.md` | Claude | The same draft once posted |
 | `gate-<label>.log` | `gate` | Output of the last gate of that step, or of `candidate` |
 | `wt-<label>/` | `gate` | Scratch worktree, removed when the gate ends |
@@ -157,6 +161,7 @@ From the October and November 2026 nights (`REFERENCE.md` has the dated list):
 | Nights mixed with day-time staging; `commit` refused | Rule 7; `init` refuses a staged index; `snap` warns |
 | A `HANDOFF-*.md` at risk of landing in step 01 | Pre-existing changes recorded and excluded |
 | Posted drafts left around, nights cleaned by hand | `*.comment.posted.md` and `night clean` |
+| The plan issue lagged the night until drafts were posted by hand | `night commit` runs `plan-issue sync` |
 
 ## Things to know
 

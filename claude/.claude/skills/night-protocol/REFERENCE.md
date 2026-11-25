@@ -14,6 +14,8 @@
 | `LOG.md` | `init`, Claude | morning brief, plan, decisions, chronology |
 | `*.comment.md` | Claude | drafted issue/PR text, not yet posted |
 | `*.comment.posted.md` | Claude | the same draft once the owner had it posted |
+| `issue` | Claude | the plan issue this night executes (`owner/repo#N`), optional |
+| `NN-slug.plan` | Claude | status ids of the plan issue that step completes, one per line |
 | `gate-<label>.log` | `gate` | output of the last gate on that step (or `candidate`) |
 | `wt-<label>/` | `gate` | scratch worktree, removed when the gate ends |
 
@@ -98,6 +100,7 @@ shell does not necessarily have `~/.scripts` on its PATH (see `claude-remote` in
 | 11-02 FOSSIL, 11-04 figure | Nights used in short day-time bursts interleaved with staging and commits; `commit` refused (staged index, HEAD moved) | Rule 7; `init` refuses a staged index; `snap` warns on HEAD or index moving |
 | 11-04 FOSSIL, adam | `HANDOFF-*.md` in the root, warned about at every `init`, at risk of landing in step 01 | Pre-existing changes recorded and excluded |
 | 10-30 → 11-05, all repos | Posted drafts left in place; up to 15 nights per repo cleaned by hand | `*.comment.posted.md`; `night clean` |
+| 10-27 → 11-24, all repos | The plan issue lagged the night until the drafts were posted by hand; "is the issue updated?" asked 7+ times | `issue`, `NN-slug.plan`, targeted drafts; `night commit` runs `plan-issue sync` |
 
 ## Project overrides
 

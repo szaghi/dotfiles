@@ -113,6 +113,7 @@ Read the file itself; this is the map.
 | [Slash commands](/claude/commands) | `/semantic-commit`, `/capture-findings` |
 | [Hooks, agents, status line](/claude/hooks) | Every registered hook, the subagents, the status line fields |
 | [Night protocol](/claude/night-protocol) | Unattended overnight work and the `night` script |
+| [Plan issues](/claude/plan-issue) | Plans held in a GitHub issue, the `plan-issue` script, the compiler-bug tracker |
 
 ## Things to know
 

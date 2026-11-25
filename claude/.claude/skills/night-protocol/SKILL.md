@@ -13,6 +13,8 @@ The owner is unavailable. Keep working through the plan; the owner keeps commit 
 1. **Never** `git add`, `commit`, `stash`, `reset`, `checkout --`, `push`, nor touch the real index or branches.
 2. **Never** open, comment on, close or label issues/PRs, or send anything outward. Draft such text as
    `.night/current/<topic>.comment.md`; once the owner has it posted, rename it `<topic>.comment.posted.md`.
+   A night that executes a plan issue writes `issue`, `NN-slug.plan` and drafts with a `<!-- target: -->`
+   first line as the plan-issue skill says: `night commit` then posts them and updates the issue.
 3. **Never stop, and never idle.** Before ending any turn, two wake sources must be pending:
    - an **event** source that fires on the *first* result you can act on: one watcher per job or batch,
      never one that waits for the last of N runs while the finished ones sit unread;
@@ -78,7 +80,8 @@ The owner is unavailable. Keep working through the plan; the owner keeps commit 
    `night commit` (on the owner's PATH via `~/.scripts/night`; preview: `--dry-run`).
    It commits each step tree in order, hooks and signing included, without touching the working tree,
    and resumes after a partial run.
-3. Post the drafted comments when the owner asks, renaming each posted one `*.comment.posted.md`; drop
+3. `night commit` has already run `plan-issue sync`: check its output (drafts posted, rows set). Post the
+   drafts it skipped (no target line) when the owner asks, renaming each `*.comment.posted.md`; drop
    night-only memories.
 4. Tell the owner to run `night clean` (owner only, TTY). It deletes the night directory once
    `night status` reports `committed: yes` and no draft is left to post; `--all` covers older nights,

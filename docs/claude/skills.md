@@ -144,6 +144,7 @@ bash ~/dotfiles/export-public-skills.sh
 | `night-protocol` | Unattended-work protocol, see [Night protocol](/claude/night-protocol) |
 | `openacc-3.4` | Knowledge base from the OpenACC 3.4 specification |
 | `openmp-6.0` | Knowledge base from the OpenMP 6.0 specification with the Nov-2025 errata |
+| `plan-issue` | Plans held in a GitHub issue: skeleton, lint, status-table script, compiler-bug tracker, see [Plan issues](/claude/plan-issue) |
 | `python-conventions` | Stefano's Python conventions: Ruff patterns, pyproject, pytest, typing, docstrings, Makefile, release |
 | `python-hpc` | Python performance engineering on CPU and GPU |
 | `remotion-infographics` | Still-image infographics and figures for decks, talks and papers with Remotion |

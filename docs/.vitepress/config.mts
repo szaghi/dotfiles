@@ -47,6 +47,7 @@ const docs = [
       { text: 'Slash commands',         link: '/claude/commands' },
       { text: 'Hooks, agents, status line', link: '/claude/hooks' },
       { text: 'Night protocol',         link: '/claude/night-protocol' },
+      { text: 'Plan issues',            link: '/claude/plan-issue' },
     ],
   },
   {
