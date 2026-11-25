@@ -2,14 +2,14 @@
 	name = Stefano Zaghi
 	email = stefano.zaghi@gmail.com
 [color]
-  branch = always
-  diff = always
-  grep = always
+	branch = auto
+	diff = auto
+	grep = auto
   interactive = always
   pager = true
   showbranch = auto
   status = auto
-  ui = always
+	ui = auto
 [credential]
 	helper = cache
 [commit]
