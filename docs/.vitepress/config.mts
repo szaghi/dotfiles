@@ -48,6 +48,7 @@ const docs = [
       { text: 'Hooks, agents, status line', link: '/claude/hooks' },
       { text: 'Night protocol',         link: '/claude/night-protocol' },
       { text: 'Plan issues',            link: '/claude/plan-issue' },
+      { text: 'Bug issues',             link: '/claude/bug-issue' },
     ],
   },
   {

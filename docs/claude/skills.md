@@ -125,6 +125,7 @@ bash ~/dotfiles/export-public-skills.sh
 |---|---|
 | `ai-research-verification` | Verification discipline for agent-produced results in computational science: acceptance tests an agent cannot game, claim tiers, triage of 2026 AI-math results |
 | `blog` | Write and review technical blog posts as markdown, with the `blog-code-checker` and `blog-prose-reviewer` agents |
+| `bug-issue` | Bugs as GitHub issues: investigation, defect, upstream, evidence tiers, test-first fix plan, compiler-bug tracker, see [Bug issues](/claude/bug-issue) |
 | `cpp-hpc` | C++ HPC knowledge base: toolchain, modern C++ for performance, OpenMP, MPI, CUDA, Kokkos, I/O, profiling |
 | `cuda-programming` | Knowledge base from the CUDA Programming Guide (NVIDIA, Release 13.3) |
 | `darktable-operator` | Operator workflow for post-processing a RAW shoot in darktable, with edit values patched into XMP |
@@ -144,7 +145,7 @@ bash ~/dotfiles/export-public-skills.sh
 | `night-protocol` | Unattended-work protocol, see [Night protocol](/claude/night-protocol) |
 | `openacc-3.4` | Knowledge base from the OpenACC 3.4 specification |
 | `openmp-6.0` | Knowledge base from the OpenMP 6.0 specification with the Nov-2025 errata |
-| `plan-issue` | Plans held in a GitHub issue: skeleton, lint, status-table script, compiler-bug tracker, see [Plan issues](/claude/plan-issue) |
+| `plan-issue` | Plans held in a GitHub issue: skeleton, lint, status-table script, see [Plan issues](/claude/plan-issue) |
 | `python-conventions` | Stefano's Python conventions: Ruff patterns, pyproject, pytest, typing, docstrings, Makefile, release |
 | `python-hpc` | Python performance engineering on CPU and GPU |
 | `remotion-infographics` | Still-image infographics and figures for decks, talks and papers with Remotion |

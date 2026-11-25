@@ -1,6 +1,6 @@
 ---
 name: plan-issue
-description: Write, amend, execute and track a step-by-step implementation plan held in a GitHub issue, the plan's only source of truth. One skeleton (status table, decisions, standing gates, per-step Goal/Changes/Gate/Docs/Commit), a lint, and a script that patches only the status table, so a long body is never regenerated. Also the compiler-bug tracker issue (reproducer, workaround, vendor ticket). Use when the owner asks to "create/file/open/draft a GH issue with the plan", "well formatted step by step plan", "bullet proof plan", "roadmap issue", "with test gates / docs in sync / progress status", "update the plan issue", "is the issue updated", "check the status of the plan in #N", "implement #N" (revalidate first), or "file the compiler bugs in a GH issue".
+description: Write, amend, execute and track a step-by-step implementation plan held in a GitHub issue, the plan's only source of truth. One skeleton (status table, decisions, standing gates, per-step Goal/Changes/Gate/Docs/Commit), a lint, and a script that patches only the status table, so a long body is never regenerated. Use when the owner asks to "create/file/open/draft a GH issue with the plan", "well formatted step by step plan", "bullet proof plan", "roadmap issue", "with test gates / docs in sync / progress status", "update the plan issue", "is the issue updated", "check the status of the plan in #N", or "implement #N" (revalidate first). Bug reports and compiler bugs: the bug-issue skill.
 ---
 
 # Plan issue
@@ -66,14 +66,15 @@ A plan for another repository's change (e.g. a FoBiS bug found in ADAM) is filed
 "Is the issue updated?", "status of the plan": `$PI status REF`, then compare with `git log` since the
 last evidence SHA. Commits not reflected in the table are reported, and fixed with `$PI set`.
 
-## Compiler bugs
+## Bugs
 
-One tracker issue per repository, one comment per bug: [COMPILER-BUGS.md](COMPILER-BUGS.md).
+Bug issues (investigations, defects, upstream reports, the compiler-bug tracker) have their own skeleton in
+the bug-issue skill; the script and its commands are the same.
 
 ## Commands
 
 ```
-$PI check FILE                     lint: skeleton, ids, step fields, size
+$PI check FILE                     lint: skeleton (plan or bug), ids, step fields, size
 $PI create REPO FILE --title T     check, resolve the base marker, open the issue
 $PI body REF                       print the body
 $PI edit REF FILE [--force]        replace the body, refusing silent losses

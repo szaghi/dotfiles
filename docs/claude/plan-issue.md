@@ -8,15 +8,15 @@ A plan that comes out of a brainstorm, an audit or a feature discussion is filed
 issue is the plan's only copy. Its status table records progress. Each work session posts its log as a comment,
 and the table row links to the log and to the commits. A script changes only that table, so a long body is never
 regenerated to flip a row, and `night commit` brings the issue up to date as soon as the night's commits exist.
-Sources: `claude/.claude/skills/plan-issue/` (`SKILL.md`, `TEMPLATE.md`, `COMPILER-BUGS.md`, `scripts/plan-issue`).
+Sources: `claude/.claude/skills/plan-issue/` (`SKILL.md`, `TEMPLATE.md`, `scripts/plan-issue`). Bug reports
+have their own skeleton on the same script: [Bug issues](/claude/bug-issue).
 
 ## When to use it
 
 Ask for the plan as you always have: "create a well formatted GH issue with a step by step plan", "bullet proof
-plan with test gates and docs in sync", "roadmap issue", "file the compiler bugs in a GH issue". Then "implement
-#N in /night-protocol", "is the issue updated?", "check the status of the plan in #N".
+plan with test gates and docs in sync", "roadmap issue". Then "implement #N in /night-protocol", "is the issue updated?", "check the status of the plan in #N".
 
-It is for plans of separable steps that outlive one session. A one-off bug report needs no skeleton.
+It is for plans of separable steps that outlive one session. Bugs go to [Bug issues](/claude/bug-issue).
 
 ## One plan
 
@@ -80,7 +80,7 @@ the usage and exits 2; errors exit 1.
 
 | Command | Does |
 |---|---|
-| `plan-issue check FILE` | Lints a body. Errors: missing version marker, missing or malformed status block, duplicate ids, unknown status, unfilled `<...>` placeholders, a step id without a heading, an empty **Goal/Gate/Docs/Commit**, a `D` row without its `**D<n>**` entry, over 60,000 characters. Warnings: no base marker, no **Changes** (not for `G` rows), a gate with no backticked command, over 40,000 characters. Dropped (➖) steps skip the field checks |
+| `plan-issue check FILE` | Lints a body; a bug body is recognised by its marker ([Bug issues](/claude/bug-issue#commands)). Errors: missing version marker, missing or malformed status block, duplicate ids, unknown status, unfilled `<...>` placeholders, a step id without a heading, an empty **Goal/Gate/Docs/Commit**, a `D` row without its `**D<n>**` entry, over 60,000 characters. Warnings: no base marker, no **Changes** (not for `G` rows), a gate with no backticked command, over 40,000 characters. Dropped (➖) steps skip the field checks |
 | `plan-issue create REPO FILE --title T` | Replaces `plan-issue:base HEAD` with the current commit (run it from that repository), refuses on any lint error, opens the issue and prints its URL |
 | `plan-issue body REF` | Prints the body, to amend it in a file |
 | `plan-issue edit REF FILE [--force]` | Replaces the body. Refuses lint errors, removed status rows, removed or renamed headings, and done rows no longer done; `--force` overrides all but lint errors |
@@ -115,13 +115,10 @@ Drafts without a target line stay for posting by hand, as before. A failed sync 
 `plan-issue sync` from the repository root. A second run changes nothing, since posted drafts are renamed and a
 row that already holds the SHA is skipped.
 
-## Compiler bugs
+## Bugs
 
-`COMPILER-BUGS.md` defines the other recurring issue: one tracker per repository, one comment per bug, indexed by
-a table in the body. Each comment gives the toolchain with exact versions, how other compilers behave, the
-standard rule the code conforms to (from the `fortran-2023-standard` skill), a self-contained reproducer with its
-output, the expected output, the workaround with its location and how to tell it can go, and the vendor ticket.
-The index is edited as a fixed-string change; `plan-issue edit` would refuse it, since it is not a plan.
+Investigations, defects, upstream reports and the compiler-bug tracker use the same script with their own
+skeleton: [Bug issues](/claude/bug-issue).
 
 ## Why it exists
 

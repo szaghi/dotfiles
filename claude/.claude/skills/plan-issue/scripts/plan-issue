@@ -4,7 +4,7 @@
 The issue body carries one status table between markers; this tool reads and patches only that
 block, so a 40 KB plan is never regenerated to flip one row. See ../SKILL.md.
 
-  plan-issue check FILE                    lint a plan body (skeleton, step fields, size)
+  plan-issue check FILE                    lint a plan or bug body (skeleton, step fields, size)
   plan-issue create REPO FILE --title T    check, resolve the base marker, open the issue
   plan-issue body REF                      print the issue body (to amend it in a file)
   plan-issue edit REF FILE [--force]       replace the body, refusing silent losses
@@ -35,6 +35,14 @@ VERSION_MARK = "<!-- plan-issue v1 -->"
 BEGIN = "<!-- plan-issue:status:begin -->"
 END = "<!-- plan-issue:status:end -->"
 BASE_RE = re.compile(r"<!--\s*plan-issue:base\s+(\S+)\s*-->")
+BUG_MARK = "<!-- bug-issue v1 -->"
+KIND_RE = re.compile(r"<!--\s*bug-issue:kind\s+(\S+)\s*-->")
+BUG_CORE = ("Summary", "Environment", "Observed", "Expected", "Reproducer", "Evidence")
+BUG_SECTIONS = {
+    "investigation": ("Ruled out", "Hypotheses", "Test plan"),
+    "defect": ("Root cause", "Fix plan"),
+    "upstream": (),
+}
 TARGET_RE = re.compile(r"^<!--\s*target:\s*(\S+)\s*-->\s*$")
 PLACEHOLDER_RE = re.compile(r"\{\{sha:([0-9]{2}-[a-z0-9._-]+)\}\}")
 CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
@@ -237,39 +245,58 @@ def section_of(body: str, ident: str) -> str | None:
     return None
 
 
+HTML_TAGS = frozenset(
+    [
+        "a",
+        "b",
+        "br",
+        "code",
+        "details",
+        "div",
+        "em",
+        "hr",
+        "i",
+        "img",
+        "kbd",
+        "li",
+        "ol",
+        "p",
+        "pre",
+        "span",
+        "strong",
+        "sub",
+        "summary",
+        "sup",
+        "table",
+        "td",
+        "th",
+        "tr",
+        "u",
+        "ul",
+    ]
+)
+
+
 def placeholders(body: str) -> list[str]:
-    """Return the template's unfilled `<...>` placeholders, outside code and HTML comments."""
+    """Return the template's unfilled `<...>` placeholders, outside code and HTML comments.
+
+    Everything in angle brackets counts except HTML tags (`<br>`, `<code v-pre>`, `</sub>`) and autolinks.
+    """
     text = re.sub(r"```.*?```", "", body, flags=re.S)
     text = re.sub(r"`[^`\n]*`", "", text)
     text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
-    return re.findall(r"<[^<>\n]*\s[^<>\n]*>", text)
+    holes = []
+    for m in re.finditer(r"<([^<>\n]+)>", text):
+        inner = m[1].strip()
+        word = inner.lstrip("/").split(None, 1)[0].rstrip("/").lower() if inner.lstrip("/") else ""
+        if word in HTML_TAGS or inner.startswith(("http://", "https://", "mailto:")):
+            continue
+        holes.append(m[0])
+    return holes
 
 
-def check(body: str) -> tuple[list[str], list[str]]:
-    """Lint a plan body.
-
-    Returns:
-        The errors and the warnings.
-    """
-    err: list[str] = []
-    warn: list[str] = []
-    if VERSION_MARK not in body:
-        err.append(f"missing the version marker {VERSION_MARK}")
-    if not BASE_RE.search(body):
-        warn.append("no <!-- plan-issue:base SHA --> marker: 'stale' cannot tell what changed since")
-    n = len(body)
-    if n > SIZE_MAX:
-        err.append(f"{n} characters, over {SIZE_MAX} (GitHub's limit is 65,536): move rationale to the docs")
-    elif n > SIZE_WARN:
-        warn.append(f"{n} characters: past {SIZE_WARN}, keep long rationale in the repo docs")
-    try:
-        rows = rows_of(body)
-    except PlanIssueError as e:
-        return [*err, str(e)], warn
-    if not rows:
-        err.append("the status table has no rows")
-    if holes := placeholders(body):
-        err.append(f"{len(holes)} unfilled placeholder(s), first: {', '.join(holes[:3])}")
+def check_rows(body: str, rows: list[Row], err: list[str], warn: list[str]) -> None:
+    """Check the status rows against the body: ids, statuses, headings and step fields."""
     head, _, tail = split_block(body)
     outside = head + tail  # the decision entries must live outside the status table
     seen: set[str] = set()
@@ -297,6 +324,85 @@ def check(body: str) -> tuple[list[str], list[str]]:
         gate = re.search(r"\*\*Gate:\*\*(.*?)(?=\n\s*[-*]\s+\*\*\w[\w ]*:\*\*|\Z)", sec, re.S)
         if gate and "`" not in gate[1]:
             warn.append(f"{r.ident}: the gate names no command (no backticks): make it runnable")
+
+
+def has_block(body: str) -> bool:
+    """True when the body carries a status block."""
+    return BEGIN in body or END in body
+
+
+def heading_section(body: str, name: str) -> str | None:
+    """Return the text of the first heading section whose title starts with `name` (any case)."""
+    hs = headings(body)
+    for k, (lvl, text, off) in enumerate(hs):
+        if text.lower().startswith(name.lower()):
+            end = next((o for lv, _, o in hs[k + 1 :] if lv <= lvl), len(body))
+            return body[off:end]
+    return None
+
+
+def check_bug(body: str, err: list[str], warn: list[str]) -> None:
+    """Lint the bug-issue skeleton: kind, sections per kind, evidence tiers, its plan if any."""
+    m = KIND_RE.search(body)
+    if not m or m[1] not in BUG_SECTIONS:
+        err.append(f"missing or unknown <!-- bug-issue:kind ... --> marker (one of {', '.join(BUG_SECTIONS)})")
+        return
+    kind = m[1]
+    for name in BUG_CORE + BUG_SECTIONS[kind]:
+        if heading_section(body, name) is None:
+            err.append(f"{kind}: no '{name}' section")
+    if kind == "upstream" and heading_section(body, "Patch") is None:
+        warn.append("upstream: no 'Patch' section (fine if you send no patch)")
+    ev = heading_section(body, "Evidence") or ""
+    if not re.search(r"\|\s*T[0-3]\s*\|", ev):
+        err.append("the Evidence table has no claim with a tier T0-T3")
+    if kind in ("defect", "investigation") and not has_block(body):
+        err.append(f"{kind}: no status table: the {'fix' if kind == 'defect' else 'test'} plan needs one")
+        return
+    if not has_block(body):
+        return
+    try:
+        rows = rows_of(body)
+    except PlanIssueError as e:
+        err.append(str(e))
+        return
+    check_rows(body, rows, err, warn)
+    fixes = [r for r in rows if r.ident.startswith("F")]
+    if kind == "defect" and not fixes:
+        err.append("defect: no F row in the status table")
+    if fixes and "test" not in fixes[0].title.lower():
+        warn.append(f"{fixes[0].ident}: the first fix step should be the failing test ('{fixes[0].title}')")
+
+
+def check(body: str) -> tuple[list[str], list[str]]:
+    """Lint a plan body or a bug body (chosen by its version marker).
+
+    Returns:
+        The errors and the warnings.
+    """
+    err: list[str] = []
+    warn: list[str] = []
+    if not BASE_RE.search(body):
+        warn.append("no <!-- plan-issue:base SHA --> marker: 'stale' cannot tell what changed since")
+    n = len(body)
+    if n > SIZE_MAX:
+        err.append(f"{n} characters, over {SIZE_MAX} (GitHub's limit is 65,536): move rationale to the docs")
+    elif n > SIZE_WARN:
+        warn.append(f"{n} characters: past {SIZE_WARN}, keep long rationale in the repo docs")
+    if holes := placeholders(body):
+        err.append(f"{len(holes)} unfilled placeholder(s), first: {', '.join(holes[:3])}")
+    if BUG_MARK in body:
+        check_bug(body, err, warn)
+        return err, warn
+    if VERSION_MARK not in body:
+        err.append(f"missing the version marker {VERSION_MARK} (or {BUG_MARK})")
+    try:
+        rows = rows_of(body)
+    except PlanIssueError as e:
+        return [*err, str(e)], warn
+    if not rows:
+        err.append("the status table has no rows")
+    check_rows(body, rows, err, warn)
     return err, warn
 
 
@@ -350,9 +456,9 @@ def cmd_edit(a: argparse.Namespace) -> int:
     for w in warn:
         print(f"warning: {w}")
     problems = list(err)
-    old_rows = {r.ident: r for r in rows_of(old)}
-    new_rows = {r.ident: r for r in rows_of(new)} if not err else {}
-    lost_ids = [i for i in old_rows if new_rows and i not in new_rows]
+    old_rows = {r.ident: r for r in rows_of(old)} if has_block(old) else {}
+    new_rows = {r.ident: r for r in rows_of(new)} if not err and has_block(new) else {}
+    lost_ids = [i for i in old_rows if i not in new_rows] if not err else []
     if lost_ids:
         problems.append(f"status rows removed: {', '.join(lost_ids)}")
     regressed = [

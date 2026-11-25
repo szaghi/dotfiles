@@ -46,6 +46,6 @@ bug is fixed: <what to check>.
 **Vendor ticket.** <not filed | URL>.
 ````
 
-Then add the row to the body's index: `plan-issue body REF > <scratchpad>/body.md`, add the row with the
+Then add the row to the body's index (`plan-issue` is the plan-issue skill's script): `plan-issue body REF > <scratchpad>/body.md`, add the row with the
 Edit tool (a fixed-string change, the rest byte-identical), `gh issue edit N --body-file <scratchpad>/body.md`.
 Not `plan-issue edit`: this body has no plan skeleton and its lint would refuse it.
