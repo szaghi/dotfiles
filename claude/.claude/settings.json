@@ -111,5 +111,13 @@
   "agentPushNotifEnabled": true,
   "env": {
     "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force"
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    },
+    "claude-fable-5-2": {
+      "effortLevel": "xhigh"
+    }
   }
 }
