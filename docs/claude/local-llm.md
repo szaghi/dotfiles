@@ -163,13 +163,13 @@ export OLLAMA_GPU_ID="1"
 export OLLAMA_FLASH_ATTENTION="1"       # needed for KV-cache quantisation
 export OLLAMA_KV_CACHE_TYPE="q8_0"
 
-OLLAMA_DEFAULT_MODEL="qwen3-coder:latest"
+OLLAMA_DEFAULT_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"
 
 # prefer a local CUDA build over a system llama-server
-[[ -x "$HOME/llama.cpp-cuda/build/bin/llama-server" ]] && LLAMACPP_BIN="$HOME/llama.cpp-cuda/build/bin/llama-server"
+[[ -x "$HOME/llama.cpp-master/build/bin/llama-server" ]] && LLAMACPP_BIN="$HOME/llama.cpp-master/build/bin/llama-server"
 [[ -x "$HOME/ik_llama.cpp/build/bin/llama-server" ]]   && IKLLAMA_BIN="$HOME/ik_llama.cpp/build/bin/llama-server"
 
-IKLLAMA_DEFAULT_MODEL="$HOME/models/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf"
+IKLLAMA_DEFAULT_MODEL="$HOME/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
 IKLLAMA_CTX=32768
 ```
 

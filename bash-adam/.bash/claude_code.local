@@ -25,8 +25,11 @@ OLLAMA_PLAN_MODEL="qwen3.5:27b"              # Architect: broad reasoning, desig
 OLLAMA_EXEC_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"  # Executor: coding-specialized, fast MoE inference
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
-# Prefer the locally CUDA-built binary over any system install
-_adam_cuda_build="${HOME}/llama.cpp-cuda/build/bin/llama-server"
+# Prefer the locally CUDA-built binary over any system install: llama.cpp master in
+# ~/llama.cpp-master (gcc-14 + CUDA 13.1, sm_89), which replaced the b8645 build in
+# ~/llama.cpp-cuda on 2026-11-26 (same speed on Qwen3-Coder, and it runs Inkling 2).
+# Rebuild: git -C ~/llama.cpp-master pull --depth 1 && cmake --build ~/llama.cpp-master/build -j 12
+_adam_cuda_build="${HOME}/llama.cpp-master/build/bin/llama-server"
 [[ -x "$_adam_cuda_build" ]] && LLAMACPP_BIN="$_adam_cuda_build"
 unset _adam_cuda_build
 

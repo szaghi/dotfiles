@@ -1289,9 +1289,13 @@ llama-info() {
         model_path=$(_llama_resolve_model "$1") || return 1
     fi
 
-    local gguf_py="${HOME}/llama.cpp-cuda/gguf-py"
+    # gguf-py ships with the llama.cpp source tree that LLAMACPP_BIN was built from
+    # (<tree>/build/bin/llama-server -> <tree>/gguf-py); LLAMACPP_GGUF_PY overrides.
+    local bin gguf_py
+    bin=$(command -v "$LLAMACPP_BIN" 2>/dev/null || printf '%s' "$LLAMACPP_BIN")
+    gguf_py="${LLAMACPP_GGUF_PY:-${bin%/build/bin/*}/gguf-py}"
     if [[ ! -d "$gguf_py" ]]; then
-        printf 'gguf-py not found at %s\n' "$gguf_py" >&2; return 1
+        printf 'gguf-py not found at %s (set LLAMACPP_GGUF_PY)\n' "$gguf_py" >&2; return 1
     fi
 
     printf '=== GGUF metadata: %s ===\n' "$model_path"

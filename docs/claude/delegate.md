@@ -124,8 +124,9 @@ wall clock (`executor.elapsed_s`), medians.
   the whole home directory, before it edited the file in its clone. The preamble's "work only inside the current
   directory" is advice, not enforcement: see *not a sandbox* above.
 - Inkling-2-Mini (unsloth UD-Q4_K_XL, 17.6 GB; arch `inkling2_loop`: 128-expert MoE, blocks 6-18 looped 3
-  times) needs llama.cpp newer than b8645: it ran on a master build (`~/llama.cpp-master`, gcc-14 + CUDA 13.1,
-  served with `LLAMACPP_BIN` pointing at it); ik_llama and Ollama 0.34 do not know the architecture. Correct on
+  times) needs llama.cpp newer than b8645: it ran on a master build (`~/llama.cpp-master`, gcc-14 + CUDA 13.1),
+  which has since replaced the b8645 build as adam's `LLAMACPP_BIN` (Qwen3-Coder on it: T1 3/3 5.0 s, T2 3/3
+  23.1 s, 70-74 tokens/s); ik_llama and Ollama 0.34 do not know the architecture. Correct on
   every run, with its own sampling defaults (temperature 1.0, top-k 0), but slow on 2 × RTX 4070: 11-16 tokens/s
   generated against 66-90 for Qwen3-Coder on the same probe, because 17.6 GB of weights plus the 32k cache do not
   fit, so the fitter keeps some tensors on the CPU (`--fit-target 256,256`: 15-16 tokens/s), and it writes 2-3x
