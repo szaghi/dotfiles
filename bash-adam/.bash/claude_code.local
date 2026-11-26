@@ -14,13 +14,15 @@ export OLLAMA_FLASH_ATTENTION="1"       # Reduces VRAM, required for KV quant
 export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for more savings
 
 # ── MODEL DEFAULTS ────────────────────────────────────────────────────────────
-# qwen3-coder:latest — MoE 30B-A3B Q4_K_M, 18 GB, dual GPU
-#   3B active params → inference speed of a 3B dense model, quality > 30B dense.
-#   Avoid dense 30B+ models — RAM spill makes them 5-20x slower than MoE.
-OLLAMA_DEFAULT_MODEL="qwen3-coder:latest"
+# qwen3-coder-unsloth:30b-a3b-q4_K_M — MoE 30B-A3B Q4_K_M, 18.6 GB, dual GPU (94% on GPU).
+#   Imported from ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf with
+#   ~/.claude/skills/delegate/ollama/Modelfile.qwen3-coder-30b-a3b (recipe inside).
+#   3B active params: 3-6x faster than the dense qwen3.8:27b at the same pass rate
+#   (delegate benchmark 2026-11-26, docs/claude/delegate.md).
+OLLAMA_DEFAULT_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"
 OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
 OLLAMA_PLAN_MODEL="qwen3.5:27b"              # Architect: broad reasoning, designs approach
-OLLAMA_EXEC_MODEL="qwen3-coder:latest"       # Executor: coding-specialized, fast MoE inference
+OLLAMA_EXEC_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"  # Executor: coding-specialized, fast MoE inference
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
 # Prefer the locally CUDA-built binary over any system install
@@ -34,8 +36,10 @@ _adam_cuda_libs="/opt/nvidia/hpc_sdk/Linux_x86_64/26.1/cuda/13.1/targets/x86_64-
     export LD_LIBRARY_PATH="${_adam_cuda_libs}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 unset _adam_cuda_libs
 
-# Default model: Qwen3.5-27B distilled (Q6_K, ~23 GB — needs both GPUs)
-LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/.cache/huggingface/hub/models--Jackrong--Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-v2-GGUF/snapshots/268a860d70c80f5eafbd9c58443612334747278a/Qwen3.5-27B.Q6_K.gguf}"
+# Default model: Qwen3-Coder-30B-A3B Q4_K_M (18.6 GB, all 49 layers on the two GPUs at
+# --ctx 32k). The same file backs the Ollama default and ik_llama, so the engines are
+# comparable. The former default (Qwen3.5-27B distilled Q6_K) is no longer on disk.
+LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf}"
 
 # ── IK_LLAMA.CPP ──────────────────────────────────────────────────────────────
 # Fork of llama.cpp with aggressive CPU/hybrid optimizations and new quant
@@ -45,11 +49,13 @@ _adam_ikllama_build="${HOME}/ik_llama.cpp/build/bin/llama-server"
 [[ -x "$_adam_ikllama_build" ]] && IKLLAMA_BIN="$_adam_ikllama_build"
 unset _adam_ikllama_build
 
-# Qwen2.5-Coder-14B Q5_K_M: dense transformer (~10.5 GB), fits on a single
-# 4070 with room for a 32k KV cache. Avoid Qwen3.5 hybrid SSM models — their
-# Mamba layers have no CUDA kernel in ik_llama.cpp and silently fall back to CPU.
+# Qwen3-Coder-30B-A3B Q4_K_M: MoE, ik_llama's strong case; 49/49 layers on the two
+# GPUs at 32k context, the fastest delegate engine in the 2026-11-26 benchmark.
+# Avoid Qwen3.5 hybrid SSM models — their Mamba layers have no CUDA kernel in
+# ik_llama.cpp and silently fall back to CPU. (The former default, Qwen2.5-Coder-14B
+# Q5_K_M, is no longer on disk.)
 IKLLAMA_MODELS_DIR="${HOME}/models"
-IKLLAMA_DEFAULT_MODEL="${HOME}/models/Qwen2.5-Coder-14B-Instruct-Q5_K_M.gguf"
+IKLLAMA_DEFAULT_MODEL="${HOME}/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
 IKLLAMA_CTX=32768
 CLAUDE_CFD_CNR_EMAIL="stefano.zaghi@cnr.it"
 CLAUDE_SOMA_EMAIL="stefano.zaghi@somatwin.com"
