@@ -130,7 +130,7 @@ bash ~/dotfiles/export-public-skills.sh
 | `cuda-programming` | Knowledge base from the CUDA Programming Guide (NVIDIA, Release 13.3) |
 | `darktable-operator` | Operator workflow for post-processing a RAW shoot in darktable, with edit values patched into XMP |
 | `darktable-raw` | Knowledge base from the darktable 4.6 user manual |
-| `delegate` | Hand a mechanical, checkable task to a pi executor (local Ollama or cloud model) in a throwaway worktree, see [Delegating to an executor](/claude/delegate) |
+| `delegate` | Hand a mechanical, checkable task to a pi executor (local Ollama or cloud model) in a throwaway git clone, see [Delegating to an executor](/claude/delegate) |
 | `fobis` | FoBiS.py expert: fobos files, every `fobis` subcommand, build modes, dependencies |
 | `fortran-2023-standard` | Knowledge base from ISO/IEC 1539-1:2023 (Fortran 2023) |
 | `gpu-multithreading` | Parallel, multithreaded and GPU programming: design methodology, performance laws, optimisation playbook |

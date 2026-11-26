@@ -115,7 +115,7 @@ Read the file itself; this is the map.
 | [Night protocol](/claude/night-protocol) | Unattended overnight work and the `night` script |
 | [Plan issues](/claude/plan-issue) | Plans held in a GitHub issue and the `plan-issue` script |
 | [Bug issues](/claude/bug-issue) | Investigations, defects, upstream reports and the compiler-bug tracker as GitHub issues |
-| [Delegating to an executor](/claude/delegate) | Opus hands checkable tasks to pi (local or cloud model) in a throwaway worktree: the `delegate` script |
+| [Delegating to an executor](/claude/delegate) | Opus hands checkable tasks to pi (local or cloud model) in a throwaway git clone: the `delegate` script |
 
 ## Things to know
 

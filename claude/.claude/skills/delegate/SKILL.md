@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local Ollama model (qwen3.8:27b) or a cloud model - in a throwaway git worktree, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
+description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local Ollama model (qwen3.8:27b) or a cloud model - in a throwaway git clone, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
 ---
 
 # Delegate
@@ -40,13 +40,13 @@ $DG --check '<cmd that proves it>' [--model ollama/qwen3.8:27b] [--timeout 900] 
 
 | Option | Use |
 |---|---|
-| `--check CMD` | Always pass one. Runs in the worktree after the executor, with `$DELEGATE_REPO` = the real repo |
+| `--check CMD` | Always pass one. Runs on a clean checkout of the patch tree plus `--link` paths, so it proves the patch, not the executor's leftovers; `$DELEGATE_REPO` = the real repo |
 | `--model P/ID` | pi `provider/id`; default `$DELEGATE_MODEL`, else `ollama/qwen3.8:27b`. List: `pi --list-models` |
-| `--link PATH` | Symlink an ignored input (venv, `fobis fetch` deps, build cache) into the worktree; kept out of the diff |
+| `--link PATH` | Symlink an ignored input (venv, `fobis fetch` deps, build cache) into the clone; never part of the patch |
 | `--base REV` | Start from a revision instead of the current working tree (default includes uncommitted work) |
 | `--timeout S` | Executor wall-clock limit (default 900). `--check-timeout` bounds the check |
 | `--tools LIST` | Restrict pi's tools, e.g. `read,edit` for a no-shell task |
-| `--keep` | Keep the worktree to inspect a failure; remove it after with `git worktree remove --force <path>` |
+| `--keep` | Keep the clone (`workdir` in the result) to inspect a failure; a plain directory, `rm -rf` it after |
 
 Run it in the foreground for short tasks; for long ones use `run_in_background` and keep working.
 The local model runs one task at a time (one GPU set), so do not fan out local runs in parallel.
@@ -62,15 +62,18 @@ One JSON object on stdout (a copy in `<artifacts>/result.json`), exit 0 only for
 | `timeout` | Executor killed at `--timeout` | Smaller task, or do it yourself |
 | `error` | pi failed or never finished its loop (`executor.stderr_tail`, `error`) | Fix the setup or the model id; do not retry blindly |
 | `backend_down` | Ollama unreachable or model failed to load | `llm-local-server start`, or tell the owner |
+| `interrupted` | delegate got SIGINT/SIGTERM/SIGHUP (exit 128+N); clone and executor already cleaned up | Rerun if the interruption was yours |
 
 Then, for `ok`:
 
 1. **Read `changed_files`.** Anything outside the task's scope (scratch files, artifacts, files you
    said not to touch) is a rejection or a manual trim, never a silent apply.
 2. **Read the whole patch** (`patch`). The check proves what it tests, nothing more.
-3. Apply to the real working tree: `git apply --check <patch> && git apply <patch>` (the `apply`
-   field has the full command). Never `--index` or `--3way`: both write the real index. If it does
-   not apply, your tree moved since the run: re-delegate from the current tree or apply by hand.
+3. Apply to the real working tree with the repo-rooted form, from any directory:
+   `git -C <repo> apply --check <patch> && git -C <repo> apply <patch>` (the `apply` field is that
+   command). A bare `git apply` run from a subdirectory exits 0 and silently skips every file
+   outside it. Never `--index` or `--3way`: both write the real index. If it does not apply, your
+   tree moved since the run: re-delegate from the current tree or apply by hand.
 4. Run your normal gate in the real tree. Report to the owner what was delegated, the model, the
    status, and that you reviewed and re-gated it.
 
@@ -92,9 +95,15 @@ Add a cloud provider by editing `pi/.pi/agent/models.json` in the dotfiles (see 
 ## Pitfalls
 
 - Do not call `pi` directly: `pi -p` with an open stdin blocks forever without output; `delegate`
-  handles that, the worktree, the timeout and the warm-up.
-- The worktree holds tracked and untracked-but-not-ignored files only. Ignored inputs the task or
+  handles that, the clone, the timeout and the warm-up.
+- The clone holds tracked and untracked-but-not-ignored files only. Ignored inputs the task or
   check needs (venvs, fetched dependencies, generated headers) must be passed with `--link`.
+  Submodules are empty in the clone: do not delegate work inside one.
+- The executor's commits, branches and stash stay in its clone and vanish with it; only the patch
+  comes back. It runs as you, though: its `bash` can write anywhere in `$HOME`. Not a sandbox.
+- The starting snapshot writes blobs for untracked files into your repository's object store
+  (unreachable, reclaimed by `git gc`). A large untracked output directory that is not ignored
+  costs its full size per run: ignore it, or use `--base HEAD`.
 - Artifacts live in `$XDG_CACHE_HOME/delegate/<id>/` (`task.md`, `events.jsonl`, `pi.err`,
   `patch.diff`, `check.log`, `result.json`) and are never pruned automatically.
 - In a night-protocol night, applying a patch is an ordinary working-tree edit: snapshot it as part
