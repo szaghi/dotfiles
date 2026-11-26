@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2015  # 'A && ok || bad': ok() always returns 0, so bad runs only when A fails
+# test-delegate: smoke suite for the delegate script.
+#
+#   test-delegate            offline cases (fake pi) + live case (real pi + Ollama model)
+#   test-delegate --offline  offline cases only: no model, no network
+#
+# Offline cases swap pi for a fake (DELEGATE_PI) that edits files and prints a minimal
+# agent_end event, and use a non-Ollama provider so no warm-up runs. Each case asserts
+# on the JSON result and on the invariants: worktree removed, real index untouched,
+# real working tree unchanged. Exit status: number of failed cases.
+set -u
+trap '' PIPE
+
+here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
+DELEGATE="$here/delegate"
+LIVE_MODEL="${DELEGATE_TEST_MODEL:-ollama/qwen3.8:27b}"
+offline=0
+[[ "${1:-}" == "--offline" ]] && offline=1
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/test-delegate.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+export XDG_CACHE_HOME="$work/cache"
+pass=0 fail=0
+
+ok()  { printf '  ok    %s\n' "$1"; pass=$((pass + 1)); }
+bad() { printf '  FAIL  %s\n' "$1"; [[ -n "${2:-}" ]] && printf '%s\n' "$2" | sed 's/^/        /'; fail=$((fail + 1)); }
+
+# jq-free JSON field access: jget FILE EXPR (python expression on `r`)
+jget() { python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print($2)" "$1"; }
+
+# --- fake pi ------------------------------------------------------------------------
+fake="$work/fake-pi"
+cat >"$fake" <<'EOF'
+#!/usr/bin/env bash
+# Modes via FAKE_PI_MODE: edit (default), sleep, fail, assert-dirty, assert-link
+emit() { printf '%s\n' '{"type":"tool_execution_start","toolName":"edit"}' \
+  '{"type":"agent_end","messages":[{"role":"user","content":[]},{"role":"assistant","stopReason":"stop","usage":{"input":10,"output":5},"content":[{"type":"text","text":"done"}]}]}'; }
+case "${FAKE_PI_MODE:-edit}" in
+  edit)  sed -i 's/a - b/a + b/' calc.py; emit ;;
+  sleep) sleep 60 ;;
+  fail)  echo "boom" >&2; exit 3 ;;
+  assert-dirty)
+    grep -q 'DIRTY' notes.txt || { echo "uncommitted edit missing" >&2; exit 4; }
+    [[ -f untracked.txt ]] || { echo "untracked file missing" >&2; exit 4; }
+    [[ ! -e ignored.log ]] || { echo "ignored file leaked" >&2; exit 4; }
+    sed -i 's/a - b/a + b/' calc.py; emit ;;
+  assert-link)
+    [[ -f .venv/marker ]] || { echo "linked .venv missing" >&2; exit 4; }
+    [[ "$DELEGATE_REPO" == /* ]] || { echo "DELEGATE_REPO unset" >&2; exit 4; }
+    sed -i 's/a - b/a + b/' calc.py; emit ;;
+esac
+EOF
+chmod +x "$fake"
+
+new_repo() {
+  local r="$work/repo-$1"
+  mkdir -p "$r" && cd "$r" || exit 99
+  git init -q && git config user.email t@t && git config user.name t
+  git config commit.gpgsign false
+  printf 'def add(a, b):\n    return a - b\n' >calc.py
+  printf 'notes\n' >notes.txt
+  printf '*.log\n.venv/\n' >.gitignore
+  git add . && git commit -qm init
+  echo "$r"
+}
+
+# invariants: no extra worktree, empty real index, working tree as before
+invariants() {
+  local name=$1 before=$2
+  local wts; wts=$(git worktree list | wc -l)
+  [[ "$wts" == 1 ]] || { bad "$name: worktree left behind" "$(git worktree list)"; return; }
+  [[ -z "$(git diff --cached --name-only)" ]] || { bad "$name: real index touched"; return; }
+  [[ "$(git status --porcelain)" == "$before" ]] || { bad "$name: working tree changed"; return; }
+  ok "$name: invariants (worktree removed, index and tree untouched)"
+}
+
+fake_run() { DELEGATE_PI="$fake" "$DELEGATE" --model fake/x "$@" "fix calc.py" >"$work/out.json" 2>"$work/err"; }
+
+echo "offline cases"
+
+# 1. usage error
+"$DELEGATE" >/dev/null 2>&1; [[ $? == 2 ]] && ok "no task -> exit 2" || bad "no task -> exit 2"
+
+# 2. not a git repository
+mkdir -p "$work/plain" && cd "$work/plain" || exit 99
+DELEGATE_PI="$fake" "$DELEGATE" --model fake/x "x" >"$work/out.json" 2>/dev/null; rc=$?
+[[ $rc == 2 && "$(jget "$work/out.json" 'r["status"]')" == error ]] \
+  && ok "not a repo -> status error, exit 2" || bad "not a repo" "$(cat "$work/out.json")"
+
+# 3. backend down (Ollama provider pointed at a dead port)
+cd "$(new_repo down)" || exit 99
+DELEGATE_OLLAMA_URL=http://127.0.0.1:9 DELEGATE_PI="$fake" "$DELEGATE" --model ollama/x "x" \
+  >"$work/out.json" 2>/dev/null; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == backend_down ]] \
+  && ok "dead Ollama -> status backend_down, exit 1" || bad "backend_down" "$(cat "$work/out.json")"
+invariants "backend_down" ""
+
+# 4. ok on a dirty tree: uncommitted + untracked files visible, ignored ones not
+cd "$(new_repo dirty)" || exit 99
+echo DIRTY >>notes.txt; echo new >untracked.txt; echo junk >ignored.log
+before=$(git status --porcelain)
+FAKE_PI_MODE=assert-dirty fake_run --check 'python3 -c "import calc; assert calc.add(2,3)==5"'; rc=$?
+st=$(jget "$work/out.json" 'r["status"]')
+files=$(jget "$work/out.json" '" ".join(r["changed_files"])')
+if [[ $rc == 0 && $st == ok && "$files" == "M	calc.py" ]]; then
+  ok "dirty tree -> status ok, diff = calc.py only"
+else
+  bad "dirty tree" "rc=$rc status=$st files=[$files] $(tail -3 "$work/err")"
+fi
+patch=$(jget "$work/out.json" 'r["patch"]')
+git apply --check "$patch" 2>/dev/null && ok "patch applies to the real tree" || bad "patch does not apply"
+invariants "dirty tree" "$before"
+
+# 5. check failure
+cd "$(new_repo checkfail)" || exit 99
+fake_run --check 'echo failing-check; exit 7'; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == check_failed \
+   && "$(jget "$work/out.json" 'r["check"]["exit"]')" == 7 ]] \
+  && ok "check exit 7 -> status check_failed" || bad "check_failed" "$(cat "$work/out.json")"
+invariants "check_failed" ""
+
+# 6. executor timeout: killed, reported, cleaned up
+cd "$(new_repo timeout)" || exit 99
+t0=$SECONDS
+FAKE_PI_MODE='sleep' fake_run --timeout 2; rc=$?
+dt=$((SECONDS - t0))
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == timeout && $dt -lt 20 ]] \
+  && ok "timeout 2 s -> status timeout in ${dt}s" || bad "timeout" "rc=$rc dt=$dt $(cat "$work/out.json")"
+pgrep -f "$fake" >/dev/null && bad "timeout: fake pi still running" || ok "timeout: process group killed"
+invariants "timeout" ""
+
+# 7. executor failure
+cd "$(new_repo fail)" || exit 99
+FAKE_PI_MODE=fail fake_run; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == error \
+   && "$(jget "$work/out.json" 'r["executor"]["stderr_tail"]')" == boom ]] \
+  && ok "pi exit 3 -> status error, stderr captured" || bad "error" "$(cat "$work/out.json")"
+invariants "error" ""
+
+# 8. --link: ignored dir reachable, not in the diff, DELEGATE_REPO exported
+cd "$(new_repo link)" || exit 99
+mkdir .venv && echo x >.venv/marker
+before=$(git status --porcelain)
+FAKE_PI_MODE=assert-link fake_run --link .venv; rc=$?
+files=$(jget "$work/out.json" '" ".join(r["changed_files"])')
+[[ $rc == 0 && "$files" == "M	calc.py" ]] \
+  && ok "--link .venv -> visible to executor, absent from diff" || bad "--link" "rc=$rc files=[$files] $(cat "$work/out.json")"
+invariants "link" "$before"
+
+# 9. --keep leaves the worktree, then it can be removed
+cd "$(new_repo keep)" || exit 99
+fake_run --keep
+wt=$(jget "$work/out.json" 'r["worktree"]')
+[[ -d "$wt" && "$(git -C "$wt" diff --name-only)" == calc.py ]] \
+  && ok "--keep -> worktree kept with the edit" || bad "--keep" "$(cat "$work/out.json")"
+git worktree remove --force "$wt"
+
+# 10. --base HEAD ignores uncommitted changes
+cd "$(new_repo base)" || exit 99
+echo DIRTY >>notes.txt
+FAKE_PI_MODE=assert-dirty fake_run --base HEAD; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == error ]] \
+  && ok "--base HEAD -> uncommitted edit not visible" || bad "--base HEAD" "$(cat "$work/out.json")"
+
+if [[ $offline == 0 ]]; then
+  echo "live case ($LIVE_MODEL)"
+  cd "$(new_repo live)" || exit 99
+  "$DELEGATE" --model "$LIVE_MODEL" --timeout 600 \
+    --check 'python3 -c "import calc; assert calc.add(2,3)==5"' \
+    "calc.py has a bug in add(). Fix it." >"$work/out.json" 2>"$work/err"; rc=$?
+  st=$(jget "$work/out.json" 'r["status"]')
+  files=$(jget "$work/out.json" '" ".join(r.get("changed_files", []))')
+  el=$(jget "$work/out.json" 'r.get("elapsed_s")')
+  if [[ $rc == 0 && $st == ok && "$files" == "M	calc.py" ]]; then
+    ok "live fix -> status ok, check passed, diff = calc.py (${el}s)"
+  else
+    bad "live fix" "rc=$rc status=$st files=[$files] $(head -c 1500 "$work/out.json")"
+  fi
+  invariants "live" ""
+fi
+
+printf '%d passed, %d failed\n' "$pass" "$fail"
+exit "$fail"

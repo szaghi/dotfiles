@@ -1,0 +1,481 @@
+#!/usr/bin/env python3
+"""delegate: run one self-contained task on a pi executor in a throwaway git worktree.
+
+The orchestrator (Claude Code / Opus) hands a task to pi running a local or cloud model.
+pi works in a detached worktree built from the current working tree (uncommitted and
+untracked files included), so the real checkout, index and branches are never touched.
+The result is one JSON object on stdout; the evidence is the patch and the check
+command, never the executor's own report. See ../SKILL.md.
+
+  delegate [options] TASK         TASK as an argument, '-' for stdin, or --task-file FILE
+
+Exit status: 0 status ok, 1 any other status (check_failed, timeout, error,
+backend_down), 2 setup error (not a git repository, pi missing, bad arguments).
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import json
+import os
+import secrets
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+DEFAULT_MODEL = "ollama/qwen3.8:27b"
+DEFAULT_TIMEOUT = 900
+DEFAULT_KEEP_ALIVE = "30m"
+FINAL_MESSAGE_CAP = 4000
+TAIL_LINES = 40
+
+PREAMBLE = """\
+You are an executor working for an orchestrator that reviews your diff and reruns its own checks.
+Work only inside the current directory. Never run git commit, git push, git reset or git config.
+Change only what the task asks for. If the task is ambiguous or cannot be done, stop and say so
+instead of guessing. End with a short report: files changed, commands run with their results,
+and anything left undone."""
+
+PI_FLAGS = ["--offline", "-p", "--mode", "json", "-nc", "-ns", "-ne", "-np", "--no-session"]
+
+
+class DelegateError(Exception):
+    """A setup problem: reported as status 'error' with exit status 2."""
+
+
+class BackendDown(Exception):
+    """The model backend is unreachable or failed to load the model."""
+
+
+# --------------------------------------------------------------------------- git helpers
+
+
+def git(*args: str, cwd: Path, env: dict[str, str] | None = None, check: bool = True) -> str:
+    """Run git without hooks and return stdout (stripped)."""
+    cmd = ["git", "-c", "core.hooksPath=/dev/null", *args]
+    full_env = {**os.environ, **(env or {})}
+    proc = subprocess.run(cmd, cwd=cwd, env=full_env, capture_output=True, text=True, check=False)
+    if check and proc.returncode != 0:
+        raise DelegateError(f"git {' '.join(args)}: {proc.stderr.strip()}")
+    return proc.stdout.strip()
+
+
+def snapshot_tree(
+    worktree: Path, base_commit: str | None, exclude: list[str], scratch: Path
+) -> str:
+    """Write the tree of worktree's files (ignored ones and `exclude` left out).
+
+    Uses a private index file, so neither the real index nor the worktree's index moves.
+    """
+    index = scratch / f"index-{secrets.token_hex(4)}"
+    env = {"GIT_INDEX_FILE": str(index)}
+    if base_commit:
+        git("read-tree", base_commit, cwd=worktree, env=env)
+    pathspec = ["--", ".", *[f":(exclude){p}" for p in exclude]]
+    git("add", "-A", *pathspec, cwd=worktree, env=env)
+    tree = git("write-tree", cwd=worktree, env=env)
+    index.unlink(missing_ok=True)
+    return tree
+
+
+def base_commit_for(repo: Path, base: str, scratch: Path) -> tuple[str, str]:
+    """Return (commit, description) for the executor's starting point."""
+    head = git("rev-parse", "--verify", "--quiet", "HEAD", cwd=repo, check=False) or None
+    if base != "worktree":
+        commit = git("rev-parse", "--verify", f"{base}^{{commit}}", cwd=repo)
+        return commit, base
+    tree = snapshot_tree(repo, head, [], scratch)
+    ident = {
+        "GIT_AUTHOR_NAME": "delegate",
+        "GIT_AUTHOR_EMAIL": "delegate@localhost",
+        "GIT_COMMITTER_NAME": "delegate",
+        "GIT_COMMITTER_EMAIL": "delegate@localhost",
+    }
+    parents = ["-p", head] if head else []
+    commit = git(
+        "commit-tree",
+        "--no-gpg-sign",
+        tree,
+        *parents,
+        "-m",
+        "delegate base",
+        cwd=repo,
+        env=ident,
+    )
+    return commit, "working tree" + (f" on {head[:12]}" if head else "")
+
+
+def remove_worktree(repo: Path, worktree: Path) -> None:
+    """Remove a worktree, falling back to rm + prune when git refuses."""
+    proc = subprocess.run(
+        ["git", "worktree", "remove", "--force", str(worktree)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0 or worktree.exists():
+        shutil.rmtree(worktree, ignore_errors=True)
+        subprocess.run(["git", "worktree", "prune"], cwd=repo, check=False)
+
+
+# --------------------------------------------------------------------------- backend
+
+
+def ollama_url(provider: str) -> str | None:
+    """Base URL of an Ollama provider, or None when the provider is not Ollama.
+
+    $DELEGATE_OLLAMA_URL wins; otherwise the provider's baseUrl in pi's models.json,
+    recognised as Ollama by the provider name 'ollama'.
+    """
+    if provider != "ollama":
+        return None
+    if url := os.environ.get("DELEGATE_OLLAMA_URL"):
+        return url.rstrip("/")
+    models = Path.home() / ".pi" / "agent" / "models.json"
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        base = json.loads(models.read_text())["providers"]["ollama"]["baseUrl"]
+        return base.rstrip("/").removesuffix("/v1")
+    return "http://localhost:11434"
+
+
+def ollama_post(url: str, payload: dict[str, Any], timeout: float) -> None:
+    """POST a JSON payload to an Ollama endpoint, raising BackendDown on failure."""
+    req = urllib.request.Request(
+        url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as err:
+        raise BackendDown(f"{url}: {err}") from err
+
+
+def ollama_warm(base: str, model_id: str, keep_alive: str) -> float:
+    """Check the server, load the model, keep it resident; return seconds spent."""
+    t0 = time.monotonic()
+    try:
+        with urllib.request.urlopen(f"{base}/api/version", timeout=3) as resp:
+            resp.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as err:
+        raise BackendDown(
+            f"Ollama not reachable at {base} ({err}); start it: llm-local-server start"
+        ) from err
+    ollama_post(f"{base}/api/generate", {"model": model_id, "keep_alive": keep_alive}, timeout=600)
+    return time.monotonic() - t0
+
+
+# --------------------------------------------------------------------------- pi run
+
+
+def run_bounded(  # noqa: PLR0913
+    cmd: list[str], cwd: Path, env: dict[str, str], out: Path, err: Path, timeout: float
+) -> tuple[int | None, float]:
+    """Run cmd in its own process group; return (exit code or None on timeout, seconds)."""
+    t0 = time.monotonic()
+    with out.open("w") as fo, err.open("w") as fe:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=fo,
+            stderr=fe,
+            start_new_session=True,
+        )
+        try:
+            code: int | None = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            code = None
+            for sig, grace in ((signal.SIGTERM, 5), (signal.SIGKILL, 5)):
+                with contextlib.suppress(ProcessLookupError):
+                    os.killpg(proc.pid, sig)
+                try:
+                    proc.wait(timeout=grace)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+    return code, time.monotonic() - t0
+
+
+def parse_events(path: Path) -> dict[str, Any]:
+    """Summarise pi's JSON event stream: final message, tools, usage, stop reason."""
+    tools: Counter[str] = Counter()
+    tool_errors = 0
+    messages: list[dict[str, Any]] = []
+    for line in path.read_text(errors="replace").splitlines():
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        kind = ev.get("type")
+        if kind == "tool_execution_start":
+            tools[ev.get("toolName", "?")] += 1
+        elif kind == "tool_execution_end" and ev.get("isError"):
+            tool_errors += 1
+        elif kind == "agent_end":
+            messages = ev.get("messages", [])
+    assistant = [m for m in messages if m.get("role") == "assistant"]
+    usage = {"input": 0, "output": 0}
+    for m in assistant:
+        for k in usage:
+            usage[k] += int(m.get("usage", {}).get(k, 0) or 0)
+    final = ""
+    if assistant:
+        content = assistant[-1].get("content", [])
+        if isinstance(content, list):
+            final = "\n".join(c.get("text", "") for c in content if c.get("type") == "text").strip()
+    if len(final) > FINAL_MESSAGE_CAP:
+        final = final[:FINAL_MESSAGE_CAP] + f"\n[... truncated; full text in {path}]"
+    return {
+        "finished": bool(messages),
+        "stop_reason": assistant[-1].get("stopReason") if assistant else None,
+        "turns": len(assistant),
+        "tools": dict(tools),
+        "tool_errors": tool_errors,
+        "usage": usage,
+        "final_message": final,
+    }
+
+
+def tail(path: Path, n: int = TAIL_LINES) -> str:
+    """Last n lines of a text file ('' if missing)."""
+    if not path.exists():
+        return ""
+    return "\n".join(path.read_text(errors="replace").splitlines()[-n:])
+
+
+# --------------------------------------------------------------------------- main
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Command-line interface."""
+    p = argparse.ArgumentParser(
+        prog="delegate",
+        description="Run a task on a pi executor in a throwaway git worktree; print JSON.",
+    )
+    p.add_argument("task", nargs="?", help="the task text, or '-' to read it from stdin")
+    p.add_argument("--task-file", type=Path, help="read the task from FILE")
+    p.add_argument(
+        "--model",
+        default=os.environ.get("DELEGATE_MODEL", DEFAULT_MODEL),
+        help=f"pi provider/model (default $DELEGATE_MODEL or {DEFAULT_MODEL})",
+    )
+    p.add_argument("--thinking", default="low", help="pi thinking level (default low)")
+    p.add_argument("--tools", help="pi tool allowlist, e.g. read,edit,bash")
+    p.add_argument("--check", help="shell command run in the worktree after the executor")
+    p.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help=f"executor wall-clock limit in seconds (default {DEFAULT_TIMEOUT})",
+    )
+    p.add_argument(
+        "--check-timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help=f"check command limit in seconds (default {DEFAULT_TIMEOUT})",
+    )
+    p.add_argument(
+        "--base",
+        default="worktree",
+        help="starting point: 'worktree' (default: current files, uncommitted included) "
+        "or any git revision",
+    )
+    p.add_argument(
+        "--link",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="symlink this repo-relative (usually ignored) path into the worktree: venvs, "
+        "fetched dependencies, build caches; repeatable",
+    )
+    p.add_argument(
+        "--keep-alive",
+        default=DEFAULT_KEEP_ALIVE,
+        help=f"Ollama keep_alive after the run (default {DEFAULT_KEEP_ALIVE})",
+    )
+    p.add_argument("--keep", action="store_true", help="keep the worktree after the run")
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "delegate",
+        help="artifact root (default $XDG_CACHE_HOME/delegate)",
+    )
+    args = p.parse_args(argv)
+    if args.task_file:
+        args.task = args.task_file.read_text()
+    elif args.task == "-":
+        args.task = sys.stdin.read()
+    if not args.task or not args.task.strip():
+        p.error("a task is required (argument, '-' for stdin, or --task-file)")
+    if "/" not in args.model:
+        p.error("--model must be provider/id, e.g. ollama/qwen3.8:27b")
+    return args
+
+
+def emit(result: dict[str, Any], artifacts: Path | None) -> None:
+    """Print the result and keep a copy next to the artifacts."""
+    text = json.dumps(result, indent=2, ensure_ascii=False)
+    if artifacts:
+        (artifacts / "result.json").write_text(text + "\n")
+    print(text)
+
+
+def main(argv: list[str]) -> int:  # noqa: PLR0912, PLR0915 -- linear pipeline
+    """Entry point."""
+    args = parse_args(argv)
+    t_start = time.monotonic()
+    provider, model_id = args.model.split("/", 1)
+    result: dict[str, Any] = {"status": "error", "model": args.model, "thinking": args.thinking}
+
+    try:
+        top = git("rev-parse", "--show-toplevel", cwd=Path.cwd())
+    except DelegateError as err:
+        result["error"] = f"not inside a git repository: {err}"
+        emit(result, None)
+        return 2
+    repo = Path(top)
+    pi = os.environ.get("DELEGATE_PI") or shutil.which("pi")
+    if not pi:
+        result["error"] = "pi not found on PATH (npm i -g @earendil-works/pi-coding-agent)"
+        emit(result, None)
+        return 2
+
+    run_id = time.strftime("%Y%m%d-%H%M%S-") + secrets.token_hex(2)
+    artifacts = args.out / run_id
+    artifacts.mkdir(parents=True)
+    (artifacts / "task.md").write_text(args.task)
+    result |= {"id": run_id, "repo": str(repo), "artifacts": str(artifacts)}
+
+    base = ollama_url(provider)
+    if base:
+        try:
+            result["warmup_s"] = round(ollama_warm(base, model_id, args.keep_alive), 1)
+        except BackendDown as err:
+            result |= {"status": "backend_down", "error": str(err)}
+            emit(result, artifacts)
+            return 1
+
+    worktree = artifacts / "wt"
+    created = False
+    try:
+        subprocess.run(["git", "worktree", "prune"], cwd=repo, check=False)
+        commit, described = base_commit_for(repo, args.base, artifacts)
+        result["base"] = {"from": described, "commit": commit}
+        git("worktree", "add", "--detach", "--quiet", str(worktree), commit, cwd=repo)
+        created = True
+        for rel in args.link:
+            src = repo / rel
+            if not src.exists():
+                raise DelegateError(f"--link {rel}: {src} does not exist")
+            dst = worktree / rel
+            if dst.exists() or dst.is_symlink():
+                raise DelegateError(f"--link {rel}: already present in the worktree")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.symlink_to(src)
+
+        # No bytecode: an executor that runs Python would otherwise add .pyc files to the patch.
+        env = {**os.environ, "DELEGATE_REPO": str(repo), "PYTHONDONTWRITEBYTECODE": "1"}
+        cmd = [
+            pi,
+            *PI_FLAGS,
+            "--thinking",
+            args.thinking,
+            "--model",
+            args.model,
+            "--append-system-prompt",
+            PREAMBLE,
+        ]
+        if args.tools:
+            cmd += ["--tools", args.tools]
+        cmd.append(args.task)
+        events = artifacts / "events.jsonl"
+        code, pi_s = run_bounded(cmd, worktree, env, events, artifacts / "pi.err", args.timeout)
+        summary = parse_events(events)
+        final = summary.pop("final_message")
+        result["executor"] = {
+            "exit": code,
+            "elapsed_s": round(pi_s, 1),
+            **summary,
+            "stderr_tail": tail(artifacts / "pi.err", 10),
+        }
+        result["final_message"] = final
+
+        new_tree = snapshot_tree(worktree, commit, args.link, artifacts)
+        base_tree = git("rev-parse", f"{commit}^{{tree}}", cwd=repo)
+        patch = artifacts / "patch.diff"
+        patch.write_text(
+            git("diff", "--binary", base_tree, new_tree, cwd=repo) + "\n"
+            if base_tree != new_tree
+            else ""
+        )
+        names = git("diff", "--name-status", base_tree, new_tree, cwd=repo)
+        result["changed_files"] = names.splitlines() if names else []
+        result["diff_stat"] = git("diff", "--shortstat", base_tree, new_tree, cwd=repo)
+        result["patch"] = str(patch) if names else None
+        if names:
+            result["apply"] = f"git -C {repo} apply {patch}"
+
+        if args.check:
+            check_code, check_s = run_bounded(
+                ["bash", "-c", args.check],
+                worktree,
+                env,
+                artifacts / "check.log",
+                artifacts / "check.log.err",
+                args.check_timeout,
+            )
+            log = artifacts / "check.log"
+            err_text = (artifacts / "check.log.err").read_text(errors="replace")
+            if err_text:
+                with log.open("a") as fh:
+                    fh.write(err_text)
+            (artifacts / "check.log.err").unlink(missing_ok=True)
+            result["check"] = {
+                "cmd": args.check,
+                "exit": "timeout" if check_code is None else check_code,
+                "elapsed_s": round(check_s, 1),
+                "tail": tail(log),
+            }
+
+        if code is None:
+            result["status"] = "timeout"
+        elif code != 0 or not summary["finished"]:
+            result["status"] = "error"
+            result["error"] = f"pi exited {code}" + (
+                "" if summary["finished"] else " without finishing the agent loop"
+            )
+        elif args.check and result["check"]["exit"] != 0:
+            result["status"] = "check_failed"
+        else:
+            result["status"] = "ok"
+    except DelegateError as err:
+        result |= {"status": "error", "error": str(err)}
+    finally:
+        if created and not args.keep:
+            remove_worktree(repo, worktree)
+        result["worktree"] = str(worktree) if created and args.keep else None
+        if base:
+            with contextlib.suppress(BackendDown):
+                ollama_post(
+                    f"{base}/api/generate",
+                    {"model": model_id, "keep_alive": args.keep_alive},
+                    timeout=30,
+                )
+        result["elapsed_s"] = round(time.monotonic() - t_start, 1)
+
+    emit(result, artifacts)
+    return 0 if result["status"] == "ok" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
