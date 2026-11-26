@@ -2,7 +2,8 @@
 # shellcheck disable=SC2015  # 'A && ok || bad': ok() always returns 0, so bad runs only when A fails
 # test-delegate: smoke suite for the delegate script.
 #
-#   test-delegate            offline cases (fake pi) + live case (real pi + Ollama model)
+#   test-delegate            offline cases (fake pi) + live case (real pi + a local model;
+#                            DELEGATE_TEST_MODEL picks it, e.g. llamacpp/llama)
 #   test-delegate --offline  offline cases only: no model, no network
 #
 # Offline cases swap pi for a fake (DELEGATE_PI) that edits files and prints a minimal
@@ -288,6 +289,104 @@ fake_run --link nosuchdir; rc2=$?
 fake_run --link ../outside; rc3=$?
 [[ $rc1 == 2 && $rc2 == 2 && $rc3 == 2 ]] && ok "bad --base / --link -> exit 2" \
   || bad "setup exit codes" "base=$rc1 link=$rc2 outside=$rc3"
+
+# --- fake llama-server ---------------------------------------------------------------
+# FAKE_SRV: up (default) | loading:N (503 for the first N /health) | stuck (always 503) | noprops
+srv="$work/fake-srv.py"
+cat >"$srv" <<'EOF'
+import http.server, json, os, sys
+mode, n_ctx = os.environ.get("FAKE_SRV", "up"), int(os.environ.get("FAKE_NCTX", "32768"))
+left = int(mode.split(":")[1]) if mode.startswith("loading:") else 0
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def send(self, code, body=b""):
+        self.send_response(code); self.end_headers(); self.wfile.write(body)
+    def do_GET(self):
+        global left
+        if self.path == "/health":
+            if mode == "stuck" or left > 0:
+                left -= 1; return self.send(503, b'{"status":"loading model"}')
+            return self.send(200, b'{"status":"ok"}')
+        if self.path == "/props" and mode != "noprops":
+            return self.send(200, json.dumps({"model_path": "/m/Qwen3-Coder.gguf",
+                "default_generation_settings": {"n_ctx": n_ctx}}).encode())
+        self.send(404)
+s = http.server.HTTPServer(("127.0.0.1", 0), H)
+print(s.server_address[1], flush=True)
+s.serve_forever()
+EOF
+start_srv() {  # start_srv MODE [N_CTX] -> sets $port, $srv_pid
+  FAKE_SRV=$1 FAKE_NCTX=${2:-32768} python3 "$srv" >"$work/srv.port" &
+  srv_pid=$!
+  for _ in $(seq 50); do [[ -s "$work/srv.port" ]] && break; sleep 0.1; done
+  port=$(head -1 "$work/srv.port")
+}
+stop_srv() { kill "$srv_pid" 2>/dev/null; wait "$srv_pid" 2>/dev/null; : >"$work/srv.port"; }
+fake_home() {  # fake_home PROVIDER PORT CONTEXT_WINDOW -> $home with a models.json
+  home="$work/home-$1"; mkdir -p "$home/.pi/agent"
+  printf '{"providers":{"%s":{"baseUrl":"http://127.0.0.1:%s/v1","models":[{"id":"%s","contextWindow":%s}]}}}\n' \
+    "$1" "$2" "$3" "$4" >"$home/.pi/agent/models.json"
+}
+llama_run() {  # llama_run PROVIDER MODEL_ID [delegate args...]
+  local prov=$1 id=$2; shift 2
+  HOME="$home" DELEGATE_PI="$fake" "$DELEGATE" --model "$prov/$id" "$@" "fix calc.py" \
+    >"$work/out.json" 2>"$work/err"
+}
+
+# 24. llama.cpp up: server facts reported, no warning
+cd "$(new_repo llama-up)" || exit 99
+start_srv up 32768; fake_home llamacpp "$port" llama 32768
+llama_run llamacpp llama; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["server"]["model"]')" == Qwen3-Coder.gguf \
+   && "$(jget "$work/out.json" 'r["server"]["n_ctx"]')" == 32768 \
+   && "$(jget "$work/out.json" '"warnings" in r')" == False ]] \
+  && ok "llamacpp up -> server model + n_ctx reported, no warning" || bad "llamacpp up" "$(cat "$work/out.json")"
+stop_srv
+invariants "llama up" ""
+
+# 25. contextWindow larger than the server's n_ctx: warned, not fatal
+cd "$(new_repo llama-ctx)" || exit 99
+start_srv up 8192; fake_home llamacpp "$port" llama 32768
+llama_run llamacpp llama; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["warnings"][0]')" == *"contextWindow 32768 > server n_ctx 8192"* ]] \
+  && ok "contextWindow > n_ctx -> warning, status ok" || bad "ctx warning" "$(cat "$work/out.json")"
+stop_srv
+
+# 26. model still loading: waits through 503s
+cd "$(new_repo llama-loading)" || exit 99
+start_srv loading:3; fake_home llamacpp "$port" llama 32768
+llama_run llamacpp llama; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["status"]')" == ok ]] \
+  && ok "503 x3 then 200 -> waited, status ok" || bad "loading wait" "$(cat "$work/out.json")"
+stop_srv
+
+# 27. loading never ends: bounded by --server-wait
+cd "$(new_repo llama-stuck)" || exit 99
+start_srv stuck; fake_home llamacpp "$port" llama 32768
+t0=$SECONDS
+llama_run llamacpp llama --server-wait 2; rc=$?
+dt=$((SECONDS - t0))
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == backend_down && $dt -lt 10 ]] \
+  && ok "503 forever, --server-wait 2 -> backend_down in ${dt}s" || bad "stuck server" "rc=$rc dt=$dt $(cat "$work/out.json")"
+stop_srv
+invariants "llama stuck" ""
+
+# 28. no server: immediate backend_down with the start command
+cd "$(new_repo llama-down)" || exit 99
+fake_home llamacpp 9 llama 32768
+llama_run llamacpp llama; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == backend_down \
+   && "$(jget "$work/out.json" 'r["error"]')" == *"llm-local-server start --backend llama "* ]] \
+  && ok "no llama server -> backend_down with start hint" || bad "llama down" "$(cat "$work/out.json")"
+
+# 29. ik_llama without /props: runs, server model unknown
+cd "$(new_repo ik-noprops)" || exit 99
+start_srv noprops; fake_home ikllama "$port" ikllama 32768
+llama_run ikllama ikllama; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["server"]["model"]')" == None \
+   && "$(jget "$work/out.json" 'r["server"]["engine"]')" == ikllama ]] \
+  && ok "ikllama without /props -> status ok, model unknown" || bad "ik noprops" "$(cat "$work/out.json")"
+stop_srv
 
 if [[ $offline == 0 ]]; then
   echo "live case ($LIVE_MODEL)"

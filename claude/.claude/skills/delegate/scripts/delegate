@@ -41,6 +41,10 @@ DEFAULT_KEEP_ALIVE = "30m"
 FINAL_MESSAGE_CAP = 4000
 TAIL_LINES = 40
 PR_SET_CHILD_SUBREAPER = 36
+DEFAULT_SERVER_WAIT = 300
+
+# pi provider name -> (llm-local-server backend, default port) for llama-server engines.
+LLAMA_PROVIDERS = {"llamacpp": ("llama", 8080), "ikllama": ("ikllama", 8081)}
 
 PREAMBLE = """\
 You are an executor working for an orchestrator that reviews your diff and reruns its own checks.
@@ -268,16 +272,88 @@ def normalise_link(rel: str, repo: Path) -> str:
 # --------------------------------------------------------------------------- backend
 
 
+def pi_provider(provider: str) -> dict[str, Any]:
+    """The provider's entry in ~/.pi/agent/models.json ({} when absent or unreadable)."""
+    models = Path.home() / ".pi" / "agent" / "models.json"
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError, AttributeError):
+        entry = json.loads(models.read_text())["providers"][provider]
+        if isinstance(entry, dict):
+            return entry
+    return {}
+
+
+def server_root(provider: str, default: str) -> str:
+    """Server root URL of a provider: models.json baseUrl without the /v1 suffix."""
+    url = pi_provider(provider).get("baseUrl") or default
+    return str(url).rstrip("/").removesuffix("/v1")
+
+
 def ollama_url(provider: str) -> str | None:
     """Base URL of an Ollama provider, or None when the provider is not Ollama."""
     if provider != "ollama":
         return None
-    url = os.environ.get("DELEGATE_OLLAMA_URL")
-    if not url:
-        models = Path.home() / ".pi" / "agent" / "models.json"
-        with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
-            url = json.loads(models.read_text())["providers"]["ollama"]["baseUrl"]
-    return (url or "http://localhost:11434").rstrip("/").removesuffix("/v1")
+    if url := os.environ.get("DELEGATE_OLLAMA_URL"):
+        return url.rstrip("/").removesuffix("/v1")
+    return server_root("ollama", "http://localhost:11434")
+
+
+def http_get(url: str, timeout: float) -> tuple[int | None, bytes]:
+    """GET url; return (HTTP status, body), status None when no connection could be made."""
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            return resp.status, resp.read()
+    except urllib.error.HTTPError as err:
+        return err.code, b""
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return None, b""
+
+
+def llama_preflight(provider: str, model_id: str, wait: float) -> tuple[dict[str, Any], list[str]]:
+    """Check a llama-server provider; return (server facts, warnings).
+
+    /health: no connection fails at once (the server is not running, waiting cannot help);
+    503 means the model is still loading, so poll up to `wait` seconds. /props, when the
+    engine has it (ik_llama may not), names the GGUF and the per-slot context.
+    """
+    backend, port = LLAMA_PROVIDERS[provider]
+    base = server_root(provider, f"http://127.0.0.1:{port}")
+    hint = f"llm-local-server start --backend {backend} --model <gguf> --ctx 32k"
+    deadline = time.monotonic() + wait
+    while True:
+        status, _ = http_get(f"{base}/health", timeout=3)
+        if status == 200:  # noqa: PLR2004
+            break
+        if status is None:
+            raise BackendDownError(f"{provider}: no server at {base}; start it: {hint}")
+        if status != 503 or time.monotonic() > deadline:  # noqa: PLR2004
+            raise BackendDownError(f"{provider}: {base}/health answered HTTP {status}")
+        time.sleep(1)
+    server: dict[str, Any] = {"engine": provider, "url": base, "model": None, "n_ctx": None}
+    status, body = http_get(f"{base}/props", timeout=5)
+    props: Any = None
+    if status == 200:  # noqa: PLR2004
+        with contextlib.suppress(ValueError):
+            props = json.loads(body)
+    if isinstance(props, dict):
+        if path := props.get("model_path"):
+            server["model"] = Path(str(path)).name
+        gen = props.get("default_generation_settings")
+        n_ctx = gen.get("n_ctx") if isinstance(gen, dict) else props.get("n_ctx")
+        if isinstance(n_ctx, int):
+            server["n_ctx"] = n_ctx
+    warnings = []
+    window = next(
+        (m.get("contextWindow") for m in _dicts(pi_provider(provider).get("models"))
+         if m.get("id") == model_id),
+        None,
+    )  # fmt: skip
+    if isinstance(window, int) and server["n_ctx"] and window > server["n_ctx"]:
+        warnings.append(
+            f"models.json contextWindow {window} > server n_ctx {server['n_ctx']}: pi will plan "
+            f"for context the server rejects; restart the server with --ctx {window} or lower "
+            "contextWindow"
+        )
+    return server, warnings
 
 
 def ollama_post(url: str, payload: dict[str, Any], timeout: float) -> None:
@@ -435,6 +511,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_KEEP_ALIVE,
         help=f"Ollama keep_alive after the run (default {DEFAULT_KEEP_ALIVE})",
     )
+    p.add_argument(
+        "--server-wait",
+        type=float,
+        default=DEFAULT_SERVER_WAIT,
+        help="llama-server providers: seconds to wait while /health reports loading "
+        f"(default {DEFAULT_SERVER_WAIT})",
+    )
     p.add_argument("--keep", action="store_true", help="keep the clone after the run")
     p.add_argument(
         "--out",
@@ -453,6 +536,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         p.error("--model must be provider/id, e.g. ollama/qwen3.8:27b")
     args.out = args.out.expanduser().resolve()
     return args
+
+
+def preflight(
+    provider: str,
+    model_id: str,
+    args: argparse.Namespace,
+    result: dict[str, Any],
+    state: dict[str, Any],
+) -> None:
+    """Make sure a local backend can serve the model; record what it reports."""
+    state["ollama"] = (base := ollama_url(provider)), model_id
+    if base:
+        result["warmup_s"] = round(ollama_warm(base, model_id, args.keep_alive), 1)
+    elif provider in LLAMA_PROVIDERS:
+        result["server"], warnings = llama_preflight(provider, model_id, args.server_wait)
+        if warnings:
+            result["warnings"] = warnings
 
 
 def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any]) -> None:  # noqa: PLR0915
@@ -481,9 +581,7 @@ def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any])
     commit, described = base_commit_for(repo, args.base, artifacts)
     result["base"] = {"from": described, "commit": commit}
 
-    state["ollama"] = (base := ollama_url(provider)), model_id
-    if base:
-        result["warmup_s"] = round(ollama_warm(base, model_id, args.keep_alive), 1)
+    preflight(provider, model_id, args, result, state)
 
     workdir = artifacts / "wt"
     state["workdir"] = workdir
