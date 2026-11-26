@@ -23,7 +23,7 @@ OpenAI-compatible endpoint that every local server implements.
 flowchart LR
     O["Claude Code (Opus)<br/>writes task, picks check"] -->|Bash| D["delegate"]
     D --> W["private git clone --shared<br/>(current files, uncommitted included)"]
-    W --> P["pi -p<br/>local qwen3.8:27b or cloud"]
+    W --> P["pi -p<br/>local Qwen3-Coder or cloud"]
     P --> X["patch.diff<br/>(taken before the check)"]
     X --> C["--check on a clean<br/>checkout of the patch"]
     C --> J["JSON result"]
@@ -44,7 +44,7 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 
 | Option | Default | Purpose |
 |---|---|---|
-| `--model P/ID` | `$DELEGATE_MODEL`, else `ollama/qwen3.8:27b` | pi provider/model |
+| `--model P/ID` | `$DELEGATE_MODEL`, else `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | pi provider/model |
 | `--check CMD` | none | Run on a clean checkout of the patch tree plus `--link` paths; `$DELEGATE_REPO` points at the real repo |
 | `--timeout S` / `--check-timeout S` | 900 / 900 | Wall-clock limits; the executor's process group is killed |
 | `--base REV` | `worktree` | Start from the current files (uncommitted and untracked included) or a revision |
@@ -52,6 +52,7 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 | `--tools LIST` | pi's defaults | pi tool allowlist |
 | `--thinking LEVEL` | `low` | pi thinking level |
 | `--keep-alive DUR` | `30m` | How long Ollama keeps the model loaded after the run |
+| `--server-wait S` | 300 | llama.cpp / ik_llama: how long to wait while `/health` reports the model loading |
 | `--keep` | off | Keep the clone for inspection (`workdir` in the result) |
 
 Status values: `ok`, `check_failed`, `timeout`, `error`, `backend_down`, `interrupted`. Exit status is 0 only
@@ -84,12 +85,46 @@ skips every file outside it.
 Defined in `pi/.pi/agent/models.json` (adam only, through `machines/adam`). Only that file is tracked: pi
 rewrites `settings.json`, and `auth.json` holds keys.
 
-| Model | Measured on adam (2 × RTX 4070) |
-|---|---|
-| `ollama/qwen3.8:27b` (Q4_K_M, 19 GB loaded, 32k context) | One-line bug fix with a check: 22 s warm; first load about 100 s, about 20% of the layers on the CPU |
+| Provider/model | Engine | Notes |
+|---|---|---|
+| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` (default) | Ollama, loads on demand | Imported from the GGUF with `claude/.claude/skills/delegate/ollama/Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
+| `llamacpp/llama` | llama.cpp on `:8080` | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
+| `ikllama/ikllama` | ik_llama.cpp on `:8081` | Same, `--backend ikllama` |
+| `ollama/qwen3.8:27b` | Ollama | Former default, dense 27B; its GGUF is Ollama-specific and does not load in llama.cpp |
 
-`contextWindow` must match the context Ollama actually allocates (`ollama ps`, column CONTEXT). Ollama truncates
-silently, so a larger value makes pi overrun a window it cannot see.
+For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
+the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the
+start command; a server still loading (HTTP 503) is waited for up to `--server-wait`.
+
+`contextWindow` must match the context the engine allocated: `ollama ps` (column CONTEXT) for Ollama, the `--ctx`
+the server was started with for the others. Ollama truncates silently; llama-server rejects the request. `delegate`
+warns when `contextWindow` exceeds a llama-server's `n_ctx`.
+
+### Engine comparison (2026-11-26)
+
+Same weights on every engine for the Qwen3-Coder rows: unsloth Qwen3-Coder-30B-A3B-Instruct Q4_K_M (18.56 GB,
+MoE, 3B active), Qwen's recommended sampling (temperature 0.7, top-p 0.8, top-k 20, repeat penalty 1.05), 32k context,
+2 × RTX 4070. Two tasks through `delegate` with a check, warm server, three runs each: **T1** fix a one-line bug,
+**T2** implement a function from its docstring until a 5-case unittest passes, test file unchanged. Times are pi's
+wall clock (`executor.elapsed_s`), medians.
+
+| Engine, model | Cold load | GPU share | T1 | T2 |
+|---|---|---|---|---|
+| Ollama 0.34, qwen3.8:27b dense (former default) | 31 s | 89% | 3/3, 14.7 s | 3/3, 137.9 s |
+| Ollama 0.34, Qwen3-Coder-30B-A3B | 32 s | 94% | 3/3, 5.1 s | 3/3, 24.6 s |
+| llama.cpp b8645, same GGUF | 18 s | 100% | 2/3, 5.6 s | 3/3, 23.5 s |
+| ik_llama.cpp b4433, same GGUF | 8 s (file in page cache) | 100% | 3/3, 3.3 s | 3/3, 17.3 s |
+
+- The MoE coder model is 3-6x faster than the dense 27B at the same pass rate: hence the default.
+- llama.cpp's failure: Qwen3-Coder wrote its tool call as plain text (no opening `<tool_call>`), llama.cpp did
+  not parse it, pi ended after one turn with no change, and the check reported `check_failed`. Ollama's own
+  Qwen3-Coder parser handled all six runs.
+- One ik_llama T1 run took 49.5 s: the model's first command was `find /home/stefano -name calc.py`, a scan of
+  the whole home directory, before it edited the file in its clone. The preamble's "work only inside the current
+  directory" is advice, not enforcement: see *not a sandbox* above.
+- n = 3 per cell: enough to rank the dense model against the MoE one, not to separate the three engines on
+  speed. Cold loads are not comparable: Ollama reads its own copy of the blob, the llama.cpp-family servers read
+  the GGUF in `~/models`, which earlier loads had left in the page cache.
 
 ## Testing
 

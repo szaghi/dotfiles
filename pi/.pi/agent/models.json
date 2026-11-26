@@ -12,7 +12,17 @@
           "id": "qwen3.8:27b",
           "name": "Qwen 3.8 27B (local, Ollama)",
           "reasoning": true,
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 16384
+        },
+        {
+          "id": "qwen3-coder-unsloth:30b-a3b-q4_K_M",
+          "name": "Qwen3-Coder 30B-A3B Q4_K_M (unsloth GGUF imported into Ollama)",
+          "reasoning": false,
           "contextWindow": 32768,
           "maxTokens": 16384
         }

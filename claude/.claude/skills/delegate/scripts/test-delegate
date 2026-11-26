@@ -15,7 +15,7 @@ trap '' PIPE
 
 here=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 DELEGATE="$here/delegate"
-LIVE_MODEL="${DELEGATE_TEST_MODEL:-ollama/qwen3.8:27b}"
+LIVE_MODEL="${DELEGATE_TEST_MODEL:-ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M}"
 offline=0
 [[ "${1:-}" == "--offline" ]] && offline=1
 

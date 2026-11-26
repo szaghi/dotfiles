@@ -1,0 +1,18 @@
+# Ollama import of the unsloth Qwen3-Coder-30B-A3B-Instruct Q4_K_M GGUF: the default delegate executor.
+# The same file serves llama.cpp and ik_llama, so all three engines run identical weights.
+#
+#   hf download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --local-dir ~/models
+#   sha256sum ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf   # fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad
+#   ollama create qwen3-coder-unsloth:30b-a3b-q4_K_M -f ~/.claude/skills/delegate/ollama/Modelfile.qwen3-coder-30b-a3b
+#
+# FROM must be an absolute path (Ollama does not expand ~): edit it on another machine.
+# RENDERER/PARSER select Ollama's Qwen3-Coder tool-call handling; without them tool calls arrive as text.
+# Sampling: Qwen's recommended values for Qwen3-Coder. num_ctx matches contextWindow in pi's models.json.
+FROM /home/stefano/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf
+RENDERER qwen3-coder
+PARSER qwen3-coder
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05

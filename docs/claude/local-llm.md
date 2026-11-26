@@ -98,6 +98,20 @@ It aborts early when the log tail shows a terminal failure (out of memory, `cuda
 `unable to load model`, `GGML_ASSERT`, a Python traceback, `address already in use`, 401/403), and prints the
 matching lines.
 
+### Servers as delegate executors
+
+The same servers back the pi executor of [Delegating to an executor](/claude/delegate): providers `ollama`,
+`llamacpp` (`:8080`) and `ikllama` (`:8081`) in `pi/.pi/agent/models.json`. Ollama loads the model on demand;
+the other two serve whatever GGUF was started, so start them with a context that matches `contextWindow`:
+
+```bash
+llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k \
+  -- --temp 0.7 --top-p 0.8 --top-k 20 --repeat-penalty 1.05
+```
+
+Ollama's `qwen3.8:27b` blob is not a llama.cpp GGUF (llama.cpp b8645: `missing tensor
+'blk.64.ssm_conv1d.weight'`): Ollama keeps its own tensor layout for that hybrid architecture.
+
 ## Model utilities
 
 ### Ollama
