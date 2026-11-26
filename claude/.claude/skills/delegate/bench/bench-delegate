@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""bench-delegate: run delegate on a fixed task suite and summarise pass rate and time.
+
+  bench-delegate [--tasks T1,T2,H1,H2,H3] [--runs 3] [--label L] [--out FILE] [-- DELEGATE_ARGS...]
+  bench-delegate --validate        hidden tests fail on each untouched repo, pass with the reference fix
+
+Tasks live in tasks/<ID>/: task.md (the prompt), repo (which tasks/repos/<name> to start from), protect
+(paths the executor must not change), hidden.tar.gz (tests the executor never sees) and solution.patch.gz
+(a reference fix). Both archives are compressed so that a grep over $HOME does not find them: an executor
+once started a task with `find /home/stefano`. Everything after `--` goes to delegate (e.g. --model).
+"""
+
+from __future__ import annotations
+
+import argparse
+import gzip
+import json
+import os
+import shutil
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+TASKS = HERE / "tasks"
+DELEGATE = HERE.parent / "scripts" / "delegate"
+CHECK = HERE / "check.sh"
+ALL = ["T1", "T2", "H1", "H2", "H3"]
+IDENT = {
+    "GIT_AUTHOR_NAME": "bench",
+    "GIT_AUTHOR_EMAIL": "bench@localhost",
+    "GIT_COMMITTER_NAME": "bench",
+    "GIT_COMMITTER_EMAIL": "bench@localhost",
+}
+
+
+def make_repo(task: str, parent: Path) -> Path:
+    """A fresh git repository holding the task's starting tree, one commit."""
+    repo = parent / f"{task}-{time.monotonic_ns()}"
+    shutil.copytree(TASKS / "repos" / (TASKS / task / "repo").read_text().strip(), repo)
+    env = {**os.environ, **IDENT}
+    for cmd in (["init", "-q"], ["add", "-A"], ["commit", "-q", "--no-gpg-sign", "-m", "base"]):
+        subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *cmd], cwd=repo, env=env, check=True)
+    return repo
+
+
+def check(task: str, repo: Path) -> bool:
+    """Run check.sh against the working tree (base = HEAD)."""
+    env = {**os.environ, "BENCH_BASE": "HEAD"}
+    proc = subprocess.run(
+        ["bash", str(CHECK), str(TASKS / task)], cwd=repo, env=env, capture_output=True, check=False
+    )
+    return proc.returncode == 0
+
+
+def validate(tasks: list[str]) -> int:
+    """Each task: the check fails on the untouched repo and passes with the reference fix."""
+    bad = 0
+    with tempfile.TemporaryDirectory() as tmp:
+        for task in tasks:
+            repo = make_repo(task, Path(tmp))
+            before = check(task, repo)
+            patch = gzip.decompress((TASKS / task / "solution.patch.gz").read_bytes())
+            subprocess.run(["git", "apply"], cwd=repo, input=patch, check=True)
+            after = check(task, repo)
+            # Protection: adding a file under a protected path passes, editing a protected file fails.
+            first = repo / (TASKS / task / "protect").read_text().split()[0]
+            target = first if first.is_file() else min(first.rglob("*.py"))
+            extra = target.parent / "test_added_by_executor.py"
+            extra.write_text("")
+            added_ok = check(task, repo)
+            extra.unlink()
+            target.write_text(target.read_text() + "\n# edited\n")
+            edit_caught = not check(task, repo)
+            ok = not before and after and added_ok and edit_caught
+            bad += not ok
+            print(
+                f"{task}: untouched {'PASS' if before else 'fail'}, reference {'pass' if after else 'FAIL'},"
+                f" added test {'pass' if added_ok else 'FAIL'},"
+                f" edited test {'caught' if edit_caught else 'MISSED'}"
+                f"  -> {'ok' if ok else 'BROKEN'}"
+            )
+    return 1 if bad else 0
+
+
+def run_suite(args: argparse.Namespace) -> int:
+    """Run every task --runs times through delegate; write JSONL; print a summary."""
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    rows = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for task in args.tasks:
+            for run in range(1, args.runs + 1):
+                repo = make_repo(task, Path(tmp))
+                cmd = [
+                    str(DELEGATE),
+                    "--task-file",
+                    str(TASKS / task / "task.md"),
+                    "--check",
+                    f"bash {CHECK} {TASKS / task}",
+                    *args.delegate,
+                ]
+                proc = subprocess.run(cmd, cwd=repo, capture_output=True, text=True, check=False)
+                try:
+                    r = json.loads(proc.stdout)
+                except ValueError:
+                    r = {"status": "error", "error": proc.stderr[-500:]}
+                ex = r.get("executor") or {}
+                row = {
+                    "label": args.label,
+                    "task": task,
+                    "run": run,
+                    "status": r.get("status"),
+                    "exec_s": ex.get("elapsed_s"),
+                    "elapsed_s": r.get("elapsed_s"),
+                    "turns": ex.get("turns"),
+                    "out_tokens": (ex.get("usage") or {}).get("output"),
+                    "tool_errors": ex.get("tool_errors"),
+                    "model": r.get("model"),
+                    "server_model": (r.get("server") or {}).get("model"),
+                    "artifacts": r.get("artifacts"),
+                }
+                rows.append(row)
+                with args.out.open("a") as fh:
+                    fh.write(json.dumps(row) + "\n")
+                print(
+                    f"{task} run {run}: {row['status']:12s} exec {row['exec_s']} s, turns {row['turns']},"
+                    f" out {row['out_tokens']} tok",
+                    flush=True,
+                )
+    print(f"\n{args.label}  ({args.out})")
+    for task in args.tasks:
+        rs = [r for r in rows if r["task"] == task]
+        ok = sum(r["status"] == "ok" for r in rs)
+        times = [r["exec_s"] for r in rs if r["exec_s"] is not None]
+        med = f"{statistics.median(times):.1f}" if times else "-"
+        print(f"  {task}: {ok}/{len(rs)} ok, median exec {med} s")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    """Entry point."""
+    own, _, rest = (
+        (argv[: argv.index("--")], None, argv[argv.index("--") + 1 :]) if "--" in argv else (argv, None, [])
+    )
+    p = argparse.ArgumentParser(prog="bench-delegate", description=__doc__.split("\n")[0])
+    p.add_argument(
+        "--tasks", default=",".join(ALL), help=f"comma-separated task ids (default {','.join(ALL)})"
+    )
+    p.add_argument("--runs", type=int, default=3)
+    p.add_argument("--label", default="bench")
+    p.add_argument("--out", type=Path)
+    p.add_argument("--validate", action="store_true")
+    args = p.parse_args(own)
+    args.tasks = [t for t in args.tasks.split(",") if t]
+    unknown = [t for t in args.tasks if not (TASKS / t / "task.md").is_file()]
+    if unknown:
+        p.error(f"unknown task(s): {', '.join(unknown)}")
+    if args.validate:
+        return validate(args.tasks)
+    args.delegate = rest
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "delegate-bench"
+    args.out = args.out or cache / f"{time.strftime('%Y%m%d-%H%M%S')}-{args.label}.jsonl"
+    return run_suite(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
