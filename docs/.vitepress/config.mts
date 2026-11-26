@@ -49,6 +49,7 @@ const docs = [
       { text: 'Night protocol',         link: '/claude/night-protocol' },
       { text: 'Plan issues',            link: '/claude/plan-issue' },
       { text: 'Bug issues',             link: '/claude/bug-issue' },
+      { text: 'Delegating to an executor', link: '/claude/delegate' },
     ],
   },
   {

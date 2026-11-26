@@ -113,6 +113,7 @@ The sources live in `scripts/.scripts/tecplot/`; top-level symlinks put them on 
 | `skills-apply` | Installs, updates and reports the declared Claude Code skills, see [below](#skills-apply) | `skills-apply install\|update\|status\|remove <name>` |
 | `claude-remote` | Claude Code sessions in tmux that survive SSH disconnects, see [below](#claude-remote) | `claude-remote [-H host] <command> [args]` |
 | `plan-issue` | Lint, create and update plan issues; symlink to `claude/.claude/skills/plan-issue/scripts/plan-issue`, see [Plan issues](/claude/plan-issue) | `plan-issue check\|create\|body\|edit\|status\|set\|comment\|stale\|sync` |
+| `delegate` | Run a task on a pi executor in a throwaway worktree, print JSON; symlink to `claude/.claude/skills/delegate/scripts/delegate`, see [Delegating to an executor](/claude/delegate) | `delegate --check CMD [--model P/ID] TASK` |
 | `night` | Step snapshots for unattended work; symlink to `claude/.claude/skills/night-protocol/scripts/night`, see [Night protocol](/claude/night-protocol) | `night init\|snap\|gate\|verify\|status\|commit\|clean` |
 | `llama-anthropic-proxy.py` | Anthropic Messages API to OpenAI Chat Completions proxy, for llama-server | `llama-anthropic-proxy.py [--host 127.0.0.1] [--port 4000] [--backend http://127.0.0.1:8080] [--no-think]` |
 
