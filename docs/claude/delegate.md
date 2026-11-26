@@ -114,6 +114,7 @@ wall clock (`executor.elapsed_s`), medians.
 | Ollama 0.34, Qwen3-Coder-30B-A3B | 32 s | 94% | 3/3, 5.1 s | 3/3, 24.6 s |
 | llama.cpp b8645, same GGUF | 18 s | 100% | 2/3, 5.6 s | 3/3, 23.5 s |
 | ik_llama.cpp b4433, same GGUF | 8 s (file in page cache) | 100% | 3/3, 3.3 s | 3/3, 17.3 s |
+| llama.cpp master 09c1410, Inkling-2-Mini UD-Q4_K_XL | 41 s | partial (auto-fit) | 3/3, 73.0 s | 3/3, 223.4 s |
 
 - The MoE coder model is 3-6x faster than the dense 27B at the same pass rate: hence the default.
 - llama.cpp's failure: Qwen3-Coder wrote its tool call as plain text (no opening `<tool_call>`), llama.cpp did
@@ -122,6 +123,13 @@ wall clock (`executor.elapsed_s`), medians.
 - One ik_llama T1 run took 49.5 s: the model's first command was `find /home/stefano -name calc.py`, a scan of
   the whole home directory, before it edited the file in its clone. The preamble's "work only inside the current
   directory" is advice, not enforcement: see *not a sandbox* above.
+- Inkling-2-Mini (unsloth UD-Q4_K_XL, 17.6 GB; arch `inkling2_loop`: 128-expert MoE, blocks 6-18 looped 3
+  times) needs llama.cpp newer than b8645: it ran on a master build (`~/llama.cpp-master`, gcc-14 + CUDA 13.1,
+  served with `LLAMACPP_BIN` pointing at it); ik_llama and Ollama 0.34 do not know the architecture. Correct on
+  every run, with its own sampling defaults (temperature 1.0, top-k 0), but slow on 2 × RTX 4070: 11-16 tokens/s
+  generated against 66-90 for Qwen3-Coder on the same probe, because 17.6 GB of weights plus the 32k cache do not
+  fit, so the fitter keeps some tensors on the CPU (`--fit-target 256,256`: 15-16 tokens/s), and it writes 2-3x
+  more tokens per task. Not a delegate executor on this hardware.
 - n = 3 per cell: enough to rank the dense model against the MoE one, not to separate the three engines on
   speed. Cold loads are not comparable: Ollama reads its own copy of the blob, the llama.cpp-family servers read
   the GGUF in `~/models`, which earlier loads had left in the page cache.
