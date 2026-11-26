@@ -17,6 +17,44 @@
           "maxTokens": 16384
         }
       ]
+    },
+    "llamacpp": {
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "llamacpp",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "thinkingFormat": "qwen-chat-template"
+      },
+      "models": [
+        {
+          "id": "llama",
+          "name": "llama.cpp server (whatever GGUF llm-local-server loaded)",
+          "reasoning": true,
+          "contextWindow": 32768,
+          "maxTokens": 16384
+        }
+      ]
+    },
+    "ikllama": {
+      "baseUrl": "http://127.0.0.1:8081/v1",
+      "api": "openai-completions",
+      "apiKey": "ikllama",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "thinkingFormat": "qwen-chat-template"
+      },
+      "models": [
+        {
+          "id": "ikllama",
+          "name": "ik_llama.cpp server (whatever GGUF llm-local-server loaded)",
+          "reasoning": true,
+          "contextWindow": 32768,
+          "maxTokens": 16384
+        }
+      ]
     }
   }
 }
