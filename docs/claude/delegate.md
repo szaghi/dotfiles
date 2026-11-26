@@ -91,7 +91,6 @@ rewrites `settings.json`, and `auth.json` holds keys.
 | `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | Ollama, loads on demand | Former default; imported with `Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
 | `llamacpp/llama` | llama.cpp on `:8080` | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
 | `ikllama/ikllama` | ik_llama.cpp on `:8081` | Same, `--backend ikllama` |
-| `ollama/qwen3.8:27b` | Ollama | Former default, dense 27B; its GGUF is Ollama-specific and does not load in llama.cpp |
 
 For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
 the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the

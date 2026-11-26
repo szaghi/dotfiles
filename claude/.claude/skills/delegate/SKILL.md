@@ -88,7 +88,6 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 | `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | One-liners when speed matters | 3x faster per token, but 2/9 on the hard bench tasks |
 | `ikllama/ikllama` | Qwen3-Coder when you keep a server up for many delegations: ~30% faster | Start it first: `llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k` |
 | `llamacpp/llama` | Whatever GGUF the server loaded, e.g. Qwen3.8-27B (same 15/15 as on Ollama, H3 faster) | Start it first with `--ctx 32k`; the `server` block names the GGUF |
-| `ollama/qwen3.8:27b` | Ollama's own Qwen3.8 import | Superseded by the unsloth import above; its GGUF does not load in llama.cpp |
 | cloud (e.g. DeepSeek, once added to `~/.pi/agent/models.json`) | Larger mechanical work the local model fails | Code leaves the machine |
 
 A cloud model sends the repository files it reads to that provider. Use one only on repositories
