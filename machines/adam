@@ -1,3 +1,4 @@
 # Machine-specific stow packages for: adam (WSL2 workstation)
 usr
 bash-adam
+pi
