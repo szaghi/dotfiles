@@ -33,12 +33,13 @@ jget() { python3 -c "import json,sys; r=json.load(open(sys.argv[1])); print($2)"
 fake="$work/fake-pi"
 cat >"$fake" <<'EOF'
 #!/usr/bin/env bash
-# Modes via FAKE_PI_MODE: edit (default), sleep, fail, assert-dirty, assert-link
+# Modes via FAKE_PI_MODE: edit (default), sleep, fail, assert-dirty, assert-link, binary-ws,
+# provider-error, bg, git-refs, ignored-helper, assert-task, latin1, garbage
 emit() { printf '%s\n' '{"type":"tool_execution_start","toolName":"edit"}' \
   '{"type":"agent_end","messages":[{"role":"user","content":[]},{"role":"assistant","stopReason":"stop","usage":{"input":10,"output":5},"content":[{"type":"text","text":"done"}]}]}'; }
 case "${FAKE_PI_MODE:-edit}" in
   edit)  sed -i 's/a - b/a + b/' calc.py; emit ;;
-  sleep) sleep 60 ;;
+  sleep) sleep 3173 ;;
   fail)  echo "boom" >&2; exit 3 ;;
   assert-dirty)
     grep -q 'DIRTY' notes.txt || { echo "uncommitted edit missing" >&2; exit 4; }
@@ -47,8 +48,22 @@ case "${FAKE_PI_MODE:-edit}" in
     sed -i 's/a - b/a + b/' calc.py; emit ;;
   assert-link)
     [[ -f .venv/marker ]] || { echo "linked .venv missing" >&2; exit 4; }
-    [[ "$DELEGATE_REPO" == /* ]] || { echo "DELEGATE_REPO unset" >&2; exit 4; }
+    [[ -z "${DELEGATE_REPO:-}" ]] || { echo "DELEGATE_REPO leaked to the executor" >&2; exit 4; }
     sed -i 's/a - b/a + b/' calc.py; emit ;;
+  binary-ws) printf 'd  \n' >>notes.txt; printf '\x00\x01\x02bin\xff' >zz.bin; emit ;;
+  provider-error)
+    printf '%s\n' '{"type":"agent_end","messages":[{"role":"assistant","stopReason":"error","usage":{},"content":[]}]}' ;;
+  bg) setsid sleep 3171 </dev/null >/dev/null 2>&1 & sed -i 's/a - b/a + b/' calc.py; emit ;;
+  git-refs)
+    echo stash-me >>notes.txt; git stash -q; git checkout -qb exec-branch
+    sed -i 's/a - b/a + b/' calc.py; git -c user.email=e@e -c user.name=e commit -qam exec; emit ;;
+  ignored-helper) echo 'print(1)' >main.py; echo h >helper.log; emit ;;
+  assert-task)
+    last="${*: -1}"
+    [[ "$last" == @* ]] && grep -q -- '^- rename foo' "${last#@}" || { echo "task not passed as @file" >&2; exit 4; }
+    sed -i 's/a - b/a + b/' calc.py; emit ;;
+  latin1) printf 'perch\xe8\n' >f.txt; emit ;;
+  garbage) printf '%s\n' 42 '"text"' '{"type":"agent_end","messages":null}' '[1]'; emit ;;
 esac
 EOF
 chmod +x "$fake"
@@ -151,17 +166,128 @@ invariants "link" "$before"
 # 9. --keep leaves the worktree, then it can be removed
 cd "$(new_repo keep)" || exit 99
 fake_run --keep
-wt=$(jget "$work/out.json" 'r["worktree"]')
+wt=$(jget "$work/out.json" 'r["workdir"]')
 [[ -d "$wt" && "$(git -C "$wt" diff --name-only)" == calc.py ]] \
-  && ok "--keep -> worktree kept with the edit" || bad "--keep" "$(cat "$work/out.json")"
-git worktree remove --force "$wt"
+  && ok "--keep -> clone kept with the edit" || bad "--keep" "$(cat "$work/out.json")"
+rm -rf "$wt"
 
 # 10. --base HEAD ignores uncommitted changes
 cd "$(new_repo base)" || exit 99
 echo DIRTY >>notes.txt
 FAKE_PI_MODE=assert-dirty fake_run --base HEAD; rc=$?
-[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == error ]] \
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["executor"]["exit"]')" == 4 \
+   && "$(jget "$work/out.json" 'r["executor"]["stderr_tail"]')" == "uncommitted edit missing" ]] \
   && ok "--base HEAD -> uncommitted edit not visible" || bad "--base HEAD" "$(cat "$work/out.json")"
+
+# apply PATCH to a copy of the current repo; extra git -c options first
+apply_copy() {
+  rm -rf "$work/copy" && cp -a . "$work/copy" && git -C "$work/copy" -c apply.whitespace=nowarn apply "$1"
+}
+
+# 11. binary file last + trailing whitespace on the last hunk line: exact bytes
+cd "$(new_repo binws)" || exit 99
+FAKE_PI_MODE=binary-ws fake_run; rc=$?
+patch=$(jget "$work/out.json" 'r["patch"]')
+if [[ $rc == 0 ]] && apply_copy "$patch" && [[ "$(tail -1 "$work/copy/notes.txt")" == "d  " ]] \
+   && cmp -s "$work/copy/zz.bin" <(printf '\x00\x01\x02bin\xff'); then
+  ok "binary last + trailing whitespace -> patch applies, bytes exact"
+else bad "binary-ws" "rc=$rc $(head -c 600 "$patch" 2>/dev/null)"; fi
+invariants "binary-ws" ""
+
+# 12. hostile diff config: noprefix, color=always, textconv driver
+cd "$(new_repo hostile)" || exit 99
+git config diff.noprefix true; git config color.diff always; git config color.ui always
+git config diff.up.textconv 'tr a-z A-Z'; echo '*.py diff=up' >.gitattributes
+git add .gitattributes && git commit -qm attrs
+fake_run; rc=$?
+patch=$(jget "$work/out.json" 'r["patch"]')
+[[ $rc == 0 ]] && apply_copy "$patch" && grep -q 'a + b' "$work/copy/calc.py" \
+  && ok "noprefix + color + textconv config -> patch applies" || bad "hostile config" "$(head -c 400 "$patch")"
+invariants "hostile config" ""
+
+# 13. provider error inside an otherwise clean exit
+cd "$(new_repo provider)" || exit 99
+FAKE_PI_MODE=provider-error fake_run --check true; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == error ]] \
+  && ok "stopReason error with exit 0 -> status error" || bad "provider error" "$(cat "$work/out.json")"
+
+# 14. no descendant survives: detached executor child, detached check child
+cd "$(new_repo bg)" || exit 99
+FAKE_PI_MODE='bg' fake_run --check 'setsid sleep 3172 </dev/null >/dev/null 2>&1 & true'; rc=$?
+sleep 0.5
+if [[ $rc == 0 ]] && ! pgrep -f '^sleep 317[12]$' >/dev/null; then
+  ok "detached executor and check children reaped"
+else bad "process leak" "rc=$rc $(pgrep -af '^sleep 317[12]$')"; pkill -f '^sleep 317[12]$'; fi
+invariants "bg" ""
+
+# 15. SIGTERM: cleanup, JSON, 143, executor gone
+cd "$(new_repo signal)" || exit 99
+FAKE_PI_MODE='sleep' DELEGATE_PI="$fake" "$DELEGATE" --model fake/x "x" >"$work/out.json" 2>/dev/null &
+dpid=$!
+sleep 1.5; kill -TERM "$dpid"; wait "$dpid"; rc=$?
+sleep 0.5
+art=$(jget "$work/out.json" 'r.get("artifacts","")' 2>/dev/null)
+if [[ $rc == 143 && "$(jget "$work/out.json" 'r["status"]')" == interrupted ]] \
+   && ! pgrep -f '^sleep 3173$' >/dev/null && [[ -n "$art" && ! -e "$art/wt" ]]; then
+  ok "SIGTERM -> status interrupted, exit 143, executor killed, clone removed"
+else bad "SIGTERM" "rc=$rc $(cat "$work/out.json") $(pgrep -af '^sleep 3173$')"; pkill -f '^sleep 3173$'; fi
+invariants "signal" ""
+
+# 16. executor git commit/branch/stash stay in its clone
+cd "$(new_repo refs)" || exit 99
+FAKE_PI_MODE=git-refs fake_run; rc=$?
+if [[ $rc == 0 && -z "$(git branch --list exec-branch)" && -z "$(git stash list)" ]] \
+   && [[ "$(jget "$work/out.json" '" ".join(r["changed_files"])')" == "M	calc.py" ]]; then
+  ok "executor commit/branch/stash -> no ref or stash leaks, edit still in patch"
+else bad "refs" "rc=$rc branches=[$(git branch --list)] stash=[$(git stash list)]"; fi
+invariants "refs" ""
+
+# 17. the caller's other (temporarily missing) worktrees are not pruned
+cd "$(new_repo prune)" || exit 99
+git worktree add -q -b feature "$work/wt-feature" && mv "$work/wt-feature" "$work/wt-away"
+fake_run
+git worktree list --porcelain | grep -q "wt-feature" \
+  && ok "missing sibling worktree not pruned" || bad "sibling worktree pruned"
+mv "$work/wt-away" "$work/wt-feature" && git worktree remove --force "$work/wt-feature"
+
+# 18. the check runs on the patch tree: an ignored helper file does not exist there
+cd "$(new_repo patchcheck)" || exit 99
+FAKE_PI_MODE=ignored-helper fake_run --check 'test -f main.py && test -f helper.log'; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"]')" == check_failed \
+   && "$(jget "$work/out.json" '" ".join(r["changed_files"])')" == "A	main.py" ]] \
+  && ok "check sees only the patch (ignored helper absent) -> check_failed" || bad "check on patch" "$(cat "$work/out.json")"
+
+# 19. a task starting with '- ' reaches pi as @file
+cd "$(new_repo task)" || exit 99
+FAKE_PI_MODE=assert-task DELEGATE_PI="$fake" "$DELEGATE" --model fake/x "- rename foo" >"$work/out.json" 2>/dev/null; rc=$?
+[[ $rc == 0 ]] && ok "task '- rename foo' passed as @file" || bad "task as @file" "$(cat "$work/out.json")"
+
+# 20. non-UTF-8 file content
+cd "$(new_repo latin1)" || exit 99
+FAKE_PI_MODE=latin1 fake_run; rc=$?
+patch=$(jget "$work/out.json" 'r["patch"]')
+[[ $rc == 0 ]] && apply_copy "$patch" && cmp -s "$work/copy/f.txt" <(printf 'perch\xe8\n') \
+  && ok "Latin-1 file -> status ok, patch exact" || bad "latin1" "$(cat "$work/out.json")"
+
+# 21. malformed event lines
+cd "$(new_repo garbage)" || exit 99
+FAKE_PI_MODE=garbage fake_run; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["status"]')" == ok ]] \
+  && ok "malformed events tolerated" || bad "garbage events" "$(cat "$work/out.json")"
+
+# 22. --link with a trailing slash
+cd "$(new_repo linkslash)" || exit 99
+mkdir .venv && echo x >.venv/marker
+FAKE_PI_MODE=assert-link fake_run --link .venv/; rc=$?
+[[ $rc == 0 ]] && ok "--link .venv/ accepted" || bad "--link .venv/" "$(cat "$work/out.json")"
+
+# 23. setup errors exit 2 before the executor starts
+cd "$(new_repo setup)" || exit 99
+fake_run --base nosuchrev; rc1=$?
+fake_run --link nosuchdir; rc2=$?
+fake_run --link ../outside; rc3=$?
+[[ $rc1 == 2 && $rc2 == 2 && $rc3 == 2 ]] && ok "bad --base / --link -> exit 2" \
+  || bad "setup exit codes" "base=$rc1 link=$rc2 outside=$rc3"
 
 if [[ $offline == 0 ]]; then
   echo "live case ($LIVE_MODEL)"
