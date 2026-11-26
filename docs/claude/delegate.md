@@ -135,6 +135,43 @@ wall clock (`executor.elapsed_s`), medians.
   speed. Cold loads are not comparable: Ollama reads its own copy of the blob, the llama.cpp-family servers read
   the GGUF in `~/models`, which earlier loads had left in the page cache.
 
+### Executor quality (2026-11-26)
+
+`claude/.claude/skills/delegate/bench/bench-delegate` runs `delegate` on a fixed suite and reports pass rate and
+time per task. T1 and T2 are the two tasks above; H1-H3 are harder, multi-module tasks on a small `ledger` package:
+exact Decimal money with half-up rounding across parser and report (H1), monthly grouping in the library and the CLI
+(H2), and renaming a dataclass field behind a deprecation shim for read, write and keyword (H3). Hidden tests decide;
+the executor never sees them (they ship compressed, because an executor once ran `find /home/stefano`).
+`bench-delegate --validate` proves each task fails untouched and passes with a reference fix.
+
+```bash
+bench=~/.claude/skills/delegate/bench/bench-delegate
+$bench --validate
+$bench --label qwen38 -- --model llamacpp/llama --thinking off --timeout 1800
+```
+
+Three runs per task; hard-task medians:
+
+| Executor | All | Hard (H1-H3) | Hard: time, turns, output tokens | Generation |
+|---|---|---|---|---|
+| Ollama Qwen3-Coder-30B-A3B Q4_K_M (default) | 8/15 | 2/9 | 71 s, 29, 4,084 | 66-90 tok/s |
+| llama.cpp Qwen3.8-27B UD-Q4_K_XL, thinking off | **15/15** | **9/9** | 83 s, 8, 1,980 | 25 tok/s |
+| same + harness-hub `Qwen3.8-27B-pi-adapted` LoRA (F16) | 13/15 | 8/9 | 58 s, 5, 1,254 | 23-24 tok/s |
+
+- The dense Qwen3.8-27B is the better executor on anything beyond a one-liner: Qwen3-Coder fails 7 of 9 hard runs
+  after 24-38 turns (H2: accepted `2026-1-5` as a date; H3: no `amt=` keyword, both stated in the task), while
+  Qwen3.8-27B passes all 9 in 5-11 turns. Despite generating 3x slower its hard-task times are similar; on T1/T2 it
+  is slower (12 s and 20 s against 5 s and 19 s).
+- The pi adapter delivers the efficiency its card claims (about 30% less time and 37% fewer tokens than the base on the
+  hard tasks) but not more passes here: the base leaves no headroom on this suite, and the adapter's two failures were a
+  run that declared T2 done without running its tests and an H3 run that never exercised the `amt=` requirement.
+- All 206 tool calls of the two Qwen3.8 configurations stayed inside their clones (scratch CSVs in `/tmp` aside); none
+  touched the hidden tests or reference patches.
+- Caveats: n = 3 per task, five Python tasks, a Q4 quant (the adapter was trained on BF16; its card recommends Q8_0,
+  which does not fit 24 GB), sampling as the adapter was trained (temperature 0.8, top-p 1.0) for both Qwen3.8 rows.
+  The first run of the suite counted an added test file as tampering; the check was fixed and the Qwen3-Coder patches
+  rescored before these numbers.
+
 ## Testing
 
 ```bash

@@ -100,6 +100,8 @@ Add a cloud provider by editing `pi/.pi/agent/models.json` in the dotfiles (see 
 - The `server` block of a llamacpp/ikllama result names the GGUF actually loaded (the model id is
   only the server alias); a `warnings` entry means models.json `contextWindow` exceeds the server's
   `n_ctx`: restart the server with a matching `--ctx`.
+- To evaluate a new executor model, run `~/.claude/skills/delegate/bench/bench-delegate` (see the docs page):
+  on 2026-11-26 the dense Qwen3.8-27B passed 9/9 hard tasks where the default Qwen3-Coder passed 2/9.
 - Do not call `pi` directly: `pi -p` with an open stdin blocks forever without output; `delegate`
   handles that, the clone, the timeout and the warm-up.
 - The clone holds tracked and untracked-but-not-ignored files only. Ignored inputs the task or
