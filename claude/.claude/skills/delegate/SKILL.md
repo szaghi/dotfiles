@@ -88,12 +88,15 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 | `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | One-liners when speed matters | 3x faster per token, but 2/9 on the hard bench tasks |
 | `ikllama/ikllama` | Qwen3-Coder when you keep a server up for many delegations: ~30% faster | Start it first: `llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k` |
 | `llamacpp/llama` | Whatever GGUF the server loaded, e.g. Qwen3.8-27B (same 15/15 as on Ollama, H3 faster) | Start it first with `--ctx 32k`; the `server` block names the GGUF |
-| cloud (e.g. DeepSeek, once added to `~/.pi/agent/models.json`) | Larger mechanical work the local model fails | Code leaves the machine |
+| `opencode-go/deepseek-v4.1-flash` (cloud) | Fast opt-in when code may leave the machine; parallel fan-out | Hard bench tasks 9/9 in 12-20 s, 4-6 turns (~5x the local default); OpenCode Go plan |
+| other `opencode-go/*` (`pi --list-models opencode-go`) | Only after a `bench-delegate` run | qwen3.7-plus 9/9 at 50-81 s; kimi-k2.7-code 7/9 |
 
 A cloud model sends the repository files it reads to that provider. Use one only on repositories
 where the owner has accepted that (public libraries: yes; unpublished institute or client code: ask).
-Add a cloud provider by editing `pi/.pi/agent/models.json` in the dotfiles (see pi's
-`docs/models.md`); keys go in pi's `auth.json` or an environment variable, never in the tracked file.
+OpenCode Go (`opencode-go/*`) is built into pi ≥ 1.6: no `models.json` entry; the key (`oc_sk_…`, from the
+OpenCode Console, a workspace with the Go plan) goes in pi's `auth.json` via `/login`, or `OPENCODE_API_KEY`.
+Other providers: edit `pi/.pi/agent/models.json` in the dotfiles (see pi's `docs/models.md`); keys never go in
+the tracked file.
 
 ## Pitfalls
 

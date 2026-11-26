@@ -80,6 +80,22 @@ skips every file outside it.
 - **A cloud model sends the files it reads to its provider.** Use one only on repositories where that is
   acceptable.
 
+### Cloud executor: OpenCode Go
+
+pi ≥ 1.6 ships an `opencode-go` provider (the OpenCode Go subscription), so nothing goes in `models.json`.
+
+1. Create a key in the [OpenCode Console](https://opencode.ai/console): account menu → **Account** → **Personal
+   API keys** → **Add API key**, in the workspace that has the Go plan. It starts `oc_sk_` and is shown once. The
+   opencode agent's own login is OAuth (short-lived tokens in `~/.local/share/opencode/opencode.db`), not a key,
+   so there is nothing to copy from it.
+2. In a terminal, not through Claude Code (the key would land in the transcript): `pi`, then `/login`, choose
+   OpenCode Go and paste the key. pi stores it in `~/.pi/agent/auth.json` (0600, untracked). `OPENCODE_API_KEY`
+   works too.
+3. `pi --list-models opencode-go` lists the plan's models; `delegate --model opencode-go/<id> …` runs one.
+
+pi 0.80 knew an older Go endpoint (`/zen/go/v1`, without the session header Go now requires); 1.6 works, and
+`delegate`'s offline and live tests pass on it. `--offline` and `-ne` do not block the cloud provider.
+
 ## Models
 
 Defined in `pi/.pi/agent/models.json` (adam only, through `machines/adam`). Only that file is tracked: pi
@@ -91,6 +107,7 @@ rewrites `settings.json`, and `auth.json` holds keys.
 | `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | Ollama, loads on demand | Former default; imported with `Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
 | `llamacpp/llama` | llama.cpp on `:8080` | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
 | `ikllama/ikllama` | ik_llama.cpp on `:8081` | Same, `--backend ikllama` |
+| `opencode-go/deepseek-v4.1-flash` | OpenCode Go (cloud) | Built into pi ≥ 1.6, not in `models.json`; the fastest executor measured, code leaves the machine |
 
 For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
 the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the
@@ -158,6 +175,9 @@ Three runs per task; hard-task medians:
 | llama.cpp Qwen3.8-27B UD-Q4_K_XL, thinking off | **15/15** | **9/9** | 83 s, 8, 1,980 | 25 tok/s |
 | Ollama, same GGUF and sampling, thinking off (**default**) | **15/15** | **9/9** | 114 s, 8, 2,659 | ~23 tok/s |
 | same + harness-hub `Qwen3.8-27B-pi-adapted` LoRA (F16) | 13/15 | 8/9 | 58 s, 5, 1,254 | 23-24 tok/s |
+| OpenCode Go `deepseek-v4.1-flash`, thinking off | - | **9/9** | **15 s, 5, 1,495** | cloud |
+| OpenCode Go `qwen3.7-plus`, thinking off | - | 9/9 | 63 s, 14, 2,753 | cloud |
+| OpenCode Go `kimi-k2.7-code`, thinking off | - | 7/9 | 48 s, 11, 3,443 | cloud |
 
 - The dense Qwen3.8-27B is the better executor on anything beyond a one-liner: Qwen3-Coder fails 7 of 9 hard runs
   after 24-38 turns (H2: accepted `2026-1-5` as a date; H3: no `amt=` keyword, both stated in the task), while
@@ -172,6 +192,13 @@ Three runs per task; hard-task medians:
   run that declared T2 done without running its tests and an H3 run that never exercised the `amt=` requirement.
 - All 206 tool calls of the two Qwen3.8 configurations stayed inside their clones (scratch CSVs in `/tmp` aside); none
   touched the hidden tests or reference patches.
+- Cloud (OpenCode Go, hard tasks only to spare the plan's allowance, pi 1.6.1): DeepSeek V4.1 Flash passed all 9
+  in 12-20 s with 4-6 turns every time, about 5x faster than the local default at the same pass rate. Qwen3.7
+  Plus passed all 9 more slowly (10-22 turns). Kimi K2.7 Code repeated Qwen3-Coder's H2 mistake (accepted
+  `2026-1-5`) in 2 of 3 runs, and one H3 run took 270 s and 28 turns. All 363 cloud tool calls stayed in their
+  clones. The local Qwen3.8-27B stays the default: equally correct here, free, and the code never leaves the
+  machine; DeepSeek V4.1 Flash is the opt-in when that is acceptable. With three executors at 9/9 the suite ranks
+  them on time and consistency only; separating them on quality needs harder tasks.
 - Caveats: n = 3 per task, five Python tasks, a Q4 quant (the adapter was trained on BF16; its card recommends Q8_0,
   which does not fit 24 GB), sampling as the adapter was trained (temperature 0.8, top-p 1.0) for both Qwen3.8 rows.
   The first run of the suite counted an added test file as tampering; the check was fixed and the Qwen3-Coder patches
