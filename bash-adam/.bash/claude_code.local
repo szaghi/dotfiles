@@ -44,6 +44,13 @@ unset _adam_cuda_libs
 # comparable. The former default (Qwen3.5-27B distilled Q6_K) is no longer on disk.
 LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf}"
 
+# Context: 32k, the window pi (delegate) uses. With this model on 2 x 12 GB the KV cache decides how many MoE
+# experts llama.cpp's fitter moves to system RAM (measured 2026-11-26, master 09c1410, Qwen3-Coder Q4_K_M):
+#   32k: 1.1 GiB weights on CPU, 9 splits, 60.5 tok/s   64k: 4.1 GiB, 27 splits, 56.3 tok/s
+#   131k (the base default): 10.2 GiB, 67 splits, 27.4 tok/s
+# claude-local needs more room for Claude Code's own prompt: `claude-local --backend llama --ctx 64k` costs ~7%.
+LLAMACPP_CTX=32768
+
 # ── IK_LLAMA.CPP ──────────────────────────────────────────────────────────────
 # Fork of llama.cpp with aggressive CPU/hybrid optimizations and new quant
 # types (IQ4_KS, IQ2_KS). Build with:
