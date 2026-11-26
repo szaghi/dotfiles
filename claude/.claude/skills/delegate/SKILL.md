@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local model (Qwen3-Coder-30B-A3B on Ollama, llama.cpp or ik_llama) or a cloud model - in a throwaway git clone, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
+description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local model (Qwen3.8-27B on Ollama by default; llama.cpp or ik_llama) or a cloud model - in a throwaway git clone, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
 ---
 
 # Delegate
@@ -34,14 +34,14 @@ The executor starts cold. The prompt must carry everything:
 ## Run
 
 ```bash
-$DG --check '<cmd that proves it>' [--model ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M] [--timeout 900] \
-    [--link .venv --link <fetched deps dir>] [--base HEAD] [--thinking low] "<task>"
+$DG --check '<cmd that proves it>' [--model ollama/qwen3.8-unsloth:27b-ud-q4_K_XL] [--timeout 900] \
+    [--link .venv --link <fetched deps dir>] [--base HEAD] [--thinking off] "<task>"
 ```
 
 | Option | Use |
 |---|---|
 | `--check CMD` | Always pass one. Runs on a clean checkout of the patch tree plus `--link` paths, so it proves the patch, not the executor's leftovers; `$DELEGATE_REPO` = the real repo |
-| `--model P/ID` | pi `provider/id`; default `$DELEGATE_MODEL`, else `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M`. List: `pi --list-models` |
+| `--model P/ID` | pi `provider/id`; default `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL`. List: `pi --list-models` |
 | `--link PATH` | Symlink an ignored input (venv, `fobis fetch` deps, build cache) into the clone; never part of the patch |
 | `--base REV` | Start from a revision instead of the current working tree (default includes uncommitted work) |
 | `--timeout S` | Executor wall-clock limit (default 900). `--check-timeout` bounds the check |
@@ -84,10 +84,11 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 
 | Model | Use for | Cost |
 |---|---|---|
-| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` (default) | Mechanical edits, small refactors, test scaffolding | 5 s one-line fix, 25 s small function to a unittest (warm); ~30 s reload after 30 min idle |
-| `ikllama/ikllama` | Same model when you keep a server up for many delegations: ~30% faster | Start it first: `llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k` |
-| `llamacpp/llama` | Same model on mainline llama.cpp | b8645 missed 1 of 6 Qwen3-Coder tool calls (sent as text): the check catches it, prefer the other two |
-| `ollama/qwen3.8:27b` | Former default (dense, 27B) | Same pass rate on the benchmark, 3-6x slower |
+| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Multi-file fixes, features, refactors with a spec | Hard bench tasks 9/9 in ~1-6 min, 5-57 turns; one-liners ~10 s; dense 27B at ~23 tok/s; thinking off |
+| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | One-liners when speed matters | 3x faster per token, but 2/9 on the hard bench tasks |
+| `ikllama/ikllama` | Qwen3-Coder when you keep a server up for many delegations: ~30% faster | Start it first: `llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k` |
+| `llamacpp/llama` | Whatever GGUF the server loaded, e.g. Qwen3.8-27B (same 15/15 as on Ollama, H3 faster) | Start it first with `--ctx 32k`; the `server` block names the GGUF |
+| `ollama/qwen3.8:27b` | Ollama's own Qwen3.8 import | Superseded by the unsloth import above; its GGUF does not load in llama.cpp |
 | cloud (e.g. DeepSeek, once added to `~/.pi/agent/models.json`) | Larger mechanical work the local model fails | Code leaves the machine |
 
 A cloud model sends the repository files it reads to that provider. Use one only on repositories
@@ -101,7 +102,7 @@ Add a cloud provider by editing `pi/.pi/agent/models.json` in the dotfiles (see 
   only the server alias); a `warnings` entry means models.json `contextWindow` exceeds the server's
   `n_ctx`: restart the server with a matching `--ctx`.
 - To evaluate a new executor model, run `~/.claude/skills/delegate/bench/bench-delegate` (see the docs page):
-  on 2026-11-26 the dense Qwen3.8-27B passed 9/9 hard tasks where the default Qwen3-Coder passed 2/9.
+  on 2026-11-26 the dense Qwen3.8-27B passed 9/9 hard tasks where Qwen3-Coder passed 2/9: hence the default.
 - Do not call `pi` directly: `pi -p` with an open stdin blocks forever without output; `delegate`
   handles that, the clone, the timeout and the warm-up.
 - The clone holds tracked and untracked-but-not-ignored files only. Ignored inputs the task or

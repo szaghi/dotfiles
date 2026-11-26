@@ -1,0 +1,24 @@
+# Ollama import of the unsloth Qwen3.8-27B UD-Q4_K_XL GGUF: the default delegate executor since 2026-11-26
+# (bench-delegate: 15/15, hard 9/9, against 2/9 for Qwen3-Coder-30B-A3B). The same file serves llama.cpp.
+#
+#   hf download unsloth/Qwen3.8-27B-GGUF Qwen3.8-27B-UD-Q4_K_XL.gguf --local-dir ~/models
+#   sha256sum ~/models/Qwen3.8-27B-UD-Q4_K_XL.gguf   # 2a5f3565f39cf885103da591182c1266da64745737b42b452fd3e675369f1211
+#   ollama create qwen3.8-unsloth:27b-ud-q4_K_XL -f ~/.claude/skills/delegate/ollama/Modelfile.qwen3.8-27b
+#   sudo systemctl restart ollama   # prune: the import keeps the raw upload next to a validated copy
+#
+# Disk: the import needs about 2x the file size free (raw upload + validated copy) until the restart prunes the raw
+# one; with too little space it stops with "no space left on device".
+# FROM must be an absolute path (Ollama does not expand ~): edit it on another machine.
+# RENDERER/PARSER as in Ollama's own qwen3.8 library model. Sampling as used in the benchmark (temperature 0.8,
+# top-p 1.0, no top-k / min-p). num_ctx matches contextWindow in pi's models.json.
+# Thinking: pi's models.json entry maps thinking "off" to reasoning_effort "none"; without that map Ollama thinks
+# even when pi is told --thinking off.
+FROM /home/stefano/models/Qwen3.8-27B-UD-Q4_K_XL.gguf
+RENDERER qwen3.8
+PARSER qwen3.5
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.8
+PARAMETER top_p 1.0
+PARAMETER top_k 0
+PARAMETER min_p 0
+PARAMETER repeat_penalty 1

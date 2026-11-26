@@ -22,7 +22,7 @@ export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for m
 OLLAMA_DEFAULT_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"
 OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
 OLLAMA_PLAN_MODEL="qwen3.5:27b"              # Architect: broad reasoning, designs approach
-OLLAMA_EXEC_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"  # Executor: coding-specialized, fast MoE inference
+OLLAMA_EXEC_MODEL="qwen3.8-unsloth:27b-ud-q4_K_XL"  # Executor: delegate default (bench-delegate 9/9 hard tasks)
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
 # Prefer the locally CUDA-built binary over any system install: llama.cpp master in

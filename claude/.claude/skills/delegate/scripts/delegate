@@ -35,7 +35,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-DEFAULT_MODEL = "ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M"
+DEFAULT_MODEL = "ollama/qwen3.8-unsloth:27b-ud-q4_K_XL"
 DEFAULT_TIMEOUT = 900
 DEFAULT_KEEP_ALIVE = "30m"
 FINAL_MESSAGE_CAP = 4000
@@ -475,7 +475,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("DELEGATE_MODEL", DEFAULT_MODEL),
         help=f"pi provider/model (default $DELEGATE_MODEL or {DEFAULT_MODEL})",
     )
-    p.add_argument("--thinking", default="low", help="pi thinking level (default low)")
+    p.add_argument("--thinking", default="off", help="pi thinking level (default off)")
     p.add_argument("--tools", help="pi tool allowlist, e.g. read,edit,bash")
     p.add_argument(
         "--check", help="shell command run on a clean checkout of the patch tree (+ links)"
@@ -533,7 +533,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if not args.task or not args.task.strip():
         p.error("a task is required (argument, '-' for stdin, or --task-file)")
     if "/" not in args.model:
-        p.error("--model must be provider/id, e.g. ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M")
+        p.error("--model must be provider/id, e.g. ollama/qwen3.8-unsloth:27b-ud-q4_K_XL")
     args.out = args.out.expanduser().resolve()
     return args
 

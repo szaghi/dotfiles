@@ -44,13 +44,13 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 
 | Option | Default | Purpose |
 |---|---|---|
-| `--model P/ID` | `$DELEGATE_MODEL`, else `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | pi provider/model |
+| `--model P/ID` | `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` | pi provider/model |
 | `--check CMD` | none | Run on a clean checkout of the patch tree plus `--link` paths; `$DELEGATE_REPO` points at the real repo |
 | `--timeout S` / `--check-timeout S` | 900 / 900 | Wall-clock limits; the executor's process group is killed |
 | `--base REV` | `worktree` | Start from the current files (uncommitted and untracked included) or a revision |
 | `--link PATH` | none | Symlink an ignored input (venv, fetched deps) into the clone, never part of the patch |
 | `--tools LIST` | pi's defaults | pi tool allowlist |
-| `--thinking LEVEL` | `low` | pi thinking level |
+| `--thinking LEVEL` | `off` | pi thinking level (the default model was benchmarked with thinking off) |
 | `--keep-alive DUR` | `30m` | How long Ollama keeps the model loaded after the run |
 | `--server-wait S` | 300 | llama.cpp / ik_llama: how long to wait while `/health` reports the model loading |
 | `--keep` | off | Keep the clone for inspection (`workdir` in the result) |
@@ -87,7 +87,8 @@ rewrites `settings.json`, and `auth.json` holds keys.
 
 | Provider/model | Engine | Notes |
 |---|---|---|
-| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` (default) | Ollama, loads on demand | Imported from the GGUF with `claude/.claude/skills/delegate/ollama/Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
+| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Ollama, loads on demand | Imported with `claude/.claude/skills/delegate/ollama/Modelfile.qwen3.8-27b`; `thinkingLevelMap` maps `off` to `reasoning_effort: "none"`, without which Ollama thinks despite `--thinking off` |
+| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | Ollama, loads on demand | Former default; imported with `Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
 | `llamacpp/llama` | llama.cpp on `:8080` | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
 | `ikllama/ikllama` | ik_llama.cpp on `:8081` | Same, `--backend ikllama` |
 | `ollama/qwen3.8:27b` | Ollama | Former default, dense 27B; its GGUF is Ollama-specific and does not load in llama.cpp |
@@ -154,14 +155,19 @@ Three runs per task; hard-task medians:
 
 | Executor | All | Hard (H1-H3) | Hard: time, turns, output tokens | Generation |
 |---|---|---|---|---|
-| Ollama Qwen3-Coder-30B-A3B Q4_K_M (default) | 8/15 | 2/9 | 71 s, 29, 4,084 | 66-90 tok/s |
+| Ollama Qwen3-Coder-30B-A3B Q4_K_M (former default) | 8/15 | 2/9 | 71 s, 29, 4,084 | 66-90 tok/s |
 | llama.cpp Qwen3.8-27B UD-Q4_K_XL, thinking off | **15/15** | **9/9** | 83 s, 8, 1,980 | 25 tok/s |
+| Ollama, same GGUF and sampling, thinking off (**default**) | **15/15** | **9/9** | 114 s, 8, 2,659 | ~23 tok/s |
 | same + harness-hub `Qwen3.8-27B-pi-adapted` LoRA (F16) | 13/15 | 8/9 | 58 s, 5, 1,254 | 23-24 tok/s |
 
 - The dense Qwen3.8-27B is the better executor on anything beyond a one-liner: Qwen3-Coder fails 7 of 9 hard runs
   after 24-38 turns (H2: accepted `2026-1-5` as a date; H3: no `amt=` keyword, both stated in the task), while
   Qwen3.8-27B passes all 9 in 5-11 turns. Despite generating 3x slower its hard-task times are similar; on T1/T2 it
   is slower (12 s and 20 s against 5 s and 19 s).
+- On Ollama the same model passed everything too, with its one-liners slightly faster and H3 slower (246, 874 and
+  389 s against about 100 s on llama.cpp: the model iterating on its own failing checks, up to 57 turns, at the
+  same ~23 tok/s); three runs at temperature 0.8 cannot tell whether that is the engine. It became the default
+  because Ollama loads it on demand.
 - The pi adapter delivers the efficiency its card claims (about 30% less time and 37% fewer tokens than the base on the
   hard tasks) but not more passes here: the base leaves no headroom on this suite, and the adapter's two failures were a
   run that declared T2 done without running its tests and an H3 run that never exercised the `amt=` requirement.

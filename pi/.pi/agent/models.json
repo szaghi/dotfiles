@@ -9,6 +9,16 @@
       },
       "models": [
         {
+          "id": "qwen3.8-unsloth:27b-ud-q4_K_XL",
+          "name": "Qwen3.8-27B UD-Q4_K_XL (unsloth GGUF imported into Ollama)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": "none"
+          },
+          "contextWindow": 32768,
+          "maxTokens": 16384
+        },
+        {
           "id": "qwen3.8:27b",
           "name": "Qwen 3.8 27B (local, Ollama)",
           "reasoning": true,
