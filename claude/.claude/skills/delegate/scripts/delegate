@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""delegate: run one self-contained task on a pi executor in a throwaway git clone.
+"""delegate: run one self-contained task on a pi or opencode executor in a throwaway git clone.
 
-The orchestrator (Claude Code / Opus) hands a task to pi running a local or cloud model.
-pi works in a private `git clone --shared` (no remote) checked out at a snapshot of the
+The orchestrator (Claude Code / Opus) hands a task to an executor harness (pi by default,
+opencode with --harness opencode) running a local or cloud model.
+The executor works in a private `git clone --shared` (no remote) checked out at a snapshot of the
 current working tree: uncommitted and untracked files included, ignored ones not. The
 caller's index, refs, stash, worktrees and checkout are never touched. The result is one
 JSON object on stdout; the evidence is the patch and the check command (run on a clean
@@ -11,7 +12,7 @@ checkout of the patch tree), never the executor's own report. See ../SKILL.md.
   delegate [options] TASK         TASK as an argument, '-' for stdin, or --task-file FILE
 
 Exit status: 0 status ok; 1 check_failed, timeout, error (after the executor started) or
-backend_down; 2 setup error before the executor started (not a git repository, pi missing,
+backend_down; 2 setup error before the executor started (not a git repository, harness missing,
 bad --base/--link/--out, bad arguments); 128+N interrupted by signal N.
 """
 
@@ -54,6 +55,22 @@ and say so instead of guessing. End with a short report: files changed, commands
 results, and anything left undone."""
 
 PI_FLAGS = ["--offline", "-p", "--mode", "json", "-nc", "-ns", "-ne", "-np", "--no-session"]
+
+# opencode: a private server per run (not the background service), JSON events, permissions
+# auto-approved (a headless run cannot answer a prompt). The environment keeps it from loading
+# ~/.claude instructions and skills (pi's -nc/-ns), from updating itself mid-run and from
+# copying the clone into its own snapshot store; web tools are denied as pi has none.
+# The prompt goes on stdin with no message argument: opencode 2.1 sends argv text after `--`
+# twice and re-quotes every argument containing a space (`"` -> `\"`); stdin it passes raw.
+OPENCODE_FLAGS = ["run", "--standalone", "--format", "json", "--auto"]
+OPENCODE_ENV = {
+    "OPENCODE_DISABLE_CLAUDE_CODE": "1",
+    "OPENCODE_DISABLE_AUTOUPDATE": "1",
+    "OPENCODE_CONFIG_CONTENT": json.dumps(
+        {"snapshot": False, "permission": {"webfetch": "deny", "websearch": "deny"}}
+    ),
+}
+HARNESSES = ("pi", "opencode")
 
 # Patch generation: plumbing, so no user/repo diff config (noprefix, color, textconv, external
 # drivers) can change the bytes; full index lines and binary hunks so `git apply` can use it.
@@ -150,18 +167,28 @@ def reap_descendants(grace: float = 3.0) -> int:
 
 
 def run_bounded(  # noqa: PLR0913
-    cmd: list[str], cwd: Path, env: dict[str, str], out: Path, err: Path, timeout: float
+    cmd: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    out: Path,
+    err: Path,
+    timeout: float,
+    stdin: Path | None = None,
 ) -> tuple[int | None, float]:
-    """Run cmd; return (exit code or None on timeout, seconds). Descendants never survive it."""
+    """Run cmd; return (exit code or None on timeout, seconds). Descendants never survive it.
+
+    stdin is /dev/null unless a file is given (an open stdin makes `pi -p` block forever).
+    """
     t0 = time.monotonic()
     with out.open("wb") as fo, contextlib.ExitStack() as stack:
         # out == err: one handle, stderr merged (two "wb" handles would overwrite each other).
         fe = subprocess.STDOUT if err == out else stack.enter_context(err.open("wb"))
+        fi = stack.enter_context(stdin.open("rb")) if stdin else subprocess.DEVNULL
         proc = subprocess.Popen(
             cmd,
             cwd=cwd,
             env=env,
-            stdin=subprocess.DEVNULL,
+            stdin=fi,
             stdout=fo,
             stderr=fe,
             start_new_session=True,
@@ -389,19 +416,84 @@ def _dicts(value: object) -> list[dict[str, Any]]:
     return [v for v in value if isinstance(v, dict)] if isinstance(value, list) else []
 
 
-def parse_events(path: Path) -> dict[str, Any]:
+def _cap(final: str, path: Path) -> str:
+    if len(final) > FINAL_MESSAGE_CAP:
+        return final[:FINAL_MESSAGE_CAP] + f"\n[... truncated; full text in {path}]"
+    return final
+
+
+def _events(path: Path) -> list[dict[str, Any]]:
+    """The JSON objects of a JSONL file, malformed or non-object lines skipped."""
+    out = []
+    for line in path.read_text(errors="replace").splitlines():
+        with contextlib.suppress(ValueError):
+            ev = json.loads(line)
+            if isinstance(ev, dict):
+                out.append(ev)
+    return out
+
+
+def parse_opencode_events(path: Path) -> dict[str, Any]:
+    """Summarise `opencode run --format json` events, in the same shape as parse_pi_events.
+
+    opencode emits step_start / tool_use / text / step_finish parts and an `error` event on a
+    provider or session failure; it has no end-of-run event, so `finished` means "no error
+    event and at least one step" and the caller also requires exit status 0. Once the session
+    goes idle `opencode run` drops everything but the final text, so the last step's
+    step_finish never arrives: `usage` is a lower bound and `stop_reason` is None unless an
+    error event names one (a step_finish reason would be the second-to-last step's).
+    """
+    tools: Counter[str] = Counter()
+    tool_errors = steps = 0
+    usage = {"input": 0, "output": 0, "cache_read": 0}  # opencode's input excludes cache reads
+    texts: dict[str, list[str]] = {}
+    last_msg = None
+    stop = error = None  # stop stays None unless an error event sets it (see the docstring)
+    for ev in _events(path):
+        kind = ev.get("type")
+        part = ev.get("part") if isinstance(ev.get("part"), dict) else {}
+        if kind == "step_start":
+            steps += 1
+        elif kind == "tool_use":
+            tools[str(part.get("tool", "?"))] += 1
+            state = part.get("state")
+            if isinstance(state, dict) and state.get("status") == "error":
+                tool_errors += 1
+        elif kind == "text" and isinstance(part.get("text"), str):
+            last_msg = str(part.get("messageID"))
+            texts.setdefault(last_msg, []).append(part["text"])
+        elif kind == "step_finish":
+            tok = part.get("tokens")
+            with contextlib.suppress(TypeError, ValueError, AttributeError):
+                usage["input"] += int(tok.get("input") or 0)
+                usage["output"] += int(tok.get("output") or 0)
+                usage["cache_read"] += int((tok.get("cache") or {}).get("read") or 0)
+        elif kind == "error":
+            err = ev.get("error")
+            error = err.get("message") or err.get("type") if isinstance(err, dict) else str(err)
+            stop = "error"
+    final = "\n".join(texts.get(last_msg, [])).strip() if last_msg else ""
+    summary = {
+        "finished": steps > 0 and error is None,
+        "stop_reason": stop,
+        "turns": steps,
+        "tools": dict(tools),
+        "tool_errors": tool_errors,
+        "usage": usage,
+        "final_message": _cap(final, path),
+    }
+    if error:
+        summary["provider_error"] = str(error)
+    return summary
+
+
+def parse_pi_events(path: Path) -> dict[str, Any]:
     """Summarise pi's JSON event stream; tolerant of malformed or unexpected lines."""
     tools: Counter[str] = Counter()
     tool_errors = 0
     messages: list[dict[str, Any]] = []
     finished = False
-    for line in path.read_text(errors="replace").splitlines():
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            continue
-        if not isinstance(ev, dict):
-            continue
+    for ev in _events(path):
         kind = ev.get("type")
         if kind == "tool_execution_start":
             tools[str(ev.get("toolName", "?"))] += 1
@@ -420,9 +512,7 @@ def parse_events(path: Path) -> dict[str, Any]:
     final = ""
     if assistant:
         texts = [c.get("text") for c in _dicts(assistant[-1].get("content"))]
-        final = "\n".join(t for t in texts if isinstance(t, str)).strip()
-        if len(final) > FINAL_MESSAGE_CAP:
-            final = final[:FINAL_MESSAGE_CAP] + f"\n[... truncated; full text in {path}]"
+        final = _cap("\n".join(t for t in texts if isinstance(t, str)).strip(), path)
     return {
         "finished": finished,
         "stop_reason": assistant[-1].get("stopReason") if assistant else None,
@@ -466,17 +556,24 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     """Command-line interface."""
     p = argparse.ArgumentParser(
         prog="delegate",
-        description="Run a task on a pi executor in a throwaway git clone; print JSON.",
+        description="Run a task on a pi or opencode executor in a throwaway git clone; print JSON.",
     )
     p.add_argument("task", nargs="?", help="the task text, or '-' to read it from stdin")
     p.add_argument("--task-file", type=Path, help="read the task from FILE")
     p.add_argument(
-        "--model",
-        default=os.environ.get("DELEGATE_MODEL", DEFAULT_MODEL),
-        help=f"pi provider/model (default $DELEGATE_MODEL or {DEFAULT_MODEL})",
+        "--harness",
+        choices=HARNESSES,
+        default=os.environ.get("DELEGATE_HARNESS") or "pi",
+        help="executor harness (default $DELEGATE_HARNESS or pi)",
     )
-    p.add_argument("--thinking", default="off", help="pi thinking level (default off)")
-    p.add_argument("--tools", help="pi tool allowlist, e.g. read,edit,bash")
+    p.add_argument(
+        "--model",
+        help=f"provider/model; pi: default $DELEGATE_MODEL or {DEFAULT_MODEL}; opencode: "
+        "required (or $DELEGATE_OPENCODE_MODEL), e.g. opencode/<id> or opencode-go/<id>, "
+        "'#variant' allowed",
+    )
+    p.add_argument("--thinking", help="pi thinking level (default off); pi only")
+    p.add_argument("--tools", help="pi tool allowlist, e.g. read,edit,bash; pi only")
     p.add_argument(
         "--check", help="shell command run on a clean checkout of the patch tree (+ links)"
     )
@@ -532,6 +629,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         args.task = sys.stdin.read()
     if not args.task or not args.task.strip():
         p.error("a task is required (argument, '-' for stdin, or --task-file)")
+    if args.harness not in HARNESSES:
+        p.error(f"--harness / $DELEGATE_HARNESS must be one of {', '.join(HARNESSES)}")
+    if args.harness == "pi":
+        args.model = args.model or os.environ.get("DELEGATE_MODEL") or DEFAULT_MODEL
+        args.thinking = args.thinking or "off"
+    else:
+        # No default: an opencode model id means a cloud provider unless the owner configured
+        # otherwise, and code must not leave the machine by default.
+        args.model = args.model or os.environ.get("DELEGATE_OPENCODE_MODEL")
+        if not args.model:
+            p.error("--harness opencode needs --model (list: opencode models)")
+        if args.thinking or args.tools:
+            p.error(
+                "--thinking and --tools are pi options; with opencode pick a reasoning variant "
+                "as --model provider/model#variant"
+            )
     if "/" not in args.model:
         p.error("--model must be provider/id, e.g. ollama/qwen3.8-unsloth:27b-ud-q4_K_XL")
     args.out = args.out.expanduser().resolve()
@@ -565,9 +678,14 @@ def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any])
     repo = Path(top)
     if args.out.is_relative_to(repo):
         raise SetupError(f"--out {args.out} is inside the repository; it would enter the snapshot")
-    pi = os.environ.get("DELEGATE_PI") or shutil.which("pi")
-    if not pi:
-        raise SetupError("pi not found on PATH (npm i -g @earendil-works/pi-coding-agent)")
+    if args.harness == "pi":
+        exe = os.environ.get("DELEGATE_PI") or shutil.which("pi")
+        if not exe:
+            raise SetupError("pi not found on PATH (npm i -g @earendil-works/pi-coding-agent)")
+    else:
+        exe = os.environ.get("DELEGATE_OPENCODE") or shutil.which("opencode")
+        if not exe:
+            raise SetupError("opencode not found on PATH (https://opencode.ai/docs/)")
     links = [normalise_link(rel, repo) for rel in args.link]
 
     run_id = time.strftime("%Y%m%d-%H%M%S-") + secrets.token_hex(2)
@@ -581,32 +699,48 @@ def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any])
     commit, described = base_commit_for(repo, args.base, artifacts)
     result["base"] = {"from": described, "commit": commit}
 
-    preflight(provider, model_id, args, result, state)
+    if args.harness == "pi":  # opencode's providers live in its own config, not pi's models.json
+        preflight(provider, model_id, args, result, state)
 
     workdir = artifacts / "wt"
     state["workdir"] = workdir
     make_clone(repo, workdir, commit)
     place_links(repo, workdir, links)
 
-    # The executor gets no pointer to the caller's repo; pi's @file keeps the task out of argv
-    # (no option parsing of a leading '-' or '@', no ARG_MAX limit). No bytecode: an executor
+    # The executor gets no pointer to the caller's repo. Popen(cwd=) does not update PWD, and
+    # opencode (Bun) takes its project directory from PWD: a stale value pointing at the
+    # caller's repo made it edit the real tree instead of the clone. No bytecode: an executor
     # that runs Python would otherwise add .pyc files to the patch.
-    pi_env = {**base_env(), "PYTHONDONTWRITEBYTECODE": "1"}
-    cmd = [pi, *PI_FLAGS, "--thinking", args.thinking, "--model", args.model]
-    cmd += ["--append-system-prompt", PREAMBLE]
-    if args.tools:
-        cmd += ["--tools", args.tools]
-    cmd.append(f"@{task_file}")
+    pi_env = {**base_env(), "PWD": str(workdir), "PYTHONDONTWRITEBYTECODE": "1"}
+    pi_env.pop("OLDPWD", None)
+    if args.harness == "pi":
+        # pi's @file keeps the task out of argv (no option parsing of a leading '-' or '@',
+        # no ARG_MAX limit).
+        cmd = [exe, *PI_FLAGS, "--thinking", args.thinking, "--model", args.model]
+        cmd += ["--append-system-prompt", PREAMBLE]
+        if args.tools:
+            cmd += ["--tools", args.tools]
+        cmd.append(f"@{task_file}")
+        exe_env, parse = pi_env, parse_pi_events
+    else:
+        # opencode has no system-prompt option: the preamble leads the message, sent on stdin
+        # (no argv size limit, no option parsing, no re-quoting; see OPENCODE_FLAGS).
+        prompt = artifacts / "prompt.md"
+        prompt.write_text(f"{PREAMBLE}\n\n# Task\n\n{args.task}")
+        cmd = [exe, *OPENCODE_FLAGS, "--model", args.model]
+        exe_env, parse = {**pi_env, **OPENCODE_ENV}, parse_opencode_events
     state["executor_started"] = True
     events = artifacts / "events.jsonl"
-    code, pi_s = run_bounded(cmd, workdir, pi_env, events, artifacts / "pi.err", args.timeout)
-    summary = parse_events(events)
+    err = artifacts / f"{args.harness}.err"
+    stdin = prompt if args.harness == "opencode" else None
+    code, exe_s = run_bounded(cmd, workdir, exe_env, events, err, args.timeout, stdin)
+    summary = parse(events)
     result["final_message"] = summary.pop("final_message")
     result["executor"] = {
         "exit": code,
-        "elapsed_s": round(pi_s, 1),
+        "elapsed_s": round(exe_s, 1),
         **summary,
-        "stderr_tail": tail(artifacts / "pi.err", 10),
+        "stderr_tail": tail(err, 10),
     }
 
     if not (workdir / ".git").is_dir():
@@ -646,9 +780,10 @@ def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any])
     elif code != 0 or not summary["finished"] or stop in ("error", "aborted"):
         result["status"] = "error"
         result["error"] = (
-            f"pi exited {code}"
+            f"{args.harness} exited {code}"
             + ("" if summary["finished"] else " without finishing the agent loop")
             + (f"; last stop reason: {stop}" if stop in ("error", "aborted") else "")
+            + (f"; {summary['provider_error']}" if summary.get("provider_error") else "")
         )
     elif args.check and result["check"]["exit"] != 0:
         result["status"] = "check_failed"
@@ -663,7 +798,12 @@ def main(argv: list[str]) -> int:
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, _on_signal)
     become_subreaper()
-    result: dict[str, Any] = {"status": "error", "model": args.model, "thinking": args.thinking}
+    result: dict[str, Any] = {
+        "status": "error",
+        "harness": args.harness,
+        "model": args.model,
+        "thinking": args.thinking,
+    }
     state: dict[str, Any] = {"executor_started": False}
     rc = 1
     try:

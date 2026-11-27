@@ -6,7 +6,8 @@ title: Delegating to an executor
 
 Claude Code with Opus stays the orchestrator. For a task that is mechanical and checkable by a command, it
 hands the work to a cheaper executor: [pi](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
-running a local Ollama model or a cloud model. The executor works in a throwaway git clone. Opus gets back
+running a local Ollama model or a cloud model, or [opencode](https://opencode.ai) (`--harness opencode`) for
+the models only it can reach. The executor works in a throwaway git clone. Opus gets back
 one JSON object and judges the patch and the result of a check command it chose itself, never the executor's
 own report. Sources: `claude/.claude/skills/delegate/` (`SKILL.md`, `scripts/delegate`,
 `scripts/test-delegate`), and the `pi` package for the model definitions.
@@ -15,15 +16,16 @@ own report. Sources: `claude/.claude/skills/delegate/` (`SKILL.md`, `scripts/del
 
 Claude Code points one session at one endpoint, so a subagent cannot run on a different backend. A nested
 headless process can, and it leaves the Opus session, its account and its subscription untouched. pi is the
-executor rather than Claude Code itself or opencode because its system prompt plus tools is about 1,600
-tokens, which matters on local hardware where every prompt token is prefill time. It also talks to the
-OpenAI-compatible endpoint that every local server implements.
+default executor rather than Claude Code itself or opencode because its system prompt plus tools is about
+1,600 tokens (opencode's: about 5,900), which matters on local hardware where every prompt token is prefill
+time. It also talks to the OpenAI-compatible endpoint that every local server implements. opencode is the
+second harness because OpenCode Zen's free models answer only inside it (see below).
 
 ```mermaid
 flowchart LR
     O["Claude Code (Opus)<br/>writes task, picks check"] -->|Bash| D["delegate"]
     D --> W["private git clone --shared<br/>(current files, uncommitted included)"]
-    W --> P["pi -p<br/>local Qwen3-Coder or cloud"]
+    W --> P["pi -p (local or cloud)<br/>or opencode run"]
     P --> X["patch.diff<br/>(taken before the check)"]
     X --> C["--check on a clean<br/>checkout of the patch"]
     C --> J["JSON result"]
@@ -44,19 +46,20 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 
 | Option | Default | Purpose |
 |---|---|---|
-| `--model P/ID` | `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` | pi provider/model |
+| `--harness NAME` | `$DELEGATE_HARNESS`, else `pi` | `pi` or `opencode` |
+| `--model P/ID` | pi: `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL`; opencode: required (or `$DELEGATE_OPENCODE_MODEL`) | provider/model of the harness; opencode accepts `provider/model#variant` |
 | `--check CMD` | none | Run on a clean checkout of the patch tree plus `--link` paths; `$DELEGATE_REPO` points at the real repo |
 | `--timeout S` / `--check-timeout S` | 900 / 900 | Wall-clock limits; the executor's process group is killed |
 | `--base REV` | `worktree` | Start from the current files (uncommitted and untracked included) or a revision |
 | `--link PATH` | none | Symlink an ignored input (venv, fetched deps) into the clone, never part of the patch |
-| `--tools LIST` | pi's defaults | pi tool allowlist |
-| `--thinking LEVEL` | `off` | pi thinking level (the default model was benchmarked with thinking off) |
+| `--tools LIST` | pi's defaults | pi tool allowlist (pi only) |
+| `--thinking LEVEL` | `off` | pi thinking level (the default model was benchmarked with thinking off; pi only) |
 | `--keep-alive DUR` | `30m` | How long Ollama keeps the model loaded after the run |
 | `--server-wait S` | 300 | llama.cpp / ik_llama: how long to wait while `/health` reports the model loading |
 | `--keep` | off | Keep the clone for inspection (`workdir` in the result) |
 
 Status values: `ok`, `check_failed`, `timeout`, `error`, `backend_down`, `interrupted`. Exit status is 0 only
-for `ok`; 2 for setup errors found before the executor starts (not a git repository, pi missing, bad `--base`,
+for `ok`; 2 for setup errors found before the executor starts (not a git repository, harness missing, bad `--base`,
 `--link` or `--out`); 128+N after signal N. Artifacts stay in `$XDG_CACHE_HOME/delegate/<id>/`. Apply a patch
 with the `apply` field (`git -C <repo> apply <patch>`): a bare `git apply` from a subdirectory exits 0 and
 skips every file outside it.
@@ -74,7 +77,8 @@ skips every file outside it.
   and are part of the review. Python bytecode is suppressed (`PYTHONDONTWRITEBYTECODE=1`).
 - **The check proves the patch**: it runs on a clean checkout of the patch tree plus `--link` paths, so an
   ignored file the executor left behind cannot make it pass.
-- **It is not a sandbox.** pi's `bash` can write anywhere in `$HOME`. The clone protects the repository only.
+- **It is not a sandbox.** pi's `bash` (opencode's `shell`) can write anywhere in `$HOME`. The clone protects
+  the repository only.
 - **Limits.** Submodules are empty in the clone. The starting snapshot writes blobs for untracked,
   non-ignored files into the caller's object store (unreachable, reclaimed by `git gc`).
 - **A cloud model sends the files it reads to its provider.** Use one only on repositories where that is
@@ -96,6 +100,39 @@ pi ≥ 1.6 ships an `opencode-go` provider (the OpenCode Go subscription), so no
 pi 0.80 knew an older Go endpoint (`/zen/go/v1`, without the session header Go now requires); 1.6 works, and
 `delegate`'s offline and live tests pass on it. `--offline` and `-ne` do not block the cloud provider.
 
+### opencode harness
+
+`delegate --harness opencode --model <provider>/<id> …` runs `opencode run --standalone --format json --auto`
+in the clone instead of pi: a private server for the run, permissions auto-approved (a headless run cannot
+answer a prompt), and the prompt (preamble, then the task; opencode has no system-prompt option) on stdin with
+no message argument. The environment keeps it from loading `~/.claude` instructions and skills
+(`OPENCODE_DISABLE_CLAUDE_CODE`), from updating itself, and from copying the clone into its own snapshot store
+(`"snapshot": false`); `webfetch` and `websearch` are denied, as pi has no web tool. Models and
+credentials are opencode's own (`opencode models`, `opencode auth login`), not pi's `models.json`, so there
+is no Ollama warm-up or llama-server pre-flight. The JSON result has the same shape plus `harness`; usage adds
+`cache_read`, because opencode's `input` leaves cache hits out. Its stderr is `opencode.err`, the prompt it was
+sent `prompt.md`.
+
+- **No default model.** An opencode model id is a cloud model unless you configured otherwise; code must not
+  leave the machine because a flag was forgotten. `--thinking` and `--tools` are refused; pick a reasoning
+  variant with `#variant`.
+- **`PWD` matters.** opencode takes its project directory from `$PWD`, not from the process's working
+  directory. Before the fix, a run started from the real repository edited the real repository: `Popen(cwd=)`
+  leaves `PWD` stale. `delegate` now sets `PWD` to the clone for every harness and for the check; an offline
+  test reads the environment the fake opencode was given and fails on a stale value.
+- **Never pass the prompt as an argument.** opencode 2.1 sends the text after `--` twice and wraps every
+  argument containing a space in quotes, escaping each `"` inside it as `\"`. The first version of this harness
+  did that: every task reached the model doubled, and with its quoted strings altered (found by the correctness
+  review in opencode's own session store). Stdin is passed through unchanged; the fake opencode in the tests
+  refuses any message argument and compares stdin byte for byte.
+- **Weaker end-of-run signal than pi.** opencode has no end event and, once the session is idle, drops
+  everything but the final text, so the last step's `step_finish` never arrives. `finished` therefore means exit
+  0, at least one step and no `error` event; `stop_reason` is null unless an `error` event names it; `usage` is a
+  lower bound. Provider failures (bad model, a 429 quota) arrive as an `error` event with exit 1 and become
+  `status: error` with the provider's message.
+- opencode records each run as a session in `~/.local/share/opencode/opencode.db` (pi runs with
+  `--no-session`), and registers the repository as a project keyed by its root commit.
+
 ## Models
 
 Defined in `pi/.pi/agent/models.json` (adam only, through `machines/adam`). Only that file is tracked: pi
@@ -116,8 +153,8 @@ data-policy flags come from the provider's model metadata (`cost`, `zdr`, `train
 hard bench task costs DeepSeek well under a cent; the paper ingestion below, about 107k input and 49k output
 tokens, about $0.05 (twice that in the peak windows). The OpenCode Zen models marked *free* (e.g.
 `nemotron-3.5-super-vl-free`) cost nothing but work only inside the opencode agent, which logs in with OAuth:
-through the API, and so through pi, they answer HTTP 429 `FreeUsageLimitError`. Their metadata states no
-retention or training policy.
+through the API, and so through pi, they answer HTTP 429 `FreeUsageLimitError`; `--harness opencode` reaches
+them. Their metadata states no retention or training policy: treat them as public.
 
 For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
 the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the
@@ -188,6 +225,8 @@ Three runs per task; hard-task medians:
 | OpenCode Go `deepseek-v4.1-flash`, thinking off | - | **9/9** | **15 s, 5, 1,495** | cloud |
 | OpenCode Go `qwen3.7-plus`, thinking off | - | 9/9 | 63 s, 14, 2,753 | cloud |
 | OpenCode Go `kimi-k2.7-code`, thinking off | - | 7/9 | 48 s, 11, 3,443 | cloud |
+| opencode harness, OpenCode Go `deepseek-v4.1-flash` (2026-11-27) | - | **9/9** | 33 s, 6, 1,689 | cloud |
+| opencode harness, Zen `nemotron-3.5-super-vl-free` (2026-11-27)* | - | 3/3 H1, then quota | 37 s, 8, 2,131 (H1) | cloud, free |
 
 - The dense Qwen3.8-27B is the better executor on anything beyond a one-liner: Qwen3-Coder fails 7 of 9 hard runs
   after 24-38 turns (H2: accepted `2026-1-5` as a date; H3: no `amt=` keyword, both stated in the task), while
@@ -209,6 +248,14 @@ Three runs per task; hard-task medians:
   clones. The local Qwen3.8-27B stays the default: equally correct here, free, and the code never leaves the
   machine; DeepSeek V4.1 Flash is the opt-in when that is acceptable. With three executors at 9/9 the suite ranks
   them on time and consistency only; separating them on quality needs harder tasks.
+- Harness, same model (opencode 2.1.0, `delegate --harness opencode`): DeepSeek V4.1 Flash passed all 9 hard runs
+  through opencode too, but took about twice as long as through pi (33 s against 15 s median, 16-66 s, 5-12 turns):
+  opencode's ~5.9k-token system prompt and its extra exploratory steps. A first run with the doubled, re-quoted
+  prompt (the bug described above) had also passed 9/9 in 28 s: on these tasks the defect cost nothing measurable.
+  \*Nemotron ran only with that defective prompt: it passed its three H1 runs (37 s, 8 turns); every later run
+  failed in 1.3 s with `provider.quota` 429 "Free usage limit reached", after a day that had also spent about 180k
+  input tokens on the paper ingestion below. The free tier is a quota, not a plan: fine for
+  an occasional task, not for a bench or a fan-out. `delegate` reports it as `status: error` with that message.
 - Caveats: n = 3 per task, five Python tasks, a Q4 quant (the adapter was trained on BF16; its card recommends Q8_0,
   which does not fit 24 GB), sampling as the adapter was trained (temperature 0.8, top-p 1.0) for both Qwen3.8 rows.
   The first run of the suite counted an added test file as tampering; the check was fixed and the Qwen3-Coder patches
@@ -252,16 +299,18 @@ content, so the content was scored claim by claim against the paper.
 - Method: the Opus, DeepSeek and local outputs were scored blind (anonymised, independent reviewer agent, its
   claims spot-checked); Nemotron's afterwards, unblinded, by checking each of its claims against the paper text.
   One paper, one run each.
-- **opencode is not wired into `delegate`.** Nemotron ran through `opencode run --format json`, a different
-  harness from the pi runs. The bar for adding opencode as a second harness was a free executor clearly better
-  than DeepSeek; Nemotron is more accurate but too thin to use without the same full review, so it does not clear
-  it, and its free tier exists only inside opencode with no published data policy.
+- Nemotron ran through `opencode run --format json "$(cat task.md)"` by hand, a different harness from the pi
+  runs, and so received the task with every `"` escaped (see *Never pass the prompt as an argument*); it is now
+  reachable as `delegate --harness opencode`, which sends it unchanged. On this evidence it is more accurate than DeepSeek but too thin to
+  use without the same full review.
 
 ## Testing
 
 ```bash
-~/.claude/skills/delegate/scripts/test-delegate --offline   # 36 checks, fake pi, no model
+~/.claude/skills/delegate/scripts/test-delegate --offline   # 56 checks, fake pi and opencode, no model
 ~/.claude/skills/delegate/scripts/test-delegate             # + a live fix with the local model
+DELEGATE_TEST_OPENCODE_MODEL=opencode/nemotron-3.5-super-vl-free \
+  ~/.claude/skills/delegate/scripts/test-delegate           # + a live fix through opencode
 ```
 
 The offline cases swap pi for a fake through `DELEGATE_PI`. Besides the basics (usage, missing repository, dead
@@ -269,4 +318,7 @@ backend, dirty tree, failing check, timeout, executor failure, `--link`, `--keep
 reproducer per finding of the correctness review: binary and trailing-whitespace last hunks, hostile diff config,
 a provider error behind exit 0, detached child processes, SIGTERM, executor commits/branches/stash, a sibling
 worktree, the check on the patch tree, a task starting with `-`, Latin-1 content, malformed events, `--link
-.venv/`, setup exit codes. The live case needs Ollama and the model. `DELEGATE_TEST_MODEL` picks another one.
+.venv/`, setup exit codes. A fake opencode (`DELEGATE_OPENCODE`) asserts the headless contract (flags, isolation
+environment, `--` before the message, a `PWD` naming the clone) and covers success, a provider error event, failed
+tool calls, a task starting with `-`, a 120 kB task sent as a file, and the argument rules. The live case needs
+Ollama and the model. `DELEGATE_TEST_MODEL` picks another one.

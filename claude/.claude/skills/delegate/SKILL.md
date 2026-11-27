@@ -1,6 +1,6 @@
 ---
 name: delegate
-description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local model (Qwen3.8-27B on Ollama by default; llama.cpp or ik_llama) or a cloud model - in a throwaway git clone, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
+description: Hand one self-contained, mechanically checkable coding task from this Claude Code session (the orchestrator) to a cheaper executor - pi running a local model (Qwen3.8-27B on Ollama by default; llama.cpp or ik_llama) or a cloud model, or opencode (--harness opencode) for OpenCode Zen/Go models - in a throwaway git clone, then judge the returned patch and check result instead of the executor's report. Use when the owner says "delegate this", "let the local model / qwen / pi / deepseek / opencode / nemotron do it", "use the executor", "orchestrate with a local executor", or when a task is mechanical (rename, boilerplate, spec-driven edit, test scaffolding) and a command can verify it. Not for design, debugging root causes, numerics or anything whose correctness a command cannot check.
 ---
 
 # Delegate
@@ -36,11 +36,13 @@ The executor starts cold. The prompt must carry everything:
 ```bash
 $DG --check '<cmd that proves it>' [--model ollama/qwen3.8-unsloth:27b-ud-q4_K_XL] [--timeout 900] \
     [--link .venv --link <fetched deps dir>] [--base HEAD] [--thinking off] "<task>"
+$DG --harness opencode --model opencode/nemotron-3.5-super-vl-free --check '<cmd>' "<task>"
 ```
 
 | Option | Use |
 |---|---|
 | `--check CMD` | Always pass one. Runs on a clean checkout of the patch tree plus `--link` paths, so it proves the patch, not the executor's leftovers; `$DELEGATE_REPO` = the real repo |
+| `--harness pi\|opencode` | Executor harness, default `pi`. opencode reaches the free Zen models pi cannot; it needs an explicit `--model` (list: `opencode models`) and refuses `--thinking`/`--tools` (use `--model p/m#variant`) |
 | `--model P/ID` | pi `provider/id`; default `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL`. List: `pi --list-models` |
 | `--link PATH` | Symlink an ignored input (venv, `fobis fetch` deps, build cache) into the clone; never part of the patch |
 | `--base REV` | Start from a revision instead of the current working tree (default includes uncommitted work) |
@@ -60,7 +62,7 @@ One JSON object on stdout (a copy in `<artifacts>/result.json`), exit 0 only for
 | `ok` | Executor finished, check passed | Review the patch (below) |
 | `check_failed` | Executor finished, check failed | Read `check.tail`; re-delegate with a sharper task once, else do it yourself |
 | `timeout` | Executor killed at `--timeout` | Smaller task, or do it yourself |
-| `error` | pi failed or never finished its loop (`executor.stderr_tail`, `error`) | Fix the setup or the model id; do not retry blindly |
+| `error` | the harness failed or never finished its loop (`executor.stderr_tail`, `error`; opencode's provider message is in `error`) | Fix the setup or the model id; do not retry blindly |
 | `backend_down` | Ollama unreachable or model failed to load | `llm-local-server start`, or tell the owner |
 | `interrupted` | delegate got SIGINT/SIGTERM/SIGHUP (exit 128+N); clone and executor already cleaned up | Rerun if the interruption was yours |
 
@@ -91,8 +93,11 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 | `opencode-go/deepseek-v4.1-flash` (cloud) | Fast opt-in when code may leave the machine; parallel fan-out | Hard bench tasks 9/9 in 12-20 s, 4-6 turns (~5x the local default). Paid from the Go allowance: $0.15/$0.60 per M tokens in/out, x2 weekdays 01-04 and 06-10 UTC; zero retention, no training |
 | other `opencode-go/*` (`pi --list-models opencode-go`) | Only after a `bench-delegate` run | qwen3.7-plus 9/9 at 50-81 s ($0.40/$1.60); kimi-k2.7-code 7/9 ($0.95/$4) |
 
-OpenCode Zen's *free* models (e.g. `nemotron-3.5-super-vl-free`) are not reachable from pi: they work only
-inside the opencode agent (the API answers 429) and publish no data policy. Not wired in.
+OpenCode Zen's *free* models (e.g. `opencode/nemotron-3.5-super-vl-free`) work only inside the opencode agent
+(the API answers 429, so pi cannot use them): run them with `--harness opencode`. They publish no data policy:
+public code only, and the free tier is a quota (after a few tasks: `status: error`, "Free usage limit reached";
+stop, do not retry). opencode's system prompt is ~5.9k tokens against pi's ~1.6k, so keep local models on pi;
+its `stop_reason` is null on success and its `usage` a lower bound (no end-of-run event).
 
 Writing prose from a source (a paper into the llm-wiki, a summary, docs) is not a delegate task: on a real
 ingestion (2026-11-27) DeepSeek got 13 of 40 claims wrong and the local model timed out inventing content. The
@@ -123,7 +128,7 @@ the tracked file.
 - The starting snapshot writes blobs for untracked files into your repository's object store
   (unreachable, reclaimed by `git gc`). A large untracked output directory that is not ignored
   costs its full size per run: ignore it, or use `--base HEAD`.
-- Artifacts live in `$XDG_CACHE_HOME/delegate/<id>/` (`task.md`, `events.jsonl`, `pi.err`,
+- Artifacts live in `$XDG_CACHE_HOME/delegate/<id>/` (`task.md`, `events.jsonl`, `pi.err` or `opencode.err`,
   `patch.diff`, `check.log`, `result.json`) and are never pruned automatically.
 - In a night-protocol night, applying a patch is an ordinary working-tree edit: snapshot it as part
   of the step it belongs to, with the delegate run in the step's evidence.

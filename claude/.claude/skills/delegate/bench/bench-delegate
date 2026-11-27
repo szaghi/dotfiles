@@ -118,6 +118,7 @@ def run_suite(args: argparse.Namespace) -> int:
                     "turns": ex.get("turns"),
                     "out_tokens": (ex.get("usage") or {}).get("output"),
                     "tool_errors": ex.get("tool_errors"),
+                    "harness": r.get("harness"),
                     "model": r.get("model"),
                     "server_model": (r.get("server") or {}).get("model"),
                     "artifacts": r.get("artifacts"),

@@ -5,6 +5,7 @@
 #   test-delegate            offline cases (fake pi) + live case (real pi + a local model;
 #                            DELEGATE_TEST_MODEL picks it, e.g. llamacpp/llama)
 #   test-delegate --offline  offline cases only: no model, no network
+#   DELEGATE_TEST_OPENCODE_MODEL=opencode/<id> test-delegate   adds a live opencode case
 #
 # Offline cases swap pi for a fake (DELEGATE_PI) that edits files and prints a minimal
 # agent_end event, and use a non-Ollama provider so no warm-up runs. Each case asserts
@@ -388,6 +389,101 @@ llama_run ikllama ikllama; rc=$?
   && ok "ikllama without /props -> status ok, model unknown" || bad "ik noprops" "$(cat "$work/out.json")"
 stop_srv
 
+# --- fake opencode -------------------------------------------------------------------
+ocfake="$work/fake-opencode"
+cat >"$ocfake" <<'EOF'
+#!/usr/bin/env bash
+# Modes via FAKE_OC_MODE: edit (default), error, toolerr. Always asserts the headless contract:
+# exactly `run --standalone --format json --auto --model M` (no message argument: opencode 2.1
+# duplicates and re-quotes argv text), the prompt on stdin byte for byte (FAKE_OC_EXPECT, or the
+# file FAKE_OC_EXPECT_FILE, holds the task), the isolation environment, a PWD naming the clone. Like the real one it ends with
+# the final text and no step_finish after it.
+[[ $# == 7 && "$1 $2 $3 $4 $5 $6" == "run --standalone --format json --auto --model" ]] \
+  || { echo "bad argv ($#): $*" >&2; exit 4; }
+[[ "${OPENCODE_DISABLE_CLAUDE_CODE:-}" == 1 && "${OPENCODE_CONFIG_CONTENT:-}" == *'"snapshot": false'* \
+   && "${OPENCODE_CONFIG_CONTENT:-}" == *'"websearch": "deny"'* ]] || { echo "isolation env missing" >&2; exit 4; }
+[[ -z "${DELEGATE_REPO:-}" ]] || { echo "DELEGATE_REPO leaked" >&2; exit 4; }
+# bash repairs a stale PWD at startup, so read the environment this process was given.
+given=$(tr '\0' '\n' </proc/$$/environ | sed -n 's/^PWD=//p')
+[[ "$given" == "$(pwd)" ]] || { echo "stale PWD: $given (cwd $(pwd))" >&2; exit 4; }
+python3 -c '
+import os, sys
+got = sys.stdin.buffer.read().decode()
+if os.environ.get("FAKE_OC_EXPECT_FILE"):
+    sys.argv[1] = open(os.environ["FAKE_OC_EXPECT_FILE"]).read()
+ok = got.startswith("You are an executor") and got.count("You are an executor") == 1
+if not ok or not got.endswith("# Task\n\n" + sys.argv[1]):
+    sys.exit(f"stdin prompt mismatch: {got[:80]!r} ... {got[-80:]!r}")
+' "${FAKE_OC_EXPECT:-fix calc.py}" || exit 4
+step='{"type":"step_start","part":{"type":"step-start"}}'
+tool='{"type":"tool_use","part":{"type":"tool","tool":"edit","state":{"status":"completed"}}}'
+fin='{"type":"step_finish","part":{"type":"step-finish","reason":"tool-calls","tokens":{"input":100,"output":7,"reasoning":3,"cache":{"read":40}}}}'
+txt='{"type":"text","part":{"type":"text","messageID":"m2","text":"done"}}'
+case "${FAKE_OC_MODE:-edit}" in
+  edit) sed -i 's/a - b/a + b/' calc.py; printf '%s\n' "$step" "$tool" "$fin" "$step" "$txt" ;;
+  error)
+    printf '%s\n' '{"type":"error","error":{"type":"provider.quota","message":"Free usage limit reached"}}'; exit 1 ;;
+  toolerr)
+    printf '%s\n' "$step" '{"type":"tool_use","part":{"tool":"read","state":{"status":"error","error":"File not found"}}}' "$fin" "$step" "$txt" ;;
+esac
+EOF
+chmod +x "$ocfake"
+oc_run() {  # oc_run TASK [delegate args...]
+  local task=$1; shift
+  FAKE_OC_EXPECT="$task" DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --harness opencode --model oc/x "$@" -- "$task" \
+    >"$work/out.json" 2>"$work/err"
+}
+
+# 30. opencode ok: headless contract, patch, check, summary in pi's shape
+cd "$(new_repo oc-ok)" || exit 99
+oc_run "fix calc.py" --check 'python3 -c "import calc; assert calc.add(2,3)==5"'; rc=$?
+got=$(jget "$work/out.json" 'r["status"], r["harness"], r["changed_files"], r["executor"]["turns"], r["executor"]["tools"], r["executor"]["usage"], r["executor"]["stop_reason"], r["final_message"], r["thinking"]')
+[[ $rc == 0 && "$got" == "ok opencode ['M\\tcalc.py'] 2 {'edit': 1} {'input': 100, 'output': 7, 'cache_read': 40} None done None" ]] \
+  && ok "opencode -> status ok, harness/turns/tools/usage/final reported, no stale stop_reason" \
+  || bad "opencode ok" "rc=$rc got=$got $(tail -3 "$work/err")"
+[[ -f "$(jget "$work/out.json" 'r["artifacts"]')/opencode.err" ]] && ok "opencode stderr in opencode.err" || bad "opencode.err missing"
+invariants "opencode ok" ""
+
+# 31. quotes, backslashes and a leading '-' reach the model unchanged
+cd "$(new_repo oc-quote)" || exit 99
+oc_run '-rename "foo" to bar; memo defaults to "" and path C:\tmp'; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["status"]')" == ok ]] \
+  && ok "opencode task with quotes and leading '-' -> stdin byte for byte" || bad "oc quote" "$(head -c 800 "$work/out.json") $(tail -3 "$work/err")"
+
+# 32. provider error event + exit 1 -> status error with the provider's message
+cd "$(new_repo oc-err)" || exit 99
+FAKE_OC_MODE=error oc_run "fix calc.py"; rc=$?
+[[ $rc == 1 && "$(jget "$work/out.json" 'r["status"], r["executor"]["stop_reason"]')" == "error error" \
+   && "$(jget "$work/out.json" 'r["error"]')" == *"Free usage limit reached"* ]] \
+  && ok "opencode error event -> status error, provider message kept" || bad "oc error" "$(cat "$work/out.json")"
+invariants "opencode error" ""
+
+# 33. failed tool calls are counted
+cd "$(new_repo oc-toolerr)" || exit 99
+FAKE_OC_MODE=toolerr oc_run "fix calc.py"
+[[ "$(jget "$work/out.json" 'r["executor"]["tool_errors"]')" == 1 ]] \
+  && ok "opencode tool error -> tool_errors 1" || bad "oc toolerr" "$(cat "$work/out.json")"
+
+# 34. a 200 kB task (over the 128 KiB argv string limit) goes through stdin
+cd "$(new_repo oc-long)" || exit 99
+python3 -c 'import sys; sys.stdout.write("fix calc.py\n" + "x" * 200000)' >"$work/long-task.md"
+FAKE_OC_EXPECT_FILE="$work/long-task.md" DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --harness opencode \
+  --model oc/x --task-file "$work/long-task.md" >"$work/out.json" 2>"$work/err"; rc=$?
+[[ $rc == 0 && "$(jget "$work/out.json" 'r["status"]')" == ok ]] \
+  && ok "opencode 200 kB task -> stdin" || bad "oc long" "$(head -c 800 "$work/out.json") $(tail -3 "$work/err")"
+
+# 35. argument rules: model required (DELEGATE_MODEL ignored), pi-only options refused, harness by env
+cd "$(new_repo oc-args)" || exit 99
+DELEGATE_MODEL=fake/x DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --harness opencode "x" >/dev/null 2>&1
+[[ $? == 2 ]] && ok "opencode without --model -> exit 2" || bad "oc no model"
+DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --harness opencode --model oc/x --thinking high "x" >/dev/null 2>&1
+[[ $? == 2 ]] && ok "opencode --thinking -> exit 2" || bad "oc thinking"
+DELEGATE_HARNESS=bogus "$DELEGATE" --model fake/x "x" >/dev/null 2>&1
+[[ $? == 2 ]] && ok "DELEGATE_HARNESS=bogus -> exit 2" || bad "bogus harness"
+DELEGATE_HARNESS=opencode DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --model oc/x "fix calc.py" >"$work/out.json" 2>"$work/err"  # FAKE_OC_EXPECT default
+[[ "$(jget "$work/out.json" 'r["harness"], r["status"]')" == "opencode ok" ]] \
+  && ok "DELEGATE_HARNESS=opencode selects opencode" || bad "env harness" "$(head -c 600 "$work/out.json")"
+
 if [[ $offline == 0 ]]; then
   echo "live case ($LIVE_MODEL)"
   cd "$(new_repo live)" || exit 99
@@ -403,6 +499,23 @@ if [[ $offline == 0 ]]; then
     bad "live fix" "rc=$rc status=$st files=[$files] $(head -c 1500 "$work/out.json")"
   fi
   invariants "live" ""
+fi
+
+if [[ $offline == 0 && -n "${DELEGATE_TEST_OPENCODE_MODEL:-}" ]]; then
+  echo "live case, opencode ($DELEGATE_TEST_OPENCODE_MODEL)"
+  cd "$(new_repo live-oc)" || exit 99
+  "$DELEGATE" --harness opencode --model "$DELEGATE_TEST_OPENCODE_MODEL" --timeout 600 \
+    --check 'python3 -c "import calc; assert calc.add(2,3)==5"' \
+    "calc.py has a bug in add(). Fix it." >"$work/out.json" 2>"$work/err"; rc=$?
+  st=$(jget "$work/out.json" 'r["status"]')
+  files=$(jget "$work/out.json" '" ".join(r.get("changed_files", []))')
+  el=$(jget "$work/out.json" 'r.get("elapsed_s")')
+  if [[ $rc == 0 && $st == ok && "$files" == "M	calc.py" ]]; then
+    ok "live opencode fix -> status ok, check passed, diff = calc.py (${el}s)"
+  else
+    bad "live opencode fix" "rc=$rc status=$st files=[$files] $(head -c 1500 "$work/out.json")"
+  fi
+  invariants "live opencode" ""
 fi
 
 printf '%d passed, %d failed\n' "$pass" "$fail"
