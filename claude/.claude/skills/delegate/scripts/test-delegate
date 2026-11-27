@@ -428,6 +428,9 @@ case "${FAKE_OC_MODE:-edit}" in
     printf '%s\n' '{"type":"error","error":{"type":"provider.quota","message":"Free usage limit reached"}}'; exit 1 ;;
   toolerr)
     printf '%s\n' "$step" '{"type":"tool_use","part":{"tool":"read","state":{"status":"error","error":"File not found"}}}' "$fin" "$step" "$txt" ;;
+  workerror)
+    sed -i 's/a - b/a + b/' calc.py
+    printf '%s\n' "$step" "$tool" '{"type":"error","error":{"type":"provider.quota","message":"Free usage limit reached"}}'; exit 1 ;;
 esac
 EOF
 chmod +x "$ocfake"
@@ -486,6 +489,59 @@ DELEGATE_HARNESS=bogus "$DELEGATE" --model fake/x "x" >/dev/null 2>&1
 DELEGATE_HARNESS=opencode DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --model oc/x "fix calc.py" >"$work/out.json" 2>"$work/err"  # FAKE_OC_EXPECT default
 [[ "$(jget "$work/out.json" 'r["harness"], r["status"]')" == "opencode ok" ]] \
   && ok "DELEGATE_HARNESS=opencode selects opencode" || bad "env harness" "$(head -c 600 "$work/out.json")"
+
+# --- fallback chains ----------------------------------------------------------------
+chain_run() {  # chain_run CHAIN_SPEC [delegate args...]: runs chain "t" with the fakes
+  local spec=$1; shift
+  DELEGATE_CHAIN_T="$spec" DELEGATE_PI="$fake" DELEGATE_OPENCODE="$ocfake" "$DELEGATE" --chain t "$@" "fix calc.py" \
+    >"$work/out.json" 2>"$work/err"
+}
+
+# 36. a quota error before any work falls through to the next entry
+cd "$(new_repo chain-fall)" || exit 99
+FAKE_OC_MODE=error chain_run "opencode:opencode/a-free,pi:fake/x" --check 'python3 -c "import calc; assert calc.add(2,3)==5"'; rc=$?
+got=$(jget "$work/out.json" 'r["status"], r["model"], [(a["model"], a["status"]) for a in r["chain"]["attempts"]]')
+[[ $rc == 0 && "$got" == "ok fake/x [('opencode/a-free', 'error'), ('fake/x', 'ok')]" ]] \
+  && ok "chain: quota error -> next entry, attempts recorded" || bad "chain fallback" "rc=$rc got=$got"
+invariants "chain fallback" ""
+
+# 37. a Zen quota error skips the other free Zen entries (one shared quota), not paid ones
+cd "$(new_repo chain-zen)" || exit 99
+FAKE_OC_MODE=error chain_run "opencode:opencode/a-free,opencode:opencode/b-free,pi:fake/x"; rc=$?
+got=$(jget "$work/out.json" '[a["status"] for a in r["chain"]["attempts"]]')
+[[ $rc == 0 && "$got" == "['error', 'skipped', 'ok']" ]] \
+  && ok "chain: Zen quota -> other free Zen entries skipped" || bad "chain zen skip" "rc=$rc got=$got"
+
+# 38. a failed check is a verdict, not an availability problem: no fallback
+cd "$(new_repo chain-check)" || exit 99
+chain_run "pi:fake/x,pi:fake/y" --check 'exit 7'; rc=$?
+got=$(jget "$work/out.json" 'r["status"], len(r["chain"]["attempts"])')
+[[ $rc == 1 && "$got" == "check_failed 1" ]] \
+  && ok "chain: check_failed -> no fallback" || bad "chain check" "rc=$rc got=$got"
+
+# 39. an error after tool calls (work done, maybe paid for) is not retried elsewhere
+cd "$(new_repo chain-work)" || exit 99
+FAKE_OC_MODE=workerror chain_run "opencode:opencode/a-free,pi:fake/x"; rc=$?
+got=$(jget "$work/out.json" 'r["status"], len(r["chain"]["attempts"])')
+[[ $rc == 1 && "$got" == "error 1" ]] \
+  && ok "chain: error after work -> no fallback" || bad "chain work" "rc=$rc got=$got"
+invariants "chain work" ""
+
+# 40. argument rules: unknown chain, --chain with --model, malformed entry, built-in names
+cd "$(new_repo chain-args)" || exit 99
+"$DELEGATE" --chain nosuch "x" >/dev/null 2>&1; [[ $? == 2 ]] && ok "unknown chain -> exit 2" || bad "unknown chain"
+"$DELEGATE" --chain public --model a/b "x" >/dev/null 2>&1; [[ $? == 2 ]] && ok "--chain with --model -> exit 2" || bad "chain+model"
+DELEGATE_CHAIN_T="pi-model-without-harness" "$DELEGATE" --chain t "x" >/dev/null 2>&1
+[[ $? == 2 ]] && ok "malformed chain entry -> exit 2" || bad "bad entry"
+got=$(python3 - "$DELEGATE" <<'PY'
+import sys, importlib.machinery, importlib.util
+ld = importlib.machinery.SourceFileLoader("dg", sys.argv[1])
+m = importlib.util.module_from_spec(importlib.util.spec_from_loader("dg", ld)); ld.exec_module(m)
+print([h for h, _ in m.chain_entries("public")], m.chain_entries("private")[0][1].startswith("ollama/"))
+PY
+)
+[[ "$got" == "['opencode', 'pi', 'pi'] True" ]] && ok "built-in chains: public = free, paid, local; private = local" \
+  || bad "built-in chains" "$got"
 
 if [[ $offline == 0 ]]; then
   echo "live case ($LIVE_MODEL)"

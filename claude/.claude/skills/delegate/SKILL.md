@@ -36,12 +36,21 @@ The executor starts cold. The prompt must carry everything:
 ```bash
 $DG --check '<cmd that proves it>' [--model ollama/qwen3.8-unsloth:27b-ud-q4_K_XL] [--timeout 900] \
     [--link .venv --link <fetched deps dir>] [--base HEAD] [--thinking off] "<task>"
-$DG --harness opencode --model opencode/nemotron-3.5-super-vl-free --check '<cmd>' "<task>"
+$DG --chain public  --check '<cmd>' "<task>"     # public code: free Zen DeepSeek, then paid Go DeepSeek, then local
+$DG --chain private --check '<cmd>' "<task>"     # anything else: the local model only
 ```
+
+**Pick a chain, not a model, by default.** `--chain public` for code the owner publishes (public libraries,
+these dotfiles), `--chain private` for everything else (unpublished institute or client code, or when in doubt).
+A chain moves to its next model only when one could not start (free quota exhausted, backend down, bad model
+id: an error before any tool call); a failed check, a timeout or an error after work stops it. The result's
+`chain.attempts` lists every model tried and why it was passed over: report that, and the `usage.cost_usd` of
+the model that did the work, to the owner. Use `--model` only to pin one model on purpose.
 
 | Option | Use |
 |---|---|
 | `--check CMD` | Always pass one. Runs on a clean checkout of the patch tree plus `--link` paths, so it proves the patch, not the executor's leftovers; `$DELEGATE_REPO` = the real repo |
+| `--chain NAME` | A fallback chain decided in advance: `public` (`opencode/deepseek-v4.1-flash-free` → `opencode-go/deepseek-v4.1-flash` → local Qwen3.8) or `private` (local only); `$DELEGATE_CHAIN_<NAME>` overrides or adds one (`harness:provider/model,…`). Excludes `--model`/`--harness`; `--thinking`/`--tools` apply to its pi entries |
 | `--harness pi\|opencode` | Executor harness, default `pi`. opencode reaches the free Zen models pi cannot; it needs an explicit `--model` (list: `opencode models`) and refuses `--thinking`/`--tools` (use `--model p/m#variant`) |
 | `--model P/ID` | pi `provider/id`; default `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL`. List: `pi --list-models` |
 | `--link PATH` | Symlink an ignored input (venv, `fobis fetch` deps, build cache) into the clone; never part of the patch |
@@ -94,10 +103,11 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 | `opencode-go/deepseek-v4.1-flash` (cloud) | Fast opt-in when code may leave the machine; parallel fan-out | Hard bench tasks 9/9 in 12-20 s, 4-6 turns (~5x the local default). Paid from the Go allowance: $0.15/$0.60 per M tokens in/out, x2 weekdays 01-04 and 06-10 UTC; zero retention, no training |
 | other `opencode-go/*` (`pi --list-models opencode-go`) | Only after a `bench-delegate` run | qwen3.7-plus 9/9 at 50-81 s ($0.40/$1.60); kimi-k2.7-code 7/9 ($0.95/$4) |
 
-OpenCode Zen's *free* models (e.g. `opencode/nemotron-3.5-super-vl-free`) work only inside the opencode agent
+OpenCode Zen's *free* models (e.g. `opencode/deepseek-v4.1-flash-free`, `opencode/nemotron-3.5-super-vl-free`) work only inside the opencode agent
 (the API answers 429, so pi cannot use them): run them with `--harness opencode`. They publish no data policy:
-public code only, and the free tier is a quota (after a few tasks: `status: error`, "Free usage limit reached";
-stop, do not retry). opencode's system prompt is ~5.9k tokens against pi's ~1.6k, so keep local models on pi;
+public code only. All of them share one free-usage quota with no published size or reset time and no API to
+read it: an exhausted quota is `status: error`, "Free usage limit reached", after ~2 s. `--chain public` handles
+that by moving on (and skipping the other free entries); with a pinned `--model`, do not retry. opencode's system prompt is ~5.9k tokens against pi's ~1.6k, so keep local models on pi;
 its `stop_reason` is null on success and its `usage` a lower bound (no end-of-run event).
 
 Writing prose from a source (a paper into the llm-wiki, a summary, docs) is not a delegate task: on a real

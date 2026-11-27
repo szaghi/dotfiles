@@ -72,6 +72,21 @@ OPENCODE_ENV = {
 }
 HARNESSES = ("pi", "opencode")
 
+# Named fallback chains, decided in advance: ordered "harness:provider/model" entries. delegate moves to
+# the next entry only when an attempt failed before doing any work (falls_back), never after a failed
+# check or a timeout. $DELEGATE_CHAIN_<NAME> (comma-separated entries) overrides or adds a chain.
+#   public:  free OpenCode Zen DeepSeek (shared free quota, no published data policy), then the paid
+#            OpenCode Go DeepSeek (zero retention, no training), then the local default.
+#   private: the local default only; the code never leaves the machine.
+CHAINS = {
+    "public": (
+        "opencode:opencode/deepseek-v4.1-flash-free",
+        "pi:opencode-go/deepseek-v4.1-flash",
+        f"pi:{DEFAULT_MODEL}",
+    ),
+    "private": (f"pi:{DEFAULT_MODEL}",),
+}
+
 # Patch generation: plumbing, so no user/repo diff config (noprefix, color, textconv, external
 # drivers) can change the bytes; full index lines and binary hunks so `git apply` can use it.
 DIFF_FLAGS = [
@@ -448,7 +463,7 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
     usage: dict[str, Any] = {"input": 0, "output": 0, "cache_read": 0, "cost_usd": 0.0}
     texts: dict[str, list[str]] = {}
     last_msg = None
-    stop = error = None  # stop stays None unless an error event sets it (see the docstring)
+    stop = error = error_type = None  # stop stays None unless an error event sets it (docstring)
     for ev in _events(path):
         kind = ev.get("type")
         part = ev.get("part") if isinstance(ev.get("part"), dict) else {}
@@ -473,6 +488,7 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
         elif kind == "error":
             err = ev.get("error")
             error = err.get("message") or err.get("type") if isinstance(err, dict) else str(err)
+            error_type = err.get("type") if isinstance(err, dict) else None
             stop = "error"
     final = "\n".join(texts.get(last_msg, [])).strip() if last_msg else ""
     summary = {
@@ -486,6 +502,7 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
     }
     if error:
         summary["provider_error"] = str(error)
+        summary["provider_error_type"] = error_type
     return summary
 
 
@@ -546,13 +563,18 @@ def name_status(base_tree: str, new_tree: str, cwd: Path) -> list[str]:
     return [f"{s}\t{p}" for s, p in zip(fields[0::2], fields[1::2], strict=False) if s]
 
 
-def emit(result: dict[str, Any], artifacts: Path | None) -> None:
-    """Print the result and keep a copy next to the artifacts."""
+def emit_file(result: dict[str, Any], artifacts: Path | None) -> str:
+    """Keep a copy of the result next to the artifacts; return the JSON text."""
     text = json.dumps(result, indent=2, ensure_ascii=False)
     if artifacts:
         with contextlib.suppress(OSError):
             (artifacts / "result.json").write_text(text + "\n")
-    print(text, flush=True)
+    return text
+
+
+def emit(result: dict[str, Any], artifacts: Path | None) -> None:
+    """Print the result and keep a copy next to the artifacts."""
+    print(emit_file(result, artifacts), flush=True)
 
 
 # --------------------------------------------------------------------------- main
@@ -577,6 +599,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help=f"provider/model; pi: default $DELEGATE_MODEL or {DEFAULT_MODEL}; opencode: "
         "required (or $DELEGATE_OPENCODE_MODEL), e.g. opencode/<id> or opencode-go/<id>, "
         "'#variant' allowed",
+    )
+    p.add_argument(
+        "--chain",
+        help="run a named fallback chain instead of one model: "
+        f"{', '.join(CHAINS)} or $DELEGATE_CHAIN_<NAME>; excludes --model and --harness",
     )
     p.add_argument("--thinking", help="pi thinking level (default off); pi only")
     p.add_argument("--tools", help="pi tool allowlist, e.g. read,edit,bash; pi only")
@@ -635,6 +662,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         args.task = sys.stdin.read()
     if not args.task or not args.task.strip():
         p.error("a task is required (argument, '-' for stdin, or --task-file)")
+    args.out = args.out.expanduser().resolve()
+    if args.chain:
+        if args.model or "--harness" in argv:
+            p.error("--chain excludes --model and --harness: the chain names both")
+        try:
+            args.entries = chain_entries(args.chain)
+        except ValueError as err:
+            p.error(str(err))
+        return args
     if args.harness not in HARNESSES:
         p.error(f"--harness / $DELEGATE_HARNESS must be one of {', '.join(HARNESSES)}")
     if args.harness == "pi":
@@ -653,8 +689,56 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             )
     if "/" not in args.model:
         p.error("--model must be provider/id, e.g. ollama/qwen3.8-unsloth:27b-ud-q4_K_XL")
-    args.out = args.out.expanduser().resolve()
+    args.entries = [(args.harness, args.model)]
     return args
+
+
+def chain_entries(name: str) -> list[tuple[str, str]]:
+    """The (harness, model) entries of a named chain; ValueError when unknown or malformed."""
+    raw = os.environ.get(f"DELEGATE_CHAIN_{name.upper().replace('-', '_')}")
+    items = [e.strip() for e in raw.split(",") if e.strip()] if raw else list(CHAINS.get(name, ()))
+    if not items:
+        names = sorted({*CHAINS, *(k[15:].lower() for k in os.environ if k.startswith("DELEGATE_CHAIN_"))})
+        raise ValueError(f"--chain {name}: unknown chain (known: {', '.join(names)})")
+    entries = []
+    for item in items:
+        harness, _, model = item.partition(":")
+        if harness not in HARNESSES or "/" not in model:
+            raise ValueError(f"--chain {name}: bad entry {item!r}, want harness:provider/model")
+        entries.append((harness, model))
+    return entries
+
+
+def for_entry(args: argparse.Namespace, harness: str, model: str) -> argparse.Namespace:
+    """args for one chain entry: --thinking and --tools apply to pi entries only."""
+    a = argparse.Namespace(**vars(args))
+    a.harness, a.model = harness, model
+    a.thinking = (args.thinking or "off") if harness == "pi" else None
+    a.tools = args.tools if harness == "pi" else None
+    return a
+
+
+def falls_back(result: dict[str, Any]) -> bool:
+    """True when an attempt failed before doing any work, so the next chain entry may run.
+
+    The backend was down, or the executor ran and errored without a single tool call and without a
+    change (a quota, an unknown model, a refused key). A failed check, a timeout or any error after
+    tool calls is a verdict on this model's work, not an availability problem: no fallback.
+    """
+    if result.get("status") == "backend_down":
+        return True
+    executor = result.get("executor") or {}
+    return (
+        result.get("status") == "error"
+        and bool(executor)
+        and not executor.get("tools")
+        and not result.get("changed_files")
+    )
+
+
+def free_zen(model: str) -> bool:
+    """An OpenCode Zen free model: they all draw on one free-usage quota."""
+    return model.startswith("opencode/") and model.endswith("-free")
 
 
 def preflight(
@@ -797,13 +881,15 @@ def run(args: argparse.Namespace, result: dict[str, Any], state: dict[str, Any])
         result["status"] = "ok"
 
 
-def main(argv: list[str]) -> int:
-    """Entry point: run the pipeline, always clean up and always print one JSON object."""
-    args = parse_args(argv)
-    t_start = time.monotonic()
+def arm_signals() -> None:
+    """Turn SIGINT/SIGTERM/SIGHUP into Interrupted, so cleanup and the report still happen."""
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, _on_signal)
-    become_subreaper()
+
+
+def attempt(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any], int]:
+    """One delegate run on one model: run the pipeline, always clean up; return (result, state, rc)."""
+    t_start = time.monotonic()
     result: dict[str, Any] = {
         "status": "error",
         "harness": args.harness,
@@ -845,9 +931,39 @@ def main(argv: list[str]) -> int:
                 payload = {"model": model_id, "keep_alive": args.keep_alive}
                 ollama_post(f"{base}/api/generate", payload, timeout=30)
         result["elapsed_s"] = round(time.monotonic() - t_start, 1)
+    return result, state, rc
+
+
+def main(argv: list[str]) -> int:
+    """Entry point: one attempt, or a chain of them; always print one JSON object."""
+    args = parse_args(argv)
+    t_start = time.monotonic()
+    become_subreaper()
+    attempts: list[dict[str, Any]] = []
+    result: dict[str, Any] = {}
+    state: dict[str, Any] = {}
+    rc = 1
+    zen_quota_out = False
+    for harness, model in args.entries:
+        if zen_quota_out and free_zen(model):
+            attempts.append({"harness": harness, "model": model, "status": "skipped",
+                             "error": "OpenCode Zen free-usage quota exhausted earlier in the chain"})
+            continue
+        arm_signals()
+        result, state, rc = attempt(for_entry(args, harness, model))
+        attempts.append({k: result.get(k) for k in ("harness", "model", "status", "error", "artifacts")})
+        if args.chain and len(attempts) < len(args.entries) and falls_back(result):
+            if free_zen(model) and (result.get("executor") or {}).get("provider_error_type") == "provider.quota":
+                zen_quota_out = True
+            with contextlib.suppress(OSError, KeyError):  # keep the skipped attempt's own report
+                emit_file(result, state.get("artifacts"))
+            continue
+        break
+    if args.chain:
+        result["chain"] = {"name": args.chain, "attempts": attempts}
+        result["elapsed_s"] = round(time.monotonic() - t_start, 1)
     emit(result, state.get("artifacts"))
     return rc
-
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

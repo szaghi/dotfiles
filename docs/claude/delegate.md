@@ -48,6 +48,7 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 
 | Option | Default | Purpose |
 |---|---|---|
+| `--chain NAME` | none | Run a fallback chain instead of one model: `public` or `private`, see [Executors](/claude/executors#fallback-chains); excludes `--model` and `--harness` |
 | `--harness NAME` | `$DELEGATE_HARNESS`, else `pi` | `pi` or `opencode` |
 | `--model P/ID` | pi: `$DELEGATE_MODEL`, else `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL`; opencode: required (or `$DELEGATE_OPENCODE_MODEL`) | provider/model of the harness; opencode accepts `provider/model#variant` |
 | `--check CMD` | none | Run on a clean checkout of the patch tree plus `--link` paths; `$DELEGATE_REPO` points at the real repo |

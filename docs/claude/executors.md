@@ -19,6 +19,7 @@ rewrites `settings.json`, and `auth.json` holds keys.
 | `llamacpp/llama` | llama.cpp on `:8080` | free; stays on adam | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
 | `ikllama/ikllama` | ik_llama.cpp on `:8081` | free; stays on adam | Same, `--backend ikllama` |
 | `opencode-go/deepseek-v4.1-flash` | OpenCode Go (cloud) | $0.15 / $0.60 per M tokens in / out, doubled on weekdays 01-04 and 06-10 UTC; zero data retention, no training | Built into pi ≥ 1.6, not in `models.json`; the fastest executor measured |
+| `opencode/deepseek-v4.1-flash-free` | OpenCode Zen (cloud), `--harness opencode` only | free, within the shared Zen free quota; no published data policy | First entry of the `public` chain; not yet benchmarked (the free quota was exhausted on 2026-11-27) |
 | `opencode-go/qwen3.7-plus` | OpenCode Go (cloud) | $0.40 / $1.60 | Benchmarked only (below) |
 | `opencode-go/kimi-k2.7-code` | OpenCode Go (cloud) | $0.95 / $4.00 | Benchmarked only (below) |
 
@@ -29,6 +30,41 @@ tokens, about $0.05 (twice that in the peak windows). The OpenCode Zen models ma
 `nemotron-3.5-super-vl-free`) cost nothing but work only inside the opencode agent, which logs in with OAuth:
 through the API, and so through pi, they answer HTTP 429 `FreeUsageLimitError`; `--harness opencode` reaches
 them. Their metadata states no retention or training policy: treat them as public.
+
+The free models share one quota per account. Its size and reset time are not published, and nothing reports
+what is left: `opencode stats` shows only local token and cost totals, and the 429 carries no `Retry-After`.
+The only check is a request, which costs nothing and fails in about 2 s when the quota is out:
+
+```bash
+opencode run --format json --model opencode/deepseek-v4.1-flash-free "say ok" </dev/null | grep -c FreeUsageLimit
+```
+
+It prints `1` while the quota is exhausted and `0` when the model answered.
+
+## Fallback chains
+
+`delegate --chain NAME` runs an ordered list of models decided in advance instead of one, moving to the next
+entry only when a model could not start. The two built-in chains:
+
+| Chain | Entries, in order | For |
+|---|---|---|
+| `public` | `opencode:opencode/deepseek-v4.1-flash-free` → `pi:opencode-go/deepseek-v4.1-flash` → `pi:ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` | Code that is published anyway: free first, the fast paid model next (well under a cent per task), the local model last |
+| `private` | `pi:ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` | Unpublished institute or client code: nothing leaves adam |
+
+`$DELEGATE_CHAIN_<NAME>` (comma-separated `harness:provider/model` entries) overrides a built-in chain or adds
+one, e.g. `export DELEGATE_CHAIN_FAST="pi:opencode-go/deepseek-v4.1-flash"` in `claude_code.local`.
+
+- **When it falls back.** The backend was down, or the executor errored without a single tool call and without
+  a change: an exhausted quota, an unknown model, a refused key. A failed check, a timeout or an error after
+  tool calls is a verdict on that model's work (and may already have cost money), so the chain stops there and
+  reports it.
+- **One quota, one try.** A Zen quota error (`provider.quota`) on a free model skips every later free Zen
+  entry: they share the quota.
+- **The report.** The result is the attempt that did the work, plus `chain.attempts`: each model tried, its
+  status and error, its artifacts. Skipped entries appear as `skipped`.
+- **Measured** (2026-11-27, a one-line fix): the free entry failed on quota in 1.7 s, the paid DeepSeek through
+  pi fixed it, 9.6 s and $0.0005 in all.
+- `--thinking` and `--tools` apply to the chain's pi entries only.
 
 For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
 the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the
