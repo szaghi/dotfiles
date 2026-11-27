@@ -82,14 +82,22 @@ checks the `check` field does not show are reasons for extra scrutiny, not for r
 
 ## Models and where the code goes
 
-| Model | Use for | Cost |
+| Model | Use for | Speed, price, data |
 |---|---|---|
-| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Multi-file fixes, features, refactors with a spec | Hard bench tasks 9/9 in ~1-6 min, 5-57 turns; one-liners ~10 s; dense 27B at ~23 tok/s; thinking off |
-| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | One-liners when speed matters | 3x faster per token, but 2/9 on the hard bench tasks |
+| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Multi-file fixes, features, refactors with a spec | Hard bench tasks 9/9 in ~1-6 min, 5-57 turns; one-liners ~10 s; dense 27B at ~23 tok/s; thinking off. Free, stays on adam |
+| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | One-liners when speed matters | 3x faster per token, but 2/9 on the hard bench tasks. Free, local |
 | `ikllama/ikllama` | Qwen3-Coder when you keep a server up for many delegations: ~30% faster | Start it first: `llm-local-server start --backend ikllama --model ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf --ctx 32k` |
 | `llamacpp/llama` | Whatever GGUF the server loaded, e.g. Qwen3.8-27B (same 15/15 as on Ollama, H3 faster) | Start it first with `--ctx 32k`; the `server` block names the GGUF |
-| `opencode-go/deepseek-v4.1-flash` (cloud) | Fast opt-in when code may leave the machine; parallel fan-out | Hard bench tasks 9/9 in 12-20 s, 4-6 turns (~5x the local default); OpenCode Go plan |
-| other `opencode-go/*` (`pi --list-models opencode-go`) | Only after a `bench-delegate` run | qwen3.7-plus 9/9 at 50-81 s; kimi-k2.7-code 7/9 |
+| `opencode-go/deepseek-v4.1-flash` (cloud) | Fast opt-in when code may leave the machine; parallel fan-out | Hard bench tasks 9/9 in 12-20 s, 4-6 turns (~5x the local default). Paid from the Go allowance: $0.15/$0.60 per M tokens in/out, x2 weekdays 01-04 and 06-10 UTC; zero retention, no training |
+| other `opencode-go/*` (`pi --list-models opencode-go`) | Only after a `bench-delegate` run | qwen3.7-plus 9/9 at 50-81 s ($0.40/$1.60); kimi-k2.7-code 7/9 ($0.95/$4) |
+
+OpenCode Zen's *free* models (e.g. `nemotron-3.5-super-vl-free`) are not reachable from pi: they work only
+inside the opencode agent (the API answers 429) and publish no data policy. Not wired in.
+
+Writing prose from a source (a paper into the llm-wiki, a summary, docs) is not a delegate task: on a real
+ingestion (2026-11-27) DeepSeek got 13 of 40 claims wrong and the local model timed out inventing content. The
+mechanical part, extracting a reference list into BibTeX, came back right from both cloud executors: delegate
+that, with a check that counts entries against the source.
 
 A cloud model sends the repository files it reads to that provider. Use one only on repositories
 where the owner has accepted that (public libraries: yes; unpublished institute or client code: ask).

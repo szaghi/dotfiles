@@ -101,13 +101,23 @@ pi 0.80 knew an older Go endpoint (`/zen/go/v1`, without the session header Go n
 Defined in `pi/.pi/agent/models.json` (adam only, through `machines/adam`). Only that file is tracked: pi
 rewrites `settings.json`, and `auth.json` holds keys.
 
-| Provider/model | Engine | Notes |
-|---|---|---|
-| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Ollama, loads on demand | Imported with `claude/.claude/skills/delegate/ollama/Modelfile.qwen3.8-27b`; `thinkingLevelMap` maps `off` to `reasoning_effort: "none"`, without which Ollama thinks despite `--thinking off` |
-| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | Ollama, loads on demand | Former default; imported with `Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
-| `llamacpp/llama` | llama.cpp on `:8080` | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
-| `ikllama/ikllama` | ik_llama.cpp on `:8081` | Same, `--backend ikllama` |
-| `opencode-go/deepseek-v4.1-flash` | OpenCode Go (cloud) | Built into pi ≥ 1.6, not in `models.json`; the fastest executor measured, code leaves the machine |
+| Provider/model | Engine | Cost, data | Notes |
+|---|---|---|---|
+| `ollama/qwen3.8-unsloth:27b-ud-q4_K_XL` (default) | Ollama, loads on demand | free; stays on adam | Imported with `claude/.claude/skills/delegate/ollama/Modelfile.qwen3.8-27b`; `thinkingLevelMap` maps `off` to `reasoning_effort: "none"`, without which Ollama thinks despite `--thinking off` |
+| `ollama/qwen3-coder-unsloth:30b-a3b-q4_K_M` | Ollama, loads on demand | free; stays on adam | Former default; imported with `Modelfile.qwen3-coder-30b-a3b` (recipe inside) |
+| `llamacpp/llama` | llama.cpp on `:8080` | free; stays on adam | Serves whatever GGUF `llm-local-server start --backend llama --model … --ctx 32k` loaded |
+| `ikllama/ikllama` | ik_llama.cpp on `:8081` | free; stays on adam | Same, `--backend ikllama` |
+| `opencode-go/deepseek-v4.1-flash` | OpenCode Go (cloud) | $0.15 / $0.60 per M tokens in / out, doubled on weekdays 01-04 and 06-10 UTC; zero data retention, no training | Built into pi ≥ 1.6, not in `models.json`; the fastest executor measured |
+| `opencode-go/qwen3.7-plus` | OpenCode Go (cloud) | $0.40 / $1.60 | Benchmarked only (below) |
+| `opencode-go/kimi-k2.7-code` | OpenCode Go (cloud) | $0.95 / $4.00 | Benchmarked only (below) |
+
+Every `opencode-go/*` call is billed against the Go plan's monthly allowance, not free: the prices and the
+data-policy flags come from the provider's model metadata (`cost`, `zdr`, `training`), checked 2026-11-27. A
+hard bench task costs DeepSeek well under a cent; the paper ingestion below, about 107k input and 49k output
+tokens, about $0.05 (twice that in the peak windows). The OpenCode Zen models marked *free* (e.g.
+`nemotron-3.5-super-vl-free`) cost nothing but work only inside the opencode agent, which logs in with OAuth:
+through the API, and so through pi, they answer HTTP 429 `FreeUsageLimitError`. Their metadata states no
+retention or training policy.
 
 For the two llama-server engines the model id is only the server's alias, so `delegate` reads `/props` and puts
 the real GGUF and the per-slot context in the result's `server` block. A stopped server is `backend_down` with the
@@ -203,6 +213,49 @@ Three runs per task; hard-task medians:
   which does not fit 24 GB), sampling as the adapter was trained (temperature 0.8, top-p 1.0) for both Qwen3.8 rows.
   The first run of the suite counted an added test file as tampering; the check was fixed and the Qwen3-Coder patches
   rescored before these numbers.
+
+### Real task: a paper into the llm-wiki (2026-11-27)
+
+The bench tasks are small and fully checkable. To see how far that carries, the same ingestion was given to
+four executors: He, Liu & Wang (2022), *On the mechanisms of the multiplicity and bifurcation of detonation
+waves in 3D rotating detonation engines* (Aerosp. Sci. Technol. 130, 107874; 15 pages, 81 references), into a
+freshly scaffolded `rotating-detonation-engine` bundle of `~/llm-wiki`, following that repository's law
+(concept pages, notation registry and per-source notation map, complete `bibliography.bib`). One task text
+for all; the check was the repository's own `tools/lint_okf.py` and `tools/bundles.py --check` plus "nothing
+outside the bundle, the README and the skill's bundle table changed". That check proves the form, not the
+content, so the content was scored claim by claim against the paper.
+
+| Executor | Harness | Time | Check | Concept pages, words | Bibliography | Claims wrong | Paper errors flagged |
+|---|---|---|---|---|---|---|---|
+| Opus 5.5 (the orchestrator, by hand) | Claude Code | - | pass | 7, 4,513 | 81 | 0 of 47 | 20 |
+| DeepSeek V4.1 Flash | pi via `delegate` | 364 s, 41 turns | pass | 13, 6,344 | 81 | 13 of 40 | - |
+| Qwen3.8-27B local (64k context) | pi via `delegate` | timeout at 5,400 s | fail | 2, 1,982 | 9 | invented content | - |
+| Nemotron 3.5 Super VL (Zen, free) | `opencode run` | 1,050 s, 37 steps | pass | 5, 1,015 | 81 | 6 of ~38 | 0 |
+
+- **Opus**: the version committed to `~/llm-wiki` (after an independent review found four defects, since fixed).
+- **DeepSeek**: fast and formally clean, but over-split the paper into 13 pages, let the paper's $h$ collide with
+  the registry's fill height, and put the cavity on the wrong wall.
+- **Local Qwen3.8**: two concept pages and nine references in 90 minutes, with content the paper does not contain.
+  A 27B dense model at ~23 tok/s cannot read and write at this volume.
+- **Nemotron**: the most accurate of the three executors but the thinnest (about 200 words per page, no page for
+  the propulsive-performance result or the injection model). Two outright errors swap timings between cases (C1h3
+  "364 μs to its first stable wave" is C2h3's stable-mode time, C1h3 forms its first stable wave at 400 μs; C4h3
+  never reaches a stable three-wave mode: it turns periodic, 3 ↔ 2 waves, at 288 μs; 484 μs is C1h3's). Four more
+  generalise beyond the text: the C2 mode-lock holds for ψ 44.5-54.7 % only; the matched-flow-rate check is
+  reported for C1h5 only; the variance range ignores C4; the 3.0 % velocity error is the coarse mesh's, not the
+  medium one's. It added two symbols to the registry while using ψ in a page without registering it, called the
+  tables transcribed when they were not, and flagged none of the paper's own errors.
+- **The bibliography is the delegable part.** Nemotron's 81 entries match the reviewed Opus list field by field
+  (authors, volume, pages; one diacritic aside), DeepSeek's too. Both copied the list as printed, including two
+  misprinted years (Sutherland 1893 as 2009, an online-first 2017 for a 2018 issue) that the Opus pass corrected. Extracting a reference list is mechanical and checkable against the PDF; writing concept pages is
+  neither: every executor's pages need a claim-by-claim review that costs about as much as writing them.
+- Method: the Opus, DeepSeek and local outputs were scored blind (anonymised, independent reviewer agent, its
+  claims spot-checked); Nemotron's afterwards, unblinded, by checking each of its claims against the paper text.
+  One paper, one run each.
+- **opencode is not wired into `delegate`.** Nemotron ran through `opencode run --format json`, a different
+  harness from the pi runs. The bar for adding opencode as a second harness was a free executor clearly better
+  than DeepSeek; Nemotron is more accurate but too thin to use without the same full review, so it does not clear
+  it, and its free tier exists only inside opencode with no published data policy.
 
 ## Testing
 
