@@ -38,7 +38,7 @@ cat >"$fake" <<'EOF'
 # Modes via FAKE_PI_MODE: edit (default), sleep, fail, assert-dirty, assert-link, binary-ws,
 # provider-error, bg, git-refs, ignored-helper, assert-task, latin1, garbage
 emit() { printf '%s\n' '{"type":"tool_execution_start","toolName":"edit"}' \
-  '{"type":"agent_end","messages":[{"role":"user","content":[]},{"role":"assistant","stopReason":"stop","usage":{"input":10,"output":5},"content":[{"type":"text","text":"done"}]}]}'; }
+  '{"type":"agent_end","messages":[{"role":"user","content":[]},{"role":"assistant","stopReason":"stop","usage":{"input":10,"output":5,"cacheRead":30,"cost":{"total":0.0012}},"content":[{"type":"text","text":"done"}]}]}'; }
 case "${FAKE_PI_MODE:-edit}" in
   edit)  sed -i 's/a - b/a + b/' calc.py; emit ;;
   sleep) sleep 3173 ;;
@@ -127,6 +127,9 @@ else
 fi
 patch=$(jget "$work/out.json" 'r["patch"]')
 git apply --check "$patch" 2>/dev/null && ok "patch applies to the real tree" || bad "patch does not apply"
+u=$(jget "$work/out.json" 'r["executor"]["usage"]')
+[[ "$u" == "{'input': 10, 'output': 5, 'cache_read': 30, 'cost_usd': 0.0012}" ]] \
+  && ok "pi usage -> cache reads and cost reported" || bad "pi usage" "$u"
 invariants "dirty tree" "$before"
 
 # 5. check failure
@@ -417,7 +420,7 @@ if not ok or not got.endswith("# Task\n\n" + sys.argv[1]):
 ' "${FAKE_OC_EXPECT:-fix calc.py}" || exit 4
 step='{"type":"step_start","part":{"type":"step-start"}}'
 tool='{"type":"tool_use","part":{"type":"tool","tool":"edit","state":{"status":"completed"}}}'
-fin='{"type":"step_finish","part":{"type":"step-finish","reason":"tool-calls","tokens":{"input":100,"output":7,"reasoning":3,"cache":{"read":40}}}}'
+fin='{"type":"step_finish","part":{"type":"step-finish","reason":"tool-calls","cost":0.0005,"tokens":{"input":100,"output":7,"reasoning":3,"cache":{"read":40}}}}'
 txt='{"type":"text","part":{"type":"text","messageID":"m2","text":"done"}}'
 case "${FAKE_OC_MODE:-edit}" in
   edit) sed -i 's/a - b/a + b/' calc.py; printf '%s\n' "$step" "$tool" "$fin" "$step" "$txt" ;;
@@ -438,7 +441,7 @@ oc_run() {  # oc_run TASK [delegate args...]
 cd "$(new_repo oc-ok)" || exit 99
 oc_run "fix calc.py" --check 'python3 -c "import calc; assert calc.add(2,3)==5"'; rc=$?
 got=$(jget "$work/out.json" 'r["status"], r["harness"], r["changed_files"], r["executor"]["turns"], r["executor"]["tools"], r["executor"]["usage"], r["executor"]["stop_reason"], r["final_message"], r["thinking"]')
-[[ $rc == 0 && "$got" == "ok opencode ['M\\tcalc.py'] 2 {'edit': 1} {'input': 100, 'output': 7, 'cache_read': 40} None done None" ]] \
+[[ $rc == 0 && "$got" == "ok opencode ['M\\tcalc.py'] 2 {'edit': 1} {'input': 100, 'output': 7, 'cache_read': 40, 'cost_usd': 0.0005} None done None" ]] \
   && ok "opencode -> status ok, harness/turns/tools/usage/final reported, no stale stop_reason" \
   || bad "opencode ok" "rc=$rc got=$got $(tail -3 "$work/err")"
 [[ -f "$(jget "$work/out.json" 'r["artifacts"]')/opencode.err" ]] && ok "opencode stderr in opencode.err" || bad "opencode.err missing"

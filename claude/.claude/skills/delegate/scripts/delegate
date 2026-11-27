@@ -445,7 +445,7 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
     """
     tools: Counter[str] = Counter()
     tool_errors = steps = 0
-    usage = {"input": 0, "output": 0, "cache_read": 0}  # opencode's input excludes cache reads
+    usage: dict[str, Any] = {"input": 0, "output": 0, "cache_read": 0, "cost_usd": 0.0}
     texts: dict[str, list[str]] = {}
     last_msg = None
     stop = error = None  # stop stays None unless an error event sets it (see the docstring)
@@ -468,6 +468,8 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
                 usage["input"] += int(tok.get("input") or 0)
                 usage["output"] += int(tok.get("output") or 0)
                 usage["cache_read"] += int((tok.get("cache") or {}).get("read") or 0)
+            with contextlib.suppress(TypeError, ValueError):
+                usage["cost_usd"] += float(part.get("cost") or 0)
         elif kind == "error":
             err = ev.get("error")
             error = err.get("message") or err.get("type") if isinstance(err, dict) else str(err)
@@ -479,7 +481,7 @@ def parse_opencode_events(path: Path) -> dict[str, Any]:
         "turns": steps,
         "tools": dict(tools),
         "tool_errors": tool_errors,
-        "usage": usage,
+        "usage": usage | {"cost_usd": round(usage["cost_usd"], 6)},
         "final_message": _cap(final, path),
     }
     if error:
@@ -503,12 +505,16 @@ def parse_pi_events(path: Path) -> dict[str, Any]:
             finished = True
             messages = _dicts(ev.get("messages"))
     assistant = [m for m in messages if m.get("role") == "assistant"]
-    usage = {"input": 0, "output": 0}
+    # input excludes cache reads (both harnesses): on a long run cache reads are most tokens.
+    usage: dict[str, Any] = {"input": 0, "output": 0, "cache_read": 0, "cost_usd": 0.0}
     for m in assistant:
         u = m.get("usage")
-        for k in usage:
-            with contextlib.suppress(TypeError, ValueError, AttributeError):
-                usage[k] += int(u.get(k) or 0)
+        with contextlib.suppress(TypeError, ValueError, AttributeError):
+            usage["input"] += int(u.get("input") or 0)
+            usage["output"] += int(u.get("output") or 0)
+            usage["cache_read"] += int(u.get("cacheRead") or 0)
+            usage["cost_usd"] += float((u.get("cost") or {}).get("total") or 0)
+    usage["cost_usd"] = round(usage["cost_usd"], 6)
     final = ""
     if assistant:
         texts = [c.get("text") for c in _dicts(assistant[-1].get("content"))]

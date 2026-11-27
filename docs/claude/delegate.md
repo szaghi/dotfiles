@@ -58,6 +58,11 @@ delegate --check 'python3 -m pytest tests/test_io.py -q' --link .venv \
 | `--server-wait S` | 300 | llama.cpp / ik_llama: how long to wait while `/health` reports the model loading |
 | `--keep` | off | Keep the clone for inspection (`workdir` in the result) |
 
+`executor.usage` holds, for both harnesses, `input` (uncached prompt tokens), `output`, `cache_read` and
+`cost_usd` as the harness computes it from its model prices (0 for local models and free tiers). On a long run
+cache reads are most of the tokens: the DeepSeek paper ingestion below was 107k input, 49k output and 2.78M
+cache reads, $0.054.
+
 Status values: `ok`, `check_failed`, `timeout`, `error`, `backend_down`, `interrupted`. Exit status is 0 only
 for `ok`; 2 for setup errors found before the executor starts (not a git repository, harness missing, bad `--base`,
 `--link` or `--out`); 128+N after signal N. Artifacts stay in `$XDG_CACHE_HOME/delegate/<id>/`. Apply a patch
@@ -109,9 +114,8 @@ no message argument. The environment keeps it from loading `~/.claude` instructi
 (`OPENCODE_DISABLE_CLAUDE_CODE`), from updating itself, and from copying the clone into its own snapshot store
 (`"snapshot": false`); `webfetch` and `websearch` are denied, as pi has no web tool. Models and
 credentials are opencode's own (`opencode models`, `opencode auth login`), not pi's `models.json`, so there
-is no Ollama warm-up or llama-server pre-flight. The JSON result has the same shape plus `harness`; usage adds
-`cache_read`, because opencode's `input` leaves cache hits out. Its stderr is `opencode.err`, the prompt it was
-sent `prompt.md`.
+is no Ollama warm-up or llama-server pre-flight. The JSON result has the same shape plus `harness`. Its stderr is
+`opencode.err`, the prompt it was sent `prompt.md`.
 
 - **No default model.** An opencode model id is a cloud model unless you configured otherwise; code must not
   leave the machine because a flag was forgotten. `--thinking` and `--tools` are refused; pick a reasoning

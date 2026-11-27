@@ -79,7 +79,8 @@ Then, for `ok`:
 4. Run your normal gate in the real tree. Report to the owner what was delegated, the model, the
    status, and that you reviewed and re-gated it.
 
-`executor.tool_errors > 0`, `turns` near zero with a non-empty patch, or a `final_message` claiming
+`executor.usage` gives `input` (uncached), `output`, `cache_read` and `cost_usd`; report the cost to the owner
+for cloud runs. `executor.tool_errors > 0`, `turns` near zero with a non-empty patch, or a `final_message` claiming
 checks the `check` field does not show are reasons for extra scrutiny, not for rejection by themselves.
 
 ## Models and where the code goes
