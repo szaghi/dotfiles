@@ -34,8 +34,16 @@ do not loosen the guard ([bash](/packages/bash)).
 
 ## `module load` works in a terminal but not in a script
 
-In non-interactive shells on adam, `module load` does not populate `PATH`. Export the toolchain paths
-directly in the script ([HPC modules](/packages/modules)).
+In non-interactive shells on adam, `module load` does not populate `PATH`: `.bashrc` returns at its prompt
+guard before `~/.bash/exports`, which initialises Lmod and sets `MODULEPATH=~/.modules`. Export the toolchain
+paths directly in the script, for example for GCC 16.2.0 and Open MPI 5.0.11:
+
+```bash
+export PATH=/opt/openmpi/bin/5.0.11/gnu/16.2.0/bin:/opt/gcc/bin/16.2.0/bin:$PATH
+export LD_LIBRARY_PATH=/opt/openmpi/bin/5.0.11/gnu/16.2.0/lib:/opt/gcc/bin/16.2.0/lib64:/opt/gcc/bin/16.2.0/lib:$LD_LIBRARY_PATH
+```
+
+The paths of every toolchain are in its modulefile ([HPC modules](/packages/modules)).
 
 ## `fatal: bad object HEAD` after a crash
 

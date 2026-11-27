@@ -112,16 +112,20 @@ book-to-skill
 pdf-deps
 latex-document-skill
 stop-slop
+remotion-best-practices
 
 # machines/quark.skills     (Chuwi N150 laptop — no mattpocock bundle)
 book-to-skill
 pdf-deps
 latex-document-skill
 stop-slop
+remotion-best-practices
 
-# machines/cluster.skills   (HPC login node)
-# (intentionally empty: no class-C skills make sense on a shared cluster)
+# machines/astrobit.skills  (telescope controller — deliberately minimal)
+stop-slop
 ```
+
+These mirror the real files in `machines/`; check there before relying on this copy.
 
 Class A skills always stow everywhere (cheap, source-only). Class B skills
 are host-uniform via `settings.json`.
@@ -152,27 +156,11 @@ Restart Claude Code after `install` or `update` so plugin changes load
 
 ## What's in this repo today
 
-Inventory of skills currently shipped via this directory and `manifest.toml`:
-
-| Skill | Class | Notes |
-|---|---|---|
-| `fobis/` | A | `/fobis` slash command — FoBiS.py build tool expert |
-| `markdown-mermaid-writing/` | A | Markdown + Mermaid diagram authoring |
-| `markitdown/` | A | Convert PDF / DOCX / PPTX / etc. to Markdown |
-| `research-lookup/` | A | Parallel Chat API research backend |
-| `scientific-writing/` | A | IMRAD manuscript / reporting-guideline workflow |
-| `darktable-raw/` | A | darktable 4.6 manual as a knowledge base (modules, scene-referred pipeline, darktable-cli) |
-| `ai-research-verification/` | A | Trust discipline for agent-produced numerics/CFD results (frozen spec, tiers, Comparator analogue) + dated triage of 2026 AI-math results relevant to CFD/HPC |
-| `darktable-operator/` | A | RAW post-processing workflow — Claude drives darktable-cli; prompt-controlled edit values via XMP patching (see its `USER-GUIDE.md`) |
-| `frontend-design@claude-plugins-official` | B | Distinctive frontend interfaces |
-| `skill-creator@claude-plugins-official` | B | Create / evaluate / optimize skills |
-| `cli-anything@cli-anything` | B | CLI-Anything plugin (HKUDS/CLI-Anything) |
-| `document-skills@anthropic-agent-skills` | B | Official Anthropic pdf / xlsx / docx / pptx skills (Python deps via `pdf-deps` venv) |
-| `mattpocock-skills` | C | Matt Pocock skill bundle (diagnose, tdd, grill-*, …) — host: adam only |
-| `book-to-skill` | C | Convert books / documents into structured skills |
-| `pdf-deps` | C | Isolated venv (pypdf, pdfplumber, reportlab, …) backing the class-B `pdf` skill |
-| `latex-document-skill` | C | Community LaTeX skill — XeLaTeX/LuaLaTeX auto-detect, latexmk backend, isolated venv |
-| `stop-slop` | C | Remove AI writing tells from prose (static markdown, no build) |
+The complete inventory (every class-A skill, every plugin and manifest entry, with the hosts that get
+each one) is the docs page `docs/claude/skills-inventory.md`, published at
+<https://szaghi.github.io/dotfiles/claude/skills-inventory>. It is kept in one place on purpose: the
+partial table that used to live here had drifted to 8 of 30 class-A skills. `skills-apply status`
+shows what is actually installed on the current host.
 
 ### HPC skill fleet
 

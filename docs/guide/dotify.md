@@ -36,7 +36,8 @@ directory, Stow unfolds it into a real directory holding links. Folding is why s
 created before the first deploy ([Fresh install, step 3](/guide/installation#_3-create-the-directories-that-must-stay-real)).
 
 **Conflicts.** Stow never overwrites a real file. If one is in the way, it reports the conflict and
-changes nothing; move the file and re-run.
+changes nothing in that package. `dotify.sh` runs under `set -e`, so the run stops there: earlier packages
+are linked, later ones are not processed. Move the file and re-run.
 
 ## dotify.sh
 
@@ -68,7 +69,7 @@ script from.
 
 Claude Code rewrites `~/.claude/settings.json` (on `/model`, on a plugin toggle, when an installer adds
 a hook) by **replacing** the file. The link becomes a plain file and the next stow would abort. Before
-stowing `claude`, `dotify.sh` checks it:
+stowing `claude` (not when uninstalling), `dotify.sh` checks it:
 
 | Live `~/.claude/settings.json` | What dotify.sh does |
 |---|---|
@@ -92,12 +93,15 @@ It never overwrites the dotfile on its own: the dotfile may hold uncommitted edi
 `dotify.sh` stows only the packages it is told about, so the other top-level entries are safe by
 construction. Inside packages, `.stow-local-ignore` files keep non-$HOME content out of Stow's view:
 `desktop/system/` and `desktop-astrobit/system/` hold root-owned files that their install scripts copy
-under `/etc`.
+under `/etc` (and, for astrobit's virtual EDID, `/lib/firmware`); `miscellanea/` hides `mount-zaghi-nas.sh`; `vim/` hides `plugged`, `undo`, `view` and `vim`.
 
 ## Things to know
 
 - **A folded directory is the repository.** Writing into `~/.vim` writes into `vim/.vim/`: that is how
   vim-plug's plugins end up under the (gitignored) `vim/.vim/plugged/`.
+- **`--dry-run` stops at a drifted `settings.json`.** An identical plain file is reported (`drift: …
+  re-linking`) but not removed in a dry run, so Stow's preview of `claude` then fails on the conflict and the
+  packages after it are not previewed. The real run removes the file first and goes through.
 - **`-L` is not enough to spot a link.** The drift check resolves the real path first: on a host where
   Stow folded all of `~/.claude`, the live file *is* the dotfile, and deleting it would delete it from
   the repository.

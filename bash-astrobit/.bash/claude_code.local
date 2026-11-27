@@ -12,18 +12,18 @@
 # 3B Q4_K_M sits around 2.5 GB resident; 7B (~5 GB) is usable only when nothing
 # else is running, which on this machine is rarely true.
 OLLAMA_DEFAULT_MODEL="qwen2.5-coder:3b"
-OLLAMA_LIGHT_MODEL="qwen2.5-coder:1.5b"
-OLLAMA_PLAN_MODEL="qwen2.5-coder:3b"
-OLLAMA_EXEC_MODEL="qwen2.5-coder:3b"
+# Under RAM pressure: claude-local --model qwen2.5-coder:1.5b
 
 # Drop the model as soon as it goes idle: VRAM is not the constraint here, RAM
 # shared with the observing session is.
 export OLLAMA_KEEP_ALIVE="2m"
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
+# Plain assignments: the base file has already set both (-1 layers, 131072), so a ${VAR:-x} here would
+# change nothing.
 # CPU-only inference — no GPU layers.
-LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:-0}"
+LLAMACPP_GPU_LAYERS=0
 # Small context: the KV cache is the part that grows without bound and this
 # machine has no headroom to spare.
-LLAMACPP_CTX="${LLAMACPP_CTX:-4096}"
+LLAMACPP_CTX=4096
 LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/models/qwen2.5-coder-3b-q4_k_m.gguf}"

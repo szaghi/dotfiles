@@ -1,128 +1,74 @@
 ---
 title: Claude Code
+prev:
+  text: Per-host packages
+  link: /packages/host-specific
 ---
 
 # Claude Code
 
-The `claude` package holds the whole Claude Code configuration: global instructions, settings, hooks, agents,
-slash commands, skills and the status line. Stow links it into `~/.claude`, so every machine and every account
-runs the same setup. The shell wrappers that start Claude Code on different accounts and backends live in the
-[bash](/packages/bash) package, in `bash/.bash/claude_code`.
+This dotfiles repository carries a complete Claude Code setup. The `claude` package is the configuration itself
+(instructions, settings, skills, slash commands, hooks, agents, status line), linked into `~/.claude` and shared
+by every account. The `bash` package adds one shell command per way of starting a session: the personal
+subscription, four extra subscription accounts, two cloud providers and three local inference engines. On top
+of those sit three skill-driven workflows (unattended nights, plans and bugs held in GitHub issues) and
+`delegate`, which lets Opus hand mechanical tasks to a cheaper executor model.
 
-## What the package holds
+The pages follow the order below; the sidebar and the *Next* link at the bottom of each page walk it.
 
-Source: `claude/.claude/`, deployed to `~/.claude/`.
-
-| Path | Content |
-|---|---|
-| `CLAUDE.md` | Global instructions, loaded into every session |
-| `CLAUDE-fortran.md` | Fortran rules: source files, kinds, modern syntax, OOP, `pure`, module wiring, I/O, OpenMP |
-| `CLAUDE-gpu.md` | GPU rules: OpenACC directives, device variables, GPU/MPI coherence, FP64 trap, compiler pitfalls |
-| `settings.json` | Permissions, default model, hooks, status line, enabled plugins, marketplaces |
-| `settings.local.json` | Extra allow-list of WebFetch domains and Bash commands (tracked) |
-| `statusline-command.sh` | The status line, see [Hooks, agents, status line](/claude/hooks#status-line) |
-| `commands/` | Custom slash commands, see [Slash commands](/claude/commands) |
-| `skills/` | Class-A skills, `manifest.toml`, `README.md`, see [Skills](/claude/skills) |
-| `agents/` | Subagents, see [Hooks, agents, status line](/claude/hooks#agents) |
-| `hooks/` | Hook scripts, see [Hooks, agents, status line](/claude/hooks) |
-
-`CLAUDE-fortran.md` and `CLAUDE-gpu.md` are not loaded globally. The `load-context-by-cwd.sh` hook injects both
-only when the session's project lives under `~/fortran`.
-
-## Deploy
+## Quick start
 
 ```bash
-bash ~/dotfiles/dotify.sh claude
+bash ~/dotfiles/dotify.sh claude     # link ~/.claude (stops if settings.json drifted)
+skills-apply install                 # plugins and third-party skills, once per host
+claude-help                          # every session command and variable
+claude                               # a session on the personal subscription
+claude-cfd-cnr login                 # an extra account: log in once, then claude-cfd-cnr
+claude-local                         # a session on a local model
 ```
 
-Before stowing `claude`, `dotify.sh` checks `~/.claude/settings.json` for drift (see below). Skills of class B
-and C need a second step, `skills-apply install`: see [Skills](/claude/skills).
+## Map of the section
 
-## settings.json drift
-
-Claude Code rewrites `settings.json` (on `/model`, on plugin toggles) by replacing the file. The stow symlink
-becomes a plain file and stow aborts with "existing target is neither a link nor a directory". `dotify.sh`
-(`check_drift`) handles it before stowing:
-
-| State of `~/.claude/settings.json` | Action |
-|---|---|
-| Symlink into the repo | Nothing |
-| Plain file, identical to the dotfile | Removed and re-linked (prints `drift: ... re-linking`) |
-| Plain file, different from the dotfile | Prints the `diff -u`, the two commands below, and exits 1 |
-
-The dotfile is the source of truth. `dotify.sh` never overwrites it, since it can hold uncommitted edits.
-
-```bash
-# keep the live changes
-cp ~/.claude/settings.json ~/dotfiles/claude/.claude/settings.json && rm ~/.claude/settings.json && bash ~/dotfiles/dotify.sh claude
-# discard them
-rm ~/.claude/settings.json && bash ~/dotfiles/dotify.sh claude
-```
-
-The check skips the file when its real path is inside the repo: on a host where stow folded `~/.claude` into a
-single directory link, the "live" file is the tracked one, and removing it would delete it from the repo.
-
-## Secrets
-
-`.gitignore` excludes `claude/.claude/.credentials.json` (the OAuth login) and `claude/.claude/.env`. API keys
-for third-party providers are read from files in `$HOME` (`~/.z-ai-key`, `~/.nvidia-api-key`,
-`~/.huggingface-token`) or from the environment, never from the repo. See [Accounts and providers](/claude/wrappers).
-
-## Accounts share one setup
-
-The extra subscription accounts (`claude-iac`, `claude-cfd-cnr`, `claude-cfd-iac`, `claude-soma`) each run with
-their own `CLAUDE_CONFIG_DIR` (`~/.claude-iac`, `~/.claude-cfd-cnr`, `~/.claude-cfd-iac`, `~/.claude-soma`). On
-every call the wrapper links the shareable parts of `~/.claude` into that directory:
-
-| Shared (symlink to `~/.claude`) | Per account |
-|---|---|
-| `CLAUDE.md`, `CLAUDE-fortran.md`, `CLAUDE-gpu.md`, `RTK.md` | `.credentials.json` |
-| `commands`, `skills`, `agents`, `hooks`, `plugins` | `.claude.json` (OAuth identity) |
-| `settings.json`, `settings.local.json`, `statusline-command.sh` | `history.jsonl` and the client's other state |
-| `projects` (auto-memory and transcripts) | |
-
-Because `projects/` is shared, `claude-cfd-cnr --resume` resumes a session started with plain `claude`.
-Details: [Accounts and providers](/claude/wrappers#subscription-accounts).
-
-## What the global CLAUDE.md instructs
-
-`claude/.claude/CLAUDE.md` is short on purpose and delegates detail to the two topic files and to skills.
-Read the file itself; this is the map.
-
-| Section | Instruction in one line |
-|---|---|
-| Interaction Style | Analytic peer: unhedged honesty, challenge premises, steel-man before disagreeing, propose a better alternative. Review order: correctness, numerics, memory, MPI, GPU, architecture, portability; no style nits. |
-| Repository Layout | Fortran repos in `~/fortran/`, Python in `~/python/`; verify a path with `ls` before using it. |
-| Build System | FoBiS (`fobis`, 3.8+) with double-dash flags; no make/cmake unless asked; `fobis fetch`, not submodules. |
-| Toolchains | nvfortran 26.9 and gfortran 16.2.0 + Open MPI 5.0.11; build clean after a compiler switch; cluster and WSL environment recipes. |
-| CI/CD | Minimal workflow changes; no repo names hardcoded in reusable actions. |
-| Documentation | VitePress, modelled on `~/fortran/StringiFor` or `~/fortran/PENF`. |
-| WSL and Windows | `HDF5_USE_FILE_LOCKING=FALSE` for Windows readers of WSL files; map drives from a non-elevated prompt. |
-| Fortran, GPU | Load `CLAUDE-fortran.md` / `CLAUDE-gpu.md`; consult the standard skills instead of answering from memory. |
-| Verbatim-Edit, Verification | `verbatim-edit` skill for byte-exact edits; `ai-research-verification` skill for agent claims. |
-| Commit Messages | Conventional Commits; never an AI `Co-authored-by`; never commit or amend unless asked; `/semantic-commit` only prints the message; no GPG from agents. |
-| Python Conventions | Load the `python-conventions` skill before writing Python. |
-
-## Pages in this section
+**Setup**: what is installed and how it reaches `~/.claude`.
 
 | Page | Covers |
 |---|---|
-| [Accounts and providers](/claude/wrappers) | `claude-sonnet`, `claude-opus`, `claude-plan`, the account wrappers, `claude-zai`, `claude-nvidia`, `claude-help` |
-| [Local LLM servers](/claude/local-llm) | `claude-local`, `llm-local-server`, the ollama/llama.cpp/HuggingFace utilities |
-| [Skills](/claude/skills) | The three skill classes, `skills-apply`, the inventory |
-| [Slash commands](/claude/commands) | `/semantic-commit`, `/capture-findings` |
-| [Hooks, agents, status line](/claude/hooks) | Every registered hook, the subagents, the status line fields |
-| [Night protocol](/claude/night-protocol) | Unattended overnight work and the `night` script |
-| [Plan issues](/claude/plan-issue) | Plans held in a GitHub issue and the `plan-issue` script |
-| [Bug issues](/claude/bug-issue) | Investigations, defects, upstream reports and the compiler-bug tracker as GitHub issues |
-| [Delegating to an executor](/claude/delegate) | Opus hands checkable tasks to pi (local or cloud model) in a throwaway git clone: the `delegate` script |
+| [The claude package](/claude/package) | What `~/.claude` holds, deploying it, `settings.json` drift, secrets |
+| [Global instructions](/claude/instructions) | What the global `CLAUDE.md` instructs, and the Fortran/GPU topic files |
 
-## Things to know
+**Starting sessions**: the shell commands of `bash/.bash/claude_code`.
 
-- Hook and status-line commands in `settings.json` use absolute paths under `/home/stefano`. A host with another
-  user name needs them edited.
-- `settings.json` registers a SessionStart hook, `herdr-agent-state.sh`, that is not in the repo: the herdr
-  installer writes it into `~/.claude/hooks/`, which is why that directory is real and its tracked hooks are
-  linked file by file.
-- After a plugin install or a `/model` change, `ls -l ~/.claude/settings.json` tells whether the file is still a
-  link. If it is not, the change sits in the plain file and not in git until `dotify.sh claude` surfaces it.
+| Page | Covers |
+|---|---|
+| [Session commands](/claude/sessions) | Every `claude-*` command; the Z.ai and NVIDIA providers |
+| [Subscription accounts](/claude/accounts) | `claude-iac`, `claude-cfd-cnr`, `claude-cfd-iac`, `claude-soma`: login, what they share, the rename |
+| [Local models](/claude/local-llm) | `claude-local` and `llm-local-server` over Ollama, llama.cpp and ik_llama.cpp |
+| [Model utilities](/claude/model-tools) | `ollama-*`, `llama-*` and `hf-*` model tools; per-host overrides |
+| [Environment reference](/claude/environment) | Every variable the wrappers read or set; the cluster variant |
+
+**Extending Claude Code**: what the configuration adds to every session.
+
+| Page | Covers |
+|---|---|
+| [Skills](/claude/skills) | The three skill classes, `skills-apply`, adding a skill, drift |
+| [Skills inventory](/claude/skills-inventory) | Every installed skill, by class |
+| [Slash commands](/claude/commands) | `/semantic-commit`, `/capture-findings`, the file format |
+| [Hooks](/claude/hooks) | Every registered hook and what it enforces |
+| [Agents](/claude/agents) | The subagents |
+| [Status line](/claude/statusline) | Its fields and the weekly token count |
+
+**Workflows**: longer processes, each a skill plus a script.
+
+| Page | Covers |
+|---|---|
+| [Night protocol](/claude/night-protocol) | Unattended work, snapshot per step, committed in the morning by `night commit` |
+| [Plan issues](/claude/plan-issue) | A step-by-step plan held in a GitHub issue, the `plan-issue` script |
+| [Bug issues](/claude/bug-issue) | Investigations, defects, upstream reports and the compiler-bug tracker |
+
+**Delegating to executors**: Opus as orchestrator, a cheaper model as executor.
+
+| Page | Covers |
+|---|---|
+| [Delegating to an executor](/claude/delegate) | The `delegate` script: use, options, result, guarantees, tests |
+| [Executors](/claude/executors) | Models and harnesses (pi, opencode), cost and data policy, setup |
+| [Executor benchmarks](/claude/executor-benchmarks) | Engine speed, executor quality, a real paper ingestion |

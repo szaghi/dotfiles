@@ -25,7 +25,8 @@ as `git pull` writes it.
 |---|---|
 | a new plugin or third-party skill | `skills-apply install`, then restart Claude Code |
 | a skill update upstream | `skills-apply update`, then restart Claude Code |
-| a new or changed vim plugin | `:PlugInstall` or `:PlugUpdate` in vim |
+| a new vim plugin | nothing: vim installs missing plugins on its next start |
+| a vim plugin to move forward | `:PlugUpdate` in vim (`:PlugClean!` drops a removed one) |
 | a changed `nvim/.config/nvim/lazy-lock.json` | `:Lazy restore` in Neovim |
 | a new or changed systemd user unit | `systemctl --user daemon-reload` |
 | a new modulefile | nothing: `~/.modules` is a folded link into the repository |
@@ -45,16 +46,16 @@ A link whose target disappeared from the repository stays behind as a dangling l
 package before the change, then stow it again:
 
 ```bash
-bash ~/dotfiles/dotify.sh -D bash      # remove the package's links
-git mv bash/.bash/old bash/.bash/new   # change the repository
-bash ~/dotfiles/dotify.sh bash         # link again
+bash ~/dotfiles/dotify.sh -D bash                  # remove the package's links (and the machine packages')
+git -C ~/dotfiles mv bash/.bash/old bash/.bash/new # change the repository
+bash ~/dotfiles/dotify.sh bash                     # link again, machine packages included
 ```
 
 ## Undeploying
 
 ```bash
 bash ~/dotfiles/dotify.sh --uninstall          # every package, this machine's included
-bash ~/dotfiles/dotify.sh --uninstall nvim     # one package
+bash ~/dotfiles/dotify.sh --uninstall nvim     # nvim, plus this machine's packages
 ```
 
 Only links that point into the repository are removed; your other files are untouched.
@@ -63,6 +64,10 @@ Only links that point into the repository are removed; your other files are unto
 
 - **Machine packages are always processed.** `bash dotify.sh nvim` stows `nvim` *and* the packages of
   `machines/$(hostname -s)`; the same holds for `--uninstall`.
+- **A package dropped from a list keeps its links.** `dotify.sh` only touches the packages it is told about.
+  Before removing a package from `PACKAGES` or `machines/<host>`, unstow it alone with
+  `stow -D --dir="$HOME/dotfiles" --target="$HOME" <pkg>`: `dotify.sh -D <pkg>` would also unstow this host's
+  machine packages.
 - **Pull before you edit.** The links make every edit live in the working tree of the repository; an edit
   on a stale checkout turns into a merge on the next pull.
 - **After an unclean shutdown**, run `git-health -d 7` before committing: an interrupted write can leave

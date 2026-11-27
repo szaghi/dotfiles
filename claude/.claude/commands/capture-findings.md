@@ -51,7 +51,7 @@ one sentence and stop. Do not invent findings to justify running the command.
 | **1** | Repo docs: `README.md`, `docs/**`, in-repo docstrings/comments | New API, feature, algorithm, flag, build target, runtime behaviour visible to *users of the repo*. |
 | **2** | Repo Claude config: `<repo>/CLAUDE.md`, `<repo>/.claude/**` | Knowledge that helps an AI agent work *in this repo specifically* — internal conventions, hidden invariants, "don't touch X because Y," file-layout guidance. |
 | **3a**| Global Claude instructions: `~/.claude/CLAUDE.md` (a symlink into the dotfiles repo at `~/dotfiles/claude/.claude/CLAUDE.md`) | Reusable engineering rules — Fortran/Python/HPC/GPU conventions, compiler pitfalls, edit protocols. Things that apply across *all* my projects. Insert into the matching topic section or propose a new section. |
-| **3b**| Global auto-memory: `~/.claude/projects/<slug>/memory/` + index | User/feedback/project/reference facts, per the memory protocol in the global CLAUDE.md. Use this for *preferences*, *workflow corrections*, *who/why/when of ongoing work*, *pointers to external systems* — not for code-convention rules (those go to 3a). |
+| **3b**| Global auto-memory: `~/.claude/projects/<slug>/memory/` + index | User/feedback/project/reference facts, per Claude Code's built-in auto-memory protocol (its system prompt, not CLAUDE.md). Use this for *preferences*, *workflow corrections*, *who/why/when of ongoing work*, *pointers to external systems* — not for code-convention rules (those go to 3a). |
 
 A single finding can belong to **more than one class** — call it out when it does and
 propose one edit per destination. Example: a new repo flag (Class 1) that also encodes
@@ -74,7 +74,7 @@ Inspect, in order:
 
 For each candidate finding, ask: "Does the codebase already make this obvious, or does
 a reader need to be told?" Skip findings derivable from `git log`, the diff, or a
-direct read of the code — those are CLAUDE.md anti-patterns per the global instructions.
+direct read of the code — the codebase already records them, and repeating them only adds text to keep in sync.
 
 ### Output — exactly this structure
 
@@ -120,8 +120,8 @@ After applying, print one line per file actually changed.
   symlink target indirectly. Prefer appending into an existing topic section
   (`## Fortran Conventions`, `## GPU / OpenACC / CUDA Conventions`, `## Python
   Conventions`, etc.) over inventing a new top-level section.
-- **Class 3b (auto-memory):** follow the exact protocol documented in the global
-  CLAUDE.md auto-memory section — one file per memory with YAML frontmatter
+- **Class 3b (auto-memory):** follow Claude Code's built-in auto-memory protocol (stated
+  in its system prompt each session) — one file per memory with YAML frontmatter
   (`name`, `description`, `metadata.type`), one-line pointer in `MEMORY.md`. Memory
   types are `user | feedback | project | reference`. Reject "code pattern / convention /
   architecture" findings — those belong in 3a, not memory.

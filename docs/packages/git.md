@@ -43,12 +43,14 @@ with its own key. A missing file is ignored by git. See [Per-host packages](/pac
 | `apply.whitespace` | `fix` | `git apply` and `git am` repair those whitespace errors in the patch instead of only warning |
 | `diff.tool`, `merge.tool` | `vimdiff` | |
 | `difftool.prompt` | `false` | `git d` opens vimdiff without asking per file |
-| `color.*` | `always` (branch, diff, grep, interactive, ui) | colour even when output is not a terminal |
+| `color.ui`, `color.branch`, `color.diff`, `color.grep`, `color.status`, `color.showbranch` | `auto` | colour on a terminal, plain text into a pipe or file |
+| `color.interactive`, `color.pager` | `always`, `true` | colour in `git add -i` prompts and in the pager |
 | `credential.helper` | `cache` | HTTPS credentials kept in memory, not on disk |
 | `init.defaultBranch` | `main` | |
 | `filter.lfs` | git-lfs clean/smudge/process | Git LFS enabled globally |
 | `git-up.fetch.all` | `true` | for the `git-up` tool: fetch all remotes |
 | `github.user` | `szaghi` | |
+| `user.name`, `user.email` | the owner's identity | the same on every host; only `user.signingkey` comes from `~/.gitconfig.local` |
 
 ## Aliases
 
@@ -99,13 +101,14 @@ repository: keep it private and offline.
 
 ## Things to know
 
-- **`color.ui = always` leaks escape codes into pipes.** `git log | grep` or a script parsing `git` output sees ANSI
-  sequences. Pass `--no-color` in scripts.
+- **Colour is `auto`, not `always`.** Output sent to a pipe or a file carries no ANSI codes, so `git diff | patch`,
+  `git branch | xargs` and scripts parsing `git` output work. Force colour with `--color` when piping into a pager
+  that renders it: `git log --color | less -R`.
 - **Signing needs a secret key and `GPG_TTY`.** On a fresh host every commit fails until the host's key is imported
   or generated and its id is in `.gitconfig.local`. `GPG_TTY` is exported by
   `bash/.bash/exports`.
 - **`rebase-last-five` rewrites history.** Everything older than `HEAD~4` is dropped from the branch, so publishing it
-  needs a force-push. It reads the branch from `git branch | cut -c3-`, so it only works in a repository with a single local
-  branch.
+  needs a force-push. It reads the branch from `git branch --no-color | cut -c3-`, so it only works in a repository with a
+  single local branch.
 - **`post-commit` is destructive on the `sources` branch.** It force-deletes the branch, runs `rm -f *` in the work
   tree, commits with `-a` and checks out `master` again. Install it only in repositories built for that layout.

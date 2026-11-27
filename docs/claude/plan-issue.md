@@ -80,7 +80,7 @@ the usage and exits 2; errors exit 1.
 
 | Command | Does |
 |---|---|
-| `plan-issue check FILE` | Lints a body; a bug body is recognised by its marker ([Bug issues](/claude/bug-issue#commands)). Errors: missing version marker, missing or malformed status block, duplicate ids, unknown status, unfilled `<...>` placeholders, a step id without a heading, an empty **Goal/Gate/Docs/Commit**, a `D` row without its `**D<n>**` entry, over 60,000 characters. Warnings: no base marker, no **Changes** (not for `G` rows), a gate with no backticked command, over 40,000 characters. Dropped (➖) steps skip the field checks |
+| `plan-issue check FILE` | Lints a body; a bug body is recognised by its marker ([Bug issues](/claude/bug-issue#commands)). Errors: missing version marker, missing or malformed status block, a status table with no rows, a status row with fewer than 4 cells, duplicate ids, unknown status, unfilled `<...>` placeholders, a step id without a heading, an empty **Goal/Gate/Docs/Commit**, a `D` row without its `**D<n>**` entry, over 60,000 characters. Warnings: no base marker, no **Changes** (not for `G` rows), a gate with no backticked command, over 40,000 characters. Dropped (➖) steps skip the field checks |
 | `plan-issue create REPO FILE --title T` | Replaces `plan-issue:base HEAD` with the current commit (run it from that repository), refuses on any lint error, opens the issue and prints its URL |
 | `plan-issue body REF` | Prints the body, to amend it in a file |
 | `plan-issue edit REF FILE [--force]` | Replaces the body. Refuses lint errors, removed status rows, removed or renamed headings, and done rows no longer done; `--force` overrides all but lint errors |
@@ -90,8 +90,10 @@ the usage and exits 2; errors exit 1.
 | `plan-issue stale REF` | From the base marker: the number of commits since, and the commits touching tracked paths the plan names in backticks |
 | `plan-issue sync [--night-dir D] [--dry-run]` | Posts the night's targeted drafts and marks its committed steps, below. Default night: `.night/current` |
 
-Every write to GitHub re-reads the issue's `updatedAt` first, and refuses if the issue changed after it was
-read, so a box you ticked in the web UI is never overwritten.
+Every body write (`edit`, `set`, `sync`) re-reads the issue's `updatedAt` first, and refuses if the issue
+changed after it was read, so a box you ticked in the web UI is never overwritten. `create` and `comment`,
+including the draft posts of `sync`, are not guarded. A `#N` reference resolves through `gh repo view` in the
+current directory.
 
 ## With the night protocol
 
@@ -100,7 +102,7 @@ During a night Claude writes, next to the steps:
 | File | Content |
 |---|---|
 | `issue` | The plan issue's `REF`, one line |
-| `NN-slug.plan` | The status ids that step completes, one per line; `<id> wip` when it only advances one; `#` comments allowed |
+| `NN-slug.plan` | The status ids that step changes, one per line: `<id> [status]`, status `done` when omitted (`<id> wip` when it only advances one); `#` comments allowed |
 | `<topic>.comment.md` | The night report, first line `<!-- target: issue -->` (or `<!-- target: owner/repo#N -->`); <code v-pre>{{sha:NN-slug}}</code> stands for a step's commit SHA |
 
 At the end of `night commit`, `plan-issue sync` runs by itself:
@@ -140,5 +142,8 @@ restating the same requirements:
 - Issues filed before this skill have no markers: `status`, `set` and `sync` refuse them. Migrate one when it is
   next touched (`body`, rewrite into the skeleton, `edit --force`, since headings change).
 - `stale` sees only paths written in backticks that `git ls-files` knows; prose mentions are invisible to it.
+  Run it from the repository root: `git ls-files` runs in the current directory, so from a subdirectory no
+  root-relative path matches.
+- `sync` skips a draft targeting `issue` when the night has no `issue` file.
 - `plan-issue` is on your PATH: `scripts/.scripts/plan-issue` is a relative symlink to the skill's script, as for
   `night`. `night commit` finds it relative to its own location, so the two skills must stay siblings.

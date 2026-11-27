@@ -83,7 +83,8 @@ The plan-issue script, unchanged: `check`, `create`, `body`, `edit`, `status`, `
 - a valid kind marker and the sections of that kind;
 - at least one Evidence row with a tier T0–T3;
 - a status table for `investigation` and `defect`, with at least one `F` row for a defect;
-- the step fields (**Goal**, **Gate**, **Docs**, **Commit**) for every `T` and `F` row, as for plan steps.
+- a heading starting with each `T` and `F` id, and the step fields (**Goal**, **Gate**, **Docs**, **Commit**)
+  under it, as for plan steps.
 
 It warns when the first `F` step's title does not name a test. `edit` keeps refusing removed rows and headings,
 so turning an investigation into a defect cannot drop the hypotheses silently.
@@ -97,7 +98,8 @@ commits ([details](/claude/plan-issue#with-the-night-protocol)).
 ## Compiler bugs
 
 A compiler bug does not get its own issue. Each repository has one tracker, titled
-`Compiler bugs: reproducers and workarounds`, and each bug is one comment on it. The tracker's body is an index
+`Compiler bugs: reproducers and workarounds` (labelled `compiler-bug` when the repository has that label, found
+with `gh issue list --search "Compiler bugs in:title"`), and each bug is one comment on it. The tracker's body is an index
 table: bug, compiler, status (`open`, `fixed in <version>`, `not a bug`), where the workaround is, and the
 vendor ticket. Each comment gives:
 
@@ -108,8 +110,9 @@ vendor ticket. Each comment gives:
 - the workaround, with its location and how to tell it can go;
 - the vendor ticket.
 
-The index is edited as a fixed-string change. `plan-issue edit` would refuse it, because it is neither a plan
-nor a bug body.
+The index is edited as a fixed-string change and written back with `gh issue edit --body-file`. `plan-issue edit`
+would refuse it, because it is neither a plan nor a bug body. That write has no `updatedAt` guard: re-read the
+body right before writing it.
 
 ## Why it exists
 

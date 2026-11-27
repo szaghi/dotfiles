@@ -40,16 +40,7 @@ const docs = [
   {
     text: 'Claude Code',
     items: [
-      { text: 'Overview',               link: '/claude/' },
-      { text: 'Accounts and providers', link: '/claude/wrappers' },
-      { text: 'Local LLM servers',      link: '/claude/local-llm' },
-      { text: 'Skills',                 link: '/claude/skills' },
-      { text: 'Slash commands',         link: '/claude/commands' },
-      { text: 'Hooks, agents, status line', link: '/claude/hooks' },
-      { text: 'Night protocol',         link: '/claude/night-protocol' },
-      { text: 'Plan issues',            link: '/claude/plan-issue' },
-      { text: 'Bug issues',             link: '/claude/bug-issue' },
-      { text: 'Delegating to an executor', link: '/claude/delegate' },
+      { text: 'Overview and all pages', link: '/claude/' },
     ],
   },
   {
@@ -59,6 +50,61 @@ const docs = [
       { text: 'Troubleshooting', link: '/guide/troubleshooting' },
     ],
   },
+]
+
+// the Claude Code section has its own sidebar: five groups in reading order, every page one click away.
+// The top-nav "Claude Code" menu is built from the same list, so any page reaches any Claude page.
+const claudeGroups = [
+  {
+    text: 'Setup',
+    items: [
+      { text: 'The claude package',  link: '/claude/package' },
+      { text: 'Global instructions', link: '/claude/instructions' },
+    ],
+  },
+  {
+    text: 'Starting sessions',
+    items: [
+      { text: 'Session commands',      link: '/claude/sessions' },
+      { text: 'Subscription accounts', link: '/claude/accounts' },
+      { text: 'Local models',          link: '/claude/local-llm' },
+      { text: 'Model utilities',       link: '/claude/model-tools' },
+      { text: 'Environment reference', link: '/claude/environment' },
+    ],
+  },
+  {
+    text: 'Extending Claude Code',
+    items: [
+      { text: 'Skills',           link: '/claude/skills' },
+      { text: 'Skills inventory', link: '/claude/skills-inventory' },
+      { text: 'Slash commands',   link: '/claude/commands' },
+      { text: 'Hooks',            link: '/claude/hooks' },
+      { text: 'Agents',           link: '/claude/agents' },
+      { text: 'Status line',      link: '/claude/statusline' },
+    ],
+  },
+  {
+    text: 'Workflows',
+    items: [
+      { text: 'Night protocol', link: '/claude/night-protocol' },
+      { text: 'Plan issues',    link: '/claude/plan-issue' },
+      { text: 'Bug issues',     link: '/claude/bug-issue' },
+    ],
+  },
+  {
+    text: 'Delegating to executors',
+    items: [
+      { text: 'Delegating to an executor', link: '/claude/delegate' },
+      { text: 'Executors',                 link: '/claude/executors' },
+      { text: 'Executor benchmarks',       link: '/claude/executor-benchmarks' },
+    ],
+  },
+]
+
+const claude = [
+  { text: 'Claude Code', items: [{ text: 'Overview', link: '/claude/' }] },
+  ...claudeGroups.map((g) => ({ ...g, collapsed: false })),
+  { text: 'Back to the dotfiles', items: [{ text: 'Cookbook', link: '/guide/cookbook' }] },
 ]
 
 export default withMermaid({
@@ -81,10 +127,14 @@ export default withMermaid({
       { text: 'Start here', link: '/guide/', activeMatch: '^/guide/(index|installation|updating|machines)?$' },
       { text: 'How it works', link: '/guide/dotify', activeMatch: '^/guide/(dotify|layout|conventions)' },
       { text: 'Packages', link: '/packages/bash', activeMatch: '^/packages/' },
-      { text: 'Claude Code', link: '/claude/', activeMatch: '^/claude/' },
+      {
+        text: 'Claude Code',
+        activeMatch: '^/claude/',
+        items: [{ text: 'Overview', link: '/claude/' }, ...claudeGroups],
+      },
       { text: 'Cookbook', link: '/guide/cookbook', activeMatch: '^/guide/(cookbook|troubleshooting)' },
     ],
-    sidebar: { '/guide/': docs, '/packages/': docs, '/claude/': docs },
+    sidebar: { '/guide/': docs, '/packages/': docs, '/claude/': claude },
     outline: { level: [2, 3] },
     search: { provider: 'local' },
     editLink: {

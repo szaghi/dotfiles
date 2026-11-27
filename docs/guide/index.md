@@ -16,8 +16,9 @@ host names and habits that are Stefano's own.
 
 ## What is in it
 
-Every top-level directory is a **stow package**: its inside mirrors `$HOME`, and GNU Stow links each
-file to the same place under your home ([how](/guide/dotify)).
+Almost every top-level directory is a **stow package**: its inside mirrors `$HOME`, and GNU Stow links each
+file to the same place under your home ([how](/guide/dotify)). The few that are not are listed in
+[Repository layout](/guide/layout).
 
 | Area | Packages | What you get |
 |---|---|---|
@@ -25,9 +26,9 @@ file to the same place under your home ([how](/guide/dotify)).
 | Editors | [vim](/packages/vim), [Neovim](/packages/nvim) | two independent configurations, one key map, LSP for Fortran, Python, LaTeX, bash |
 | Development | [git](/packages/git), [Python and LaTeX](/packages/python-latex) | Conventional Commits template, GPG signing, latexmk, pythonrc |
 | HPC | [HPC modules](/packages/modules) | Lmod modulefiles for NVIDIA HPC SDK, GCC, Open MPI, Intel, AMD |
-| Tools | [scripts](/packages/scripts) | image, PDF and video helpers, backups, `git-health`, `claude-remote`, `night` |
+| Tools | [scripts](/packages/scripts) | image, PDF and video helpers, backups, `git-health`, `claude-remote`, `night`, `plan-issue`, `delegate` |
 | Desktops | [quark](/packages/desktop-quark), [astrobit](/packages/desktop-astrobit) | sway + Noctalia on the laptop, niri + Sunshine on the telescope controller |
-| Claude Code | [Claude Code](/claude/) | global instructions, skills, slash commands, hooks, account and local-LLM wrappers |
+| Claude Code | [Claude Code](/claude/), [pi](/claude/delegate) | global instructions, skills, slash commands, hooks, account and local-LLM wrappers; the pi executor's providers (adam) |
 
 ## The three machines
 
@@ -52,5 +53,5 @@ What differs per machine is declared in `machines/<host>`: see [The machines](/g
 
 Start with [Fresh install](/guide/installation), then [Updating](/guide/updating). The
 [How it works](/guide/dotify) pages explain the mechanism; the Packages and Claude Code pages are
-reference; the [Cookbook](/guide/cookbook) collects the everyday tasks. Each page ends with a
+reference; the [Cookbook](/guide/cookbook) collects the everyday tasks. Most reference pages end with a
 *Things to know* section: the non-obvious behaviour, learnt the hard way.

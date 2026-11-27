@@ -63,7 +63,7 @@ pins it, so it is the highest version.
 | `intel/oneapi` | `/opt/intel/oneapi/setvars.sh` | Installed on adam |
 | `amd/5.1.0` | `/opt/amd/rocm-afar-6711-drop-5.1.0` | Not installed on adam; loading fails |
 
-"Installed" was checked on adam (2026-11-05) against each modulefile's root.
+"Installed" was checked on adam (2026-11-27) against each modulefile's root.
 
 | Family | Sets |
 |---|---|
@@ -75,7 +75,8 @@ pins it, so it is the highest version.
 
 ### WSL2 workarounds in nvhpc
 
-The `nvhpc` modules from 26 onward set these, and explain each in their `help()`:
+The `nvhpc` modules from 26 onward set these. Their `help()` explains all but `OMPI_MCA_pml`, which only an inline
+comment covers:
 
 | Setting | Reason |
 |---|---|

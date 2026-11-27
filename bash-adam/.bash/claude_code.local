@@ -17,12 +17,13 @@ export OLLAMA_KV_CACHE_TYPE="q8_0"      # Halves KV cache vs f16; use q4_0 for m
 # qwen3-coder-unsloth:30b-a3b-q4_K_M — MoE 30B-A3B Q4_K_M, 18.6 GB, dual GPU (94% on GPU).
 #   Imported from ~/models/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf with
 #   ~/.claude/skills/delegate/ollama/Modelfile.qwen3-coder-30b-a3b (recipe inside).
-#   3B active params: 3-6x faster than the dense qwen3.8:27b at the same pass rate
-#   (delegate benchmark 2026-11-26, docs/claude/delegate.md).
+#   3B active params: 3-6x faster than the dense Qwen3.8-27B, at the same pass rate on easy tasks only;
+#   on the hard bench tasks it passed 2/9 against 9/9, so delegate defaults to Qwen3.8-27B
+#   (docs/claude/executor-benchmarks.md). This model stays claude-local's interactive default.
 OLLAMA_DEFAULT_MODEL="qwen3-coder-unsloth:30b-a3b-q4_K_M"
-OLLAMA_LIGHT_MODEL="deepseek-coder-v2:16b"   # Single-GPU (8.9 GB) — frees GPU 2 for HPC jobs
-OLLAMA_PLAN_MODEL="qwen3.5:27b"              # Architect: broad reasoning, designs approach
-OLLAMA_EXEC_MODEL="qwen3.8-unsloth:27b-ud-q4_K_XL"  # Executor: delegate default (bench-delegate 9/9 hard tasks)
+# Single GPU (frees GPU 2 for HPC jobs): claude-local --model deepseek-coder-v2:16b --gpus 1
+# The delegate executor is not set here: delegate defaults to ollama/qwen3.8-unsloth:27b-ud-q4_K_XL
+# (override with $DELEGATE_MODEL).
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
 # Prefer the locally CUDA-built binary over any system install: llama.cpp master in

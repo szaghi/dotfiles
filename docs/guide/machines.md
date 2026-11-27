@@ -30,13 +30,14 @@ Both accept blank lines and `#` comments.
 
 | Host | `machines/<host>` | Packages |
 |---|---|---|
-| adam | `machines/adam` | `usr`, `bash-adam` |
+| adam | `machines/adam` | `usr`, `bash-adam`, `pi` |
 | quark | `machines/quark` | `bash-quark`, `desktop` |
 | astrobit | `machines/astrobit` | `bash-astrobit`, `desktop-astrobit` |
 
-`bash-<host>` holds the per-host bash overrides and `.gitconfig.local` (signing key, local LLM
-settings): see [Per-host packages](/packages/host-specific). astrobit stows `desktop-astrobit` and never
-quark's `desktop`: niri, not sway.
+`bash-<host>` holds `~/.bash/claude_code.local` (GPU ids, model defaults and binary paths of the local LLM
+servers) and `~/.gitconfig.local` (the signing key): see [Per-host packages](/packages/host-specific). `pi` is
+the pi coding agent's provider list, `~/.pi/agent/models.json`, used by the delegate executor on adam. astrobit
+stows `desktop-astrobit` and never quark's `desktop`: niri, not sway.
 
 ### Skills per host
 

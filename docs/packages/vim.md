@@ -36,6 +36,7 @@ pulled from another host.
 | `vim/.vim/ftplugin/{fortran,python,tex}.vim` | Per-filetype options |
 | `vim/.vim/ftdetect/fobos.vim` | `fobos*` and `*.fobos` files are `dosini` |
 | `vim/.vim/colors/solarized.vim` | Symlink into `plugged/vim-colors-solarized`, a plugin no longer installed (dangling) |
+| `vim/.vim/.colorscheme` | State file of a colour-scheme switcher no longer installed; nothing reads it |
 | `~/.vim/plugged/` | Plugin checkouts (gitignored) |
 | `~/.vim/undo/` | Persistent undo files, created on first start with mode `0700` (gitignored) |
 
@@ -286,12 +287,12 @@ commentary, unimpaired, dirvish, vimtex) stay active.
 | Key | Mode | Action |
 |---|---|---|
 | `/` | n, x | search with very-magic regex (`/\v`) |
-| `Y` | n | yank to end of line |
+| `Y` | n, x, o | yank to end of line |
 | `<C-j>` | n | split the line at the cursor (opposite of `J`) |
 | `v` | x | cycle visual, visual-block, visual-line |
 | `<C-e>` / `<C-y>` | n | scroll 2 lines down / up |
 | `<A-Up>` `<A-Down>` `<A-Left>` `<A-Right>` | n | focus window above / below / left / right |
-| `<F2>` | n | toggle wrap |
+| `<F2>` | n, x, o | toggle wrap |
 | `<C-n>` | n | toggle `relativenumber` |
 | `,v` | n | toggle `virtualedit=all` |
 

@@ -85,7 +85,7 @@ The sources live in `scripts/.scripts/tecplot/`; top-level symlinks put them on 
 | Script | What it does | Usage |
 |---|---|---|
 | `borg-automated-backup.sh` | `borg create` + `borg prune` to two NAS repositories, see [below](#borg-automated-backup-sh) | `borg-automated-backup.sh` |
-| `mount_nas.sh` | NFSv3 mount of the NAS home share; the address comes from `NAS_ODROID_IP` | `mount_nas.sh` |
+| `mount_nas.sh` | NFSv3 mount of the NAS `/share/homes` on `/media/stefano/zaghi-nas` (sudo); the address comes from `NAS_ODROID_IP` | `mount_nas.sh` |
 | `mountiso` | Loop-mounts an ISO 9660 image (sudo) | `mountiso <file.iso> <dir>` |
 | `umountiso` | Unmounts it (sudo) | `umountiso <dir>` |
 | `archive.sh` | One `tar` per entry of the current directory; optionally deletes the originals and compresses with pbzip2 | `archive.sh [--delete] [--pbzip2]` |
@@ -113,7 +113,7 @@ The sources live in `scripts/.scripts/tecplot/`; top-level symlinks put them on 
 | `skills-apply` | Installs, updates and reports the declared Claude Code skills, see [below](#skills-apply) | `skills-apply install\|update\|status\|remove <name>` |
 | `claude-remote` | Claude Code sessions in tmux that survive SSH disconnects, see [below](#claude-remote) | `claude-remote [-H host] <command> [args]` |
 | `plan-issue` | Lint, create and update plan issues; symlink to `claude/.claude/skills/plan-issue/scripts/plan-issue`, see [Plan issues](/claude/plan-issue) | `plan-issue check\|create\|body\|edit\|status\|set\|comment\|stale\|sync` |
-| `delegate` | Run a task on a pi executor in a throwaway git clone, print JSON; symlink to `claude/.claude/skills/delegate/scripts/delegate`, see [Delegating to an executor](/claude/delegate) | `delegate --check CMD [--model P/ID] TASK` |
+| `delegate` | Run a task on a pi or opencode executor in a throwaway git clone, print JSON; symlink to `claude/.claude/skills/delegate/scripts/delegate`, see [Delegating to an executor](/claude/delegate) | `delegate [--harness pi\|opencode] [--model P/ID] [--check CMD] TASK` |
 | `night` | Step snapshots for unattended work; symlink to `claude/.claude/skills/night-protocol/scripts/night`, see [Night protocol](/claude/night-protocol) | `night init\|snap\|gate\|verify\|status\|commit\|clean` |
 | `llama-anthropic-proxy.py` | Anthropic Messages API to OpenAI Chat Completions proxy, for llama-server | `llama-anthropic-proxy.py [--host 127.0.0.1] [--port 4000] [--backend http://127.0.0.1:8080] [--no-think]` |
 
@@ -156,7 +156,8 @@ Both installers are idempotent and exit 1 when a step fails. `DOT` overrides the
 | `act` | Static `nektos/act` binary (0.2.28): runs GitHub Actions workflows locally | `act [event]` |
 | `hpc-login` | HPC SSH login through `step ssh login` (Step CA), with the OIDC browser flow driven by headless Playwright; username, password and OTP are asked on the terminal and never stored | `hpc-login [--headed] [--identity ID] [--provisioner P] [--screenshot] [--debug]` |
 
-`hpc-login` creates its own venv (`~/.bin/hpc-login-venv/`, gitignored) with Playwright and Chromium on first run.
+On first run `hpc-login` creates a venv with Playwright and Chromium next to its resolved path, in
+`scripts/.bin/hpc-login-venv/` (gitignored); stow links it as `~/.bin/hpc-login-venv`.
 
 ## git-health
 
@@ -237,16 +238,21 @@ claude-remote attach [name]                      # reattach, detaching other cli
 claude-remote detach [name]                      # detach every client, the session keeps running
 claude-remote list
 claude-remote stop [name]
-claude-remote headless "prompt" [dir]            # one-shot claude -p run, logged to claude_run_<date>.log
+claude-remote headless "prompt" [dir]            # background claude -p run, logged to <dir>/claude_run_<date>.log
 claude-remote -H wsl-adam attach                 # run the command on another host over ssh -t
 ```
 
-The default session name is `claude`. Claude arguments start at the first argument beginning with `-`, or after `--`.
-Detach with Ctrl-b d (tmux) or Ctrl-a d (screen).
+With no command it runs `start`. The default session name is `claude`. Claude arguments start at the first argument
+beginning with `-`, or after `--`; they are ignored, with a warning, when the session already runs. Detach with
+Ctrl-b d (tmux) or Ctrl-a d (screen).
+
+`headless` needs no tmux: it starts `nohup claude -p` with `--permission-mode acceptEdits` and stdin from
+`/dev/null`, so closing the ssh connection does not stop it, and prints the PID and log path. Continue the run
+interactively with `claude --continue` in the same directory.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `CLAUDE_REMOTE_CMD` | `claude` | Command typed into the session; a wrapper such as `claude-cfd-cnr` works |
+| `CLAUDE_REMOTE_CMD` | `claude` | Command typed into the session; a wrapper such as `claude-cfd-cnr` works. `headless` ignores it and runs `claude` |
 | `CLAUDE_ALLOWED_TOOLS` | `Bash,Read,Edit,Write,Glob,Grep` | Tools pre-approved for `headless` |
 
 ### Things to know
@@ -331,7 +337,9 @@ named `<hostname>-<date>-<time>` with `--stats`, then prunes archives with the `
 BORG_NAS_ZAGHI=<repo> BORG_NAS_ODROID=<repo> borg-automated-backup.sh
 ```
 
-The two variables override the built-in repository paths. The NAS shares must be mounted first (`mount_nas.sh`).
+The two variables override the built-in repository paths, `/mnt/nas-zaghi/...` and `/mnt/nas-odroid/...`. Both
+shares must be mounted there first. `mount_nas.sh` does not do it: it mounts a different share on
+`/media/stefano/zaghi-nas`.
 
 ### Things to know
 
@@ -394,6 +402,8 @@ Installs the LSP servers and the linter of the vim setup; nvim uses the same bin
 - **`Ds+.sh` and `tec2vtk` are Python 2** (`print x`); they fail under Python 3.
 - **`pacman-install-pkgs.sh` calls `yaourt`**, which is unmaintained. Both pacman scripts exit 2 even on success.
 - `image2pdf` strips only `.png` from the name: `photo.jpg` becomes `photo.jpg.pdf`.
+- `pdfcompress` ignores an unknown `-c` value and unknown options: the preset stays `default`. Its help text shows
+  `-t`; the option is `-c`.
 - `hpc-login`'s docstring shows `--shell-export`, but the parser does not define it; the call fails.
 - `git-health.md`, `claude-remote.md` and `mbox-index.md` sit next to the scripts and are stowed into `~/.scripts/`
   with them.

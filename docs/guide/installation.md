@@ -44,6 +44,7 @@ lands in the repository. For these directories that is wrong, so create them fir
 ```bash
 mkdir -p ~/.ssh ~/.claude ~/.config ~/.local/share
 chmod 700 ~/.ssh
+mkdir -p ~/.pi/agent      # adam only: machines/adam stows pi
 ```
 
 | Directory | Why it must be real |
@@ -51,10 +52,12 @@ chmod 700 ~/.ssh
 | `~/.ssh` | keys and `known_hosts` would be written into `ssh/.ssh/` |
 | `~/.claude` | credentials, transcripts and memory would be written into `claude/.claude/` |
 | `~/.config`, `~/.local/share` | every other program writes there |
+| `~/.pi/agent` (adam) | pi writes `settings.json`, `auth.json` (API keys) and `sessions/` next to the tracked `models.json` |
 
 Folding is intended for `~/.vim`, `~/.modules`, `~/.git-templates`, `~/.config/nvim` and
 `~/.local/share/applications`: nothing but this repository writes into them (vim-plug's
-`~/.vim/plugged` is gitignored).
+`~/.vim/plugged` is gitignored). `~/.config/systemd` also folds when it does not exist yet; the links that
+`systemctl --user enable` writes into it are gitignored.
 
 ## 4. Add the private file (optional)
 
@@ -76,7 +79,8 @@ bash ~/dotfiles/dotify.sh
 
 This stows the common packages (`bash vim nvim git claude modules python scripts miscellanea ssh tmux`)
 and then the packages listed in `machines/$(hostname -s)`. A conflict (a real file already where a link
-must go) stops Stow without changing anything: move the file away and run it again.
+must go) stops the run at that package: the packages before it are linked, the conflicting one is left
+untouched, the ones after it are not processed. Move the file away and run it again.
 [Stow and dotify.sh](/guide/dotify) explains every option.
 
 Open a new shell, or `source ~/.bashrc`, to load the configuration.
@@ -88,15 +92,16 @@ Stow creates links; it does not install programs or touch root-owned files. Thes
 | Step | Command | Where |
 |---|---|---|
 | Neovim (pinned, checksummed) and its CLI tools | `~/.scripts/install-nvim` | all |
-| LSP servers shared by vim and Neovim | `~/.scripts/install-vim-lsp.sh` | adam (it needs `apt-get`) |
+| LSP servers shared by vim and Neovim | `~/.scripts/install-vim-lsp.sh` (needs pipx, npm from nvm, `apt-get`) | adam |
 | vim plugins | start `vim`: vim-plug installs the missing ones on first launch | all |
 | Claude Code skills (plugins and third-party) | `skills-apply install`, then restart Claude Code | all |
-| Claude Code accounts | `claude-<account> login` once per account ([wrappers](/claude/wrappers)) | as needed |
+| Claude Code accounts | `claude-<account> login` once per account ([Subscription accounts](/claude/accounts)) | as needed |
+| pi coding agent, the delegate executor | `npm install -g @earendil-works/pi-coding-agent` (nvm scope), then the models of [Delegating to an executor](/claude/delegate) | adam |
 | Crash check for git repositories | `systemctl --user daemon-reload && systemctl --user enable --now git-health-boot.service` | all |
 | quark desktop: touchpad hwdb, WiFi power save | `~/.scripts/quark-desktop-install` | quark |
 | quark desktop: Noctalia templates | enable `gtk3, gtk4, qt, foot, alacritty, btop, sway` in Noctalia's settings → Templates (GUI only) | quark |
 | astrobit system files: WiFi power save, virtual EDID | `~/.scripts/astrobit-system-install` | astrobit |
-| HPC toolchains | install NVIDIA HPC SDK, GCC, Open MPI under the paths the modulefiles expect | adam |
+| HPC toolchains | install them where the modulefiles look: NVIDIA HPC SDK 26.9 in `/opt/nvidia/hpc_sdk/Linux_x86_64/26.9`, GCC 16.2.0 in `/opt/gcc/bin/16.2.0`, Open MPI 5.0.11 built with it in `/opt/openmpi/bin/5.0.11/gnu/16.2.0` | adam |
 
 Details: [scripts](/packages/scripts), [HPC modules](/packages/modules),
 [quark desktop](/packages/desktop-quark), [astrobit desktop](/packages/desktop-astrobit),

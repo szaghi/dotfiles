@@ -6,14 +6,14 @@
 # Keep total RAM under ~8 GB to leave headroom for the OS and browser.
 # Q4_K_M quant at 7B fits in ~5 GB; 3B fits in ~2.5 GB.
 OLLAMA_DEFAULT_MODEL="qwen2.5-coder:7b"
-OLLAMA_LIGHT_MODEL="qwen2.5-coder:3b"    # Use when RAM pressure is high
-OLLAMA_PLAN_MODEL="qwen2.5-coder:7b"
-OLLAMA_EXEC_MODEL="qwen2.5-coder:7b"
+# Under RAM pressure: claude-local --model qwen2.5-coder:3b
 
 # ── LLAMA.CPP ─────────────────────────────────────────────────────────────────
+# Plain assignments: the base file has already set both (-1 layers, 131072), so a ${VAR:-x} here would
+# change nothing.
 # CPU-only inference — no GPU layers
-LLAMACPP_GPU_LAYERS="${LLAMACPP_GPU_LAYERS:-0}"
+LLAMACPP_GPU_LAYERS=0
 # Smaller context to limit RAM usage
-LLAMACPP_CTX="${LLAMACPP_CTX:-8192}"
+LLAMACPP_CTX=8192
 # Default model: small GGUF that fits in CPU RAM
 LLAMACPP_DEFAULT_MODEL="${LLAMACPP_DEFAULT_MODEL:-${HOME}/models/qwen2.5-coder-7b-q4_k_m.gguf}"

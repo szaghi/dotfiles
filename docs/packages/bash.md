@@ -20,7 +20,7 @@ This links `~/.bashrc`, `~/.bash_profile`, `~/.inputrc`, `~/.dircolors.256dark` 
 
 | File | What it does |
 |---|---|
-| `bash/.bashrc` | Loader: returns early for non-interactive shells, sources `~/.bash/*`, sets history and `shopt` options, completions, pnpm, nvm, conda |
+| `bash/.bashrc` | Loader: returns early for non-interactive shells, sources `~/.bash/*`, sets history and `shopt` options, completions, pnpm, nvm, opencode, conda |
 | `bash/.bash_profile` | Sources `~/.bashrc`, so login shells get the same setup |
 | `bash/.inputrc` | Readline: case-insensitive completion, key bindings |
 | `bash/.dircolors.256dark` | Solarized colours for `ls`, read by `exports` |
@@ -52,8 +52,10 @@ private  aliases  compilers  claude_code  exports  functions  optprogs  paths  p
 
 After the loop `.bashrc` sets the history options (`histappend`, `ignoredups`), `checkwinsize`, `nocaseglob`,
 `cdspell`, `autocd`, `globstar`, `lesspipe` (Debian `lesspipe` or Arch `lesspipe.sh`), `/etc/bash_completion`,
-ssh host completion from `~/.ssh/config`, the `bd` completion, pnpm, nvm, the mosaic/FoBiS/MaTiSSe completions and,
-where `~/miniforge3` exists, conda.
+ssh host completion from `~/.ssh/config`, the `bd` completion, the icons-in-terminal glyphs when
+`~/.local/share/icons-in-terminal/icons_bash.sh` exists, pnpm (`PNPM_HOME`), nvm, the mosaic/FoBiS/MaTiSSe
+completions, `~/.opencode/bin` prepended to `PATH` (the opencode CLI, a delegate harness) and, where `~/miniforge3`
+exists, conda.
 
 ::: warning Remote commands get no dotfiles
 The first line of `.bashrc` is `[ -z "$PS1" ] && return`. A non-interactive shell, such as `ssh host cmd` or
@@ -205,7 +207,7 @@ The settings in `bash/.bash/exports` that change behaviour:
 
 `bash/.bash/claude_code` defines the `claude-*` wrappers (cloud accounts and providers, local backends) and
 `llm-local-server`. Host-specific values (GPU IDs, models, binaries) go in `~/.bash/claude_code.local`. Full
-reference: [Accounts and providers](/claude/wrappers) and [Local LLM servers](/claude/local-llm).
+reference: [Session commands](/claude/sessions), [Local models](/claude/local-llm) and [Environment reference](/claude/environment).
 
 `bash/.bash/claude_code_cluster` is the cut-down variant for a cluster node, where `claude_code` is not wanted. It
 keeps Node.js, Claude Code and the Ollama models on node-local scratch to stay out of the home quota, and defines
@@ -227,9 +229,10 @@ source ~/.bash/claude_code_cluster
   function only prints "No manual entry".
 - **`cp`, `rm` and `mv` are interactive.** Scripts are not affected (aliases do not expand in non-interactive shells);
   in an interactive shell, bypass with `\rm` or `command rm`.
-- **`.bashrc` sources two completion files without a guard**: `~/.bash_completions/matisse.sh` and
-  `~/.bash_completions/fobis.sh`. On a host without them every shell prints a "No such file" error until they are
-  installed or the lines are guarded.
+- **`.bashrc` sources two completion files without a guard**, by absolute path under `/home/stefano`:
+  `.bash_completions/matisse.sh` and `.bash_completions/fobis.sh` (the latter a second time, after a guarded
+  source). On a host without them every shell prints a "No such file" error until they are installed or the lines are
+  guarded. The opencode and conda lines hard-code the same home directory.
 - **The `g` completion in `.bashrc` targets an alias that does not exist.** It is inert.
 - **`welcome` costs time on every new shell** (`ip`, `nvidia-smi`, `fortune`). It only runs in interactive shells.
 - **`claude_code_cluster` is stowed everywhere but loaded nowhere.** That is deliberate; sourcing it on a workstation

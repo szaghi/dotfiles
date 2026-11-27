@@ -14,7 +14,7 @@ the rest are written here so they are not rediscovered the hard way.
 | Conventional Commits: `<type>(<scope>): <description>` | the template `git/.git-templates/git_commit_message_template` |
 | types `feat fix build ci test docs refactor perf style chore revert` | the template |
 | commits and tags are GPG-signed | `git/.gitconfig` (`commit.gpgsign`, the key in `bash-<host>/.gitconfig.local`) |
-| no `Co-authored-by` line for Claude or any AI | the `no-ai-coauthor` hook in agent sessions ([hooks](/claude/hooks)) |
+| no `Co-authored-by` line for Claude or any AI | the `no-ai-coauthor` hook in agent sessions ([hooks](/claude/hooks)); the `commit-msg` template hook in repositories where it is installed ([git](/packages/git#hooks)) |
 | Claude never commits on its own | the global `CLAUDE.md`; [`/semantic-commit`](/claude/commands) only stages and writes the message |
 
 The scope is the package or area: `feat(claude): …`, `fix(scripts): …`, `docs(nvim): …`.
@@ -26,9 +26,10 @@ The scope is the package or area: `feat(claude): …`, `fix(scripts): …`, `doc
 - **Authored, not generated.** Track what a person writes. Generated output (Noctalia themes, plugin
   directories, caches) stays out, and a package must not link a directory whose siblings a
   program generates.
-- **One copy.** A file needed in two places is linked, not copied: `scripts/.scripts/night` is a link to
-  the night-protocol skill's script, `claude/.claude/skills/llm-wiki` a link into the `llm-wiki`
-  repository.
+- **One copy.** A file needed in two places is linked, not copied: `scripts/.scripts/night`,
+  `scripts/.scripts/plan-issue` and `scripts/.scripts/delegate` are relative links to the scripts of the
+  night-protocol, plan-issue and delegate skills, `claude/.claude/skills/llm-wiki` a link into the `llm-wiki`
+  repository. Edit the target, never replace a link with a copy.
 
 ## Secrets
 
@@ -45,7 +46,8 @@ common file.
 
 ## Editors
 
-- **Indentation:** 3 spaces everywhere, 4 for Python; trailing whitespace is stripped on save.
+- **Indentation:** 3 spaces everywhere, 4 for Python. Trailing whitespace is stripped on save: in vim for
+  the programming and markup filetypes it lists, in Neovim for every filetype but `diff`, `gitsendemail` and `mail`.
 - **One key map for vim and Neovim**, leader `,`. A map must not be a prefix of another (`,r` and `,rn`):
   vim would wait `timeoutlen` on the short one.
 - **vim and Neovim never share state:** no shared runtimepath, undo directory or plugin directory.

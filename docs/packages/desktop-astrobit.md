@@ -47,7 +47,7 @@ there land next to the symlinks, not in the repo.
 | `cfg/input.kdl` | Keyboard, touchpad, mouse, focus behaviour |
 | `cfg/keybinds.kdl` | All key bindings |
 | `cfg/layout.kdl` | `gaps 16`; `center-focused-column "never"`; `background-color "transparent"` (Noctalia draws the wallpaper); preset column widths 1/3, 1/2, 2/3 |
-| `cfg/rules.kdl` | Window rules: corner radius 20 with clipping, blur on every window; Noctalia settings window (`dev.noctalia.Noctalia`) floating at 1080x920; Steam windows floating; Noctalia wallpaper layer in the backdrop |
+| `cfg/rules.kdl` | Window rules: corner radius 20 with clipping, blur on every window; Noctalia settings window (`dev.noctalia.Noctalia`) floating at 1080x920; Steam windows floating except the main one, notification toasts at the bottom right; Noctalia wallpaper layer in the backdrop; no xray on Noctalia's bar, panels, OSD and notifications |
 | `cfg/misc.kdl` | `prefer-no-csd`; `screenshot-path null`; environment; cursor `capitaine-cursors` size 24; blur parameters; `honor-xdg-activation-with-invalid-serial`; hotkey overlay skipped at startup |
 
 ### Input
@@ -150,9 +150,9 @@ here; quark routes it through qt6ct instead.
 | `Mod+Shift+P` | Power off monitors |
 | `Ctrl+Alt+Delete` | Quit niri |
 | `XF86Audio{RaiseVolume,LowerVolume,Mute,MicMute}` | Volume and mic via Noctalia (also when locked) |
-| `XF86Audio{Next,Prev,Play}` | Media next / previous / play via Noctalia |
-| `XF86AudioPause` | `noctalia msg media stop` |
-| `XF86MonBrightness{Up,Down}` | Brightness via Noctalia |
+| `XF86Audio{Next,Prev,Play}` | Media next / previous / play via Noctalia (also when locked) |
+| `XF86AudioPause` | `noctalia msg media stop` (also when locked) |
+| `XF86MonBrightness{Up,Down}` | Brightness via Noctalia (also when locked) |
 
 ## foot
 
@@ -165,7 +165,7 @@ astrobit's `foot.ini` is not quark's:
 | Font | `monospace:size=12` | No Nerd Font installed |
 
 Other settings: `pad=6x6`, `initial-window-size-chars=100x30`, `selection-target=both`; 10000 scrollback lines,
-`multiplier=3.0`; underline cursor, hollow when unfocused, no blink; `hide-when-typing=yes`;
+`multiplier=3.0`, `indicator-position=relative`; underline cursor, hollow when unfocused, no blink; `hide-when-typing=yes`;
 `search-start=Control+Shift+f`. foot 1.26 and later select `[colors-dark]` or `[colors-light]` by
 `initial-color-theme`, which defaults to dark; only the dark section is defined.
 

@@ -20,7 +20,7 @@ bash ~/dotfiles/dotify.sh --dry-run  # preview
 
 | Host | `machines/<host>` lists |
 |---|---|
-| adam | `usr`, `bash-adam` |
+| adam | `usr`, `bash-adam`, `pi` |
 | quark | `bash-quark`, `desktop` |
 | astrobit | `bash-astrobit`, `desktop-astrobit` |
 
@@ -40,11 +40,14 @@ What each host's `claude_code.local` sets:
 
 | Host | Settings |
 |---|---|
-| adam | account e-mails for the `claude-<acct>` login prompt; GPU UUID and id for Ollama; flash attention and `q8_0` KV cache; Ollama default, light, plan and exec models; the locally CUDA-built `llama-server` and `ik_llama.cpp` binaries with their CUDA runtime libraries; default GGUF models; ik_llama context 32768 |
+| adam | account e-mails for the `claude-<acct>` login prompt; GPU UUID and id for Ollama; flash attention and `q8_0` KV cache; the Ollama default model; the locally CUDA-built `llama-server` (`~/llama.cpp-master`) and `ik_llama.cpp` binaries, used when present, with the CUDA runtime libraries of NVHPC 26.1; default GGUF models; llama.cpp and ik_llama context 32768 |
 | quark | small Ollama models for 16 GB of RAM; llama.cpp CPU-only (`LLAMACPP_GPU_LAYERS=0`), context 8192 |
 | astrobit | the smallest Ollama models; `OLLAMA_KEEP_ALIVE=2m` so idle models leave RAM to the telescope stack; llama.cpp CPU-only, context 4096 |
 
-How these variables are used: [Local LLM servers](/claude/local-llm) and [Accounts and providers](/claude/wrappers).
+How these variables are used: [Local models](/claude/local-llm), [Model utilities](/claude/model-tools#machine-overrides) and [Environment reference](/claude/environment).
+Overrides in these files are plain assignments (`LLAMACPP_CTX=8192`): the base file has already set every variable
+by the time it sources `.local`, so a `${VAR:-value}` there changes nothing. The `delegate` executor is not set
+here: `delegate` takes it from `--model`, `$DELEGATE_MODEL` or its built-in default.
 Signing itself: [git](/packages/git).
 
 ## `usr/`
@@ -53,6 +56,14 @@ Desktop entries in `usr/.local/share/applications/`, with their icons, for progr
 Bitwarden, Blender, ChituBox, CURA, FreeCAD, Ideamaker, Lychee, OrcaSlicer, ParaView, SuperSlicer, Telegram,
 UVTools. `claude-code-url-handler.desktop` registers `claude --handle-uri` for `claude-cli://` links. Only adam
 stows `usr`.
+
+## `pi/`
+
+adam only. It tracks one file, `pi/.pi/agent/models.json`: the Ollama, `llamacpp` (`:8080`) and `ikllama` (`:8081`)
+providers of the pi coding agent, the executor `delegate` hands tasks to. Stow links the file into the real
+`~/.pi/agent/` directory; pi's `settings.json`, `auth.json` and `sessions/` stay untracked there. Run pi once before
+the first stow, so that `~/.pi/agent/` exists: otherwise stow links `~/.pi` itself into the repository and pi writes
+its keys and sessions into `pi/`. Models and the executor setup: [Executors](/claude/executors#models).
 
 ## `machines/<host>.skills`
 

@@ -122,3 +122,5 @@ Other hosts get it with `git pull && bash dotify.sh claude`.
   diff itself; the excerpt at the top of the prompt is stale by then.
 - The `no-ai-coauthor` hook backs up the "no AI co-author" rule for commits run by an agent, see
   [Hooks](/claude/hooks#no-ai-coauthor).
+- `/capture-findings` may also use `Write`, to create a missing target file. Its class 3b follows Claude Code's
+  built-in auto-memory protocol (from the system prompt), not a section of the global `CLAUDE.md`.

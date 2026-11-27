@@ -38,6 +38,9 @@ scripts/.config/systemd/user/*.target.wants/
 scripts/.config/systemd/user/sunshine.service
 *.gpg
 *token*
+# *token* is deliberately broad (it also catches vim's undo copy of ~/.hf_token); re-include the
+# Fortran-standard skill chapter it would otherwise hide, which SKILL.md links.
+!claude/.claude/skills/fortran-2023-standard/chapters/ch06-lexical-tokens.md
 *secret*
 *api-key*
 *api_key*
